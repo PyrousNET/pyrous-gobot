@@ -79,23 +79,28 @@ func (h *Handler) HandleMsgFromChannel(quit chan bool, event *model.WebSocketEve
 					err = h.mm.SendCmdToChannel(response.Message, response.Channel, post)
 				case "dm":
 					c, _ := h.mm.Client.CreateDirectChannel(post.UserId, h.mm.BotUser.Id)
-					post := &model.Post{}
-					post.ChannelId = c.Id
-					post.Message = response.Message
+					replyPost := &model.Post{}
+					replyPost.ChannelId = c.Id
+					replyPost.Message = response.Message
 
-					_, e := h.mm.Client.CreatePost(post)
+					_, e := h.mm.Client.CreatePost(replyPost)
 					if e.Error != nil {
 						err = fmt.Errorf("%+v\n", e.Error)
 					}
 				case "shutdown":
 					c, _ := h.mm.Client.CreateDirectChannel(post.UserId, h.mm.BotUser.Id)
-					post := &model.Post{}
-					post.ChannelId = c.Id
-					post.Message = response.Message
+					replyPost := &model.Post{}
+					replyPost.ChannelId = c.Id
+					replyPost.Message = response.Message
 
-					_, e := h.mm.Client.CreatePost(post)
+					_, e := h.mm.Client.CreatePost(replyPost)
 					if e.Error != nil {
 						err = fmt.Errorf("%+v\n", e.Error)
+					}
+
+					err = h.mm.SendMsgToChannel("Awe, Crap!", response.Channel, post)
+					if err != nil {
+						log.Print(err)
 					}
 
 					quit <- true
