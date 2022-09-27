@@ -7,7 +7,7 @@ import (
 	"os/signal"
 
 	"github.com/mattermost/mattermost-server/v5/model"
-	"github.com/pyrousnet/mattermost-golang-bot/internal/settings"
+	"github.com/pyrousnet/pyrous-gobot/internal/settings"
 )
 
 type MMClient struct {

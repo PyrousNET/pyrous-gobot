@@ -8,10 +8,10 @@ import (
 	"log"
 	"os"
 
-	"github.com/pyrousnet/mattermost-golang-bot/internal/cache"
-	"github.com/pyrousnet/mattermost-golang-bot/internal/handler"
-	"github.com/pyrousnet/mattermost-golang-bot/internal/mmclient"
-	"github.com/pyrousnet/mattermost-golang-bot/internal/settings"
+	"github.com/pyrousnet/pyrous-gobot/internal/cache"
+	"github.com/pyrousnet/pyrous-gobot/internal/handler"
+	"github.com/pyrousnet/pyrous-gobot/internal/mmclient"
+	"github.com/pyrousnet/pyrous-gobot/internal/settings"
 )
 
 func main() {
