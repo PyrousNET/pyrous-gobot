@@ -1,6 +1,7 @@
 
 logs
 .DS_Store
+gobot
 
 # Build Targets
 .prebuild
