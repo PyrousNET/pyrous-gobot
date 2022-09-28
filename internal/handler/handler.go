@@ -6,10 +6,10 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/pyrousnet/mattermost-golang-bot/internal/cache"
-	"github.com/pyrousnet/mattermost-golang-bot/internal/commands"
-	"github.com/pyrousnet/mattermost-golang-bot/internal/mmclient"
-	"github.com/pyrousnet/mattermost-golang-bot/internal/settings"
+	"github.com/pyrousnet/pyrous-gobot/internal/cache"
+	"github.com/pyrousnet/pyrous-gobot/internal/commands"
+	"github.com/pyrousnet/pyrous-gobot/internal/mmclient"
+	"github.com/pyrousnet/pyrous-gobot/internal/settings"
 
 	"github.com/mattermost/mattermost-server/v5/model"
 )
@@ -30,15 +30,15 @@ func NewHandler(mm *mmclient.MMClient, redis cache.Cache) (*Handler, error) {
 	}, err
 }
 
-func (h *Handler) HandleWebSocketResponse(event *model.WebSocketEvent) {
+func (h *Handler) HandleWebSocketResponse(quit chan bool, event *model.WebSocketEvent) {
 	if event.GetBroadcast().ChannelId == h.mm.DebuggingChannel.Id {
 		h.HandleMsgFromDebuggingChannel(event)
 	} else {
-		h.HandleMsgFromChannel(event)
+		h.HandleMsgFromChannel(quit, event)
 	}
 }
 
-func (h *Handler) HandleMsgFromChannel(event *model.WebSocketEvent) {
+func (h *Handler) HandleMsgFromChannel(quit chan bool, event *model.WebSocketEvent) {
 	//Only handle messaged posted events
 	if event.EventType() != model.WEBSOCKET_EVENT_POSTED {
 		return
@@ -64,9 +64,11 @@ func (h *Handler) HandleMsgFromChannel(event *model.WebSocketEvent) {
 				response.Channel = channelId
 			}
 
-			dmchannel, _ := h.mm.Client.CreateDirectChannel(post.UserId, h.mm.BotUser.Id)
-			if response.Channel == dmchannel.Id {
-				response.Type = "dm"
+			if response.Type != "shutdown" {
+				dmchannel, _ := h.mm.Client.CreateDirectChannel(post.UserId, h.mm.BotUser.Id)
+				if response.Channel == dmchannel.Id {
+					response.Type = "dm"
+				}
 			}
 
 			if response.Message != "" {
@@ -77,14 +79,31 @@ func (h *Handler) HandleMsgFromChannel(event *model.WebSocketEvent) {
 					err = h.mm.SendCmdToChannel(response.Message, response.Channel, post)
 				case "dm":
 					c, _ := h.mm.Client.CreateDirectChannel(post.UserId, h.mm.BotUser.Id)
-					post := &model.Post{}
-					post.ChannelId = c.Id
-					post.Message = response.Message
+					replyPost := &model.Post{}
+					replyPost.ChannelId = c.Id
+					replyPost.Message = response.Message
 
-					_, e := h.mm.Client.CreatePost(post)
+					_, e := h.mm.Client.CreatePost(replyPost)
 					if e.Error != nil {
 						err = fmt.Errorf("%+v\n", e.Error)
 					}
+				case "shutdown":
+					c, _ := h.mm.Client.CreateDirectChannel(post.UserId, h.mm.BotUser.Id)
+					replyPost := &model.Post{}
+					replyPost.ChannelId = c.Id
+					replyPost.Message = response.Message
+
+					_, e := h.mm.Client.CreatePost(replyPost)
+					if e.Error != nil {
+						err = fmt.Errorf("%+v\n", e.Error)
+					}
+
+					err = h.mm.SendMsgToChannel("Awe, Crap!", response.Channel, post)
+					if err != nil {
+						log.Print(err)
+					}
+
+					quit <- true
 				}
 			}
 		} else {
