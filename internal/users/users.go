@@ -48,27 +48,17 @@ func SetupUsers(mm *mmclient.MMClient, c cache.Cache) error {
 func HandlePost(post *model.Post, mm *mmclient.MMClient, c cache.Cache) error {
 	user, _ := mm.Client.GetUser(post.UserId, "")
 	key := KeyPrefix + user.Username
-	persisted, _ := GetUser(user.Username, c)
+	persisted, ok, _ := GetUser(user.Username, c)
 
-	persisted.Message = post.Message
-	c.Put(key, persisted)
+	if ok {
+		persisted.Message = post.Message
+		c.Put(key, persisted)
+	}
 
 	return nil
 }
 
-func GetUser(username string, c cache.Cache) (User, error) {
-	var u User
-	key := KeyPrefix + username
-	user, ok, err := c.Get(key)
-	if ok {
-		u = user.(User)
-	} else {
-		return User{}, err
-	}
-	return u, nil
-}
-
-func HasUser(username string, c cache.Cache) (User, bool, error) {
+func GetUser(username string, c cache.Cache) (User, bool, error) {
 	key := KeyPrefix + username
 	user, ok, err := c.Get(key)
 	if err != nil {

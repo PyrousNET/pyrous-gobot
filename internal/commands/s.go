@@ -18,13 +18,16 @@ func (bc BotCommand) S(event BotCommand) (response Response, err error) {
 	var toReplace, withText string
 
 	response.Type = "command"
-	u, err := users.GetUser(strings.TrimLeft(event.sender, "@"), event.cache)
+	u, ok, err := users.GetUser(strings.TrimLeft(event.sender, "@"), event.cache)
 
 	if err != nil {
 		return Response{}, err
 	}
 
-	oldMessage := u.Message
+	var oldMessage string
+	if ok {
+		oldMessage = u.Message
+	}
 
 	parts := strings.Split(event.body, "/")
 	if len(parts) < 3 {
