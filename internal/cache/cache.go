@@ -7,7 +7,7 @@ import (
 type Cache interface {
 	Put(key string, value interface{})
 	PutAll(map[string]interface{})
-	Get(key string) interface{}
+	Get(key string) (interface{}, error)
 	GetAll(keys []string) map[string]interface{}
 	Clean(key string)
 	CleanAll()

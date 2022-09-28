@@ -57,7 +57,13 @@ func HandlePost(post *model.Post, mm *mmclient.MMClient, c cache.Cache) error {
 }
 
 func GetUser(username string, c cache.Cache) (User, error) {
+	var u User
 	key := KeyPrefix + username
-	user := c.Get(key)
-	return user.(User), nil
+	user, err := c.Get(key)
+	if user != nil {
+		u = user.(User)
+	} else {
+		return User{}, err
+	}
+	return u, nil
 }

@@ -18,6 +18,7 @@ type (
 		availableMethods []Method
 		Mm               *mmclient.MMClient
 		Settings         *settings.Settings
+		Cache            cache.Cache
 	}
 
 	Method struct {
@@ -47,10 +48,10 @@ func NewCommands(settings *settings.Settings, mm *mmclient.MMClient, cache cache
 	commands := Commands{
 		Settings: settings,
 		Mm:       mm,
+		Cache:    cache,
 	}
 
 	c := BotCommand{}
-	c.cache = cache
 	t := reflect.TypeOf(&c)
 	v := reflect.ValueOf(&c)
 	for i := 0; i < t.NumMethod(); i++ {
@@ -72,6 +73,7 @@ func (c *Commands) HandleCommandMsgFromWebSocket(event *model.WebSocketEvent) (R
 			post := model.PostFromJson(strings.NewReader(p.(string))).Message
 
 			bc, err := c.NewBotCommandFromPost(post, sender.(string))
+			bc.cache = c.Cache
 			if err != nil {
 				return c.SendErrorResponse(sender.(string), err.Error())
 			}

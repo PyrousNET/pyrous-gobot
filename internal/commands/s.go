@@ -10,8 +10,13 @@ func (bc BotCommand) S(event BotCommand) (response Response, err error) {
 	var toReplace, withText string
 
 	response.Type = "command"
-	u, _ := users.GetUser(event.sender, event.cache)
+	u, err := users.GetUser(event.sender, event.cache)
 
+	if err != nil {
+		println(err)
+	}
+
+	println(u.Message, u.Name)
 	oldMessage := u.Message
 
 	fmt.Sscanf(event.body, "!s/%s/%s/", &toReplace, &withText)

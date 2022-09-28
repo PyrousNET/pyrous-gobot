@@ -42,19 +42,19 @@ func (rc *RedisCache) PutAll(entries map[string]interface{}) {
 	}
 }
 
-func (rc *RedisCache) Get(key string) interface{} {
+func (rc *RedisCache) Get(key string) (interface{}, error) {
 	value, err := rc.conn.Get(rc.ctx, key).Result()
 	if err != nil {
 		fmt.Println(err)
-		return ""
+		return "", err
 	}
-	return value
+	return value, err
 }
 
 func (rc *RedisCache) GetAll(keys []string) map[string]interface{} {
 	entries := make(map[string]interface{})
 	for _, k := range keys {
-		entries[k] = rc.Get(k)
+		entries[k], _ = rc.Get(k)
 	}
 
 	return entries
