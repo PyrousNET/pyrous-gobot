@@ -1,6 +1,7 @@
 package users
 
 import (
+	"github.com/mattermost/mattermost-server/v5/model"
 	"github.com/pyrousnet/mattermost-golang-bot/internal/cache"
 	"github.com/pyrousnet/mattermost-golang-bot/internal/mmclient"
 )
@@ -41,6 +42,17 @@ func SetupUsers(mm *mmclient.MMClient, c cache.Cache) error {
 			c.Put(key, newUser)
 		}
 	}
+	return nil
+}
+
+func HandlePost(post *model.Post, mm *mmclient.MMClient, c cache.Cache) error {
+	user, _ := mm.Client.GetUser(post.UserId, "")
+	key := KeyPrefix + user.Username
+	persisted, _ := GetUser(user.Username, c)
+
+	persisted.Message = post.Message
+	c.Put(key, persisted)
+
 	return nil
 }
 

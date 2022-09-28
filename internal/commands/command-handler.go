@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"github.com/pyrousnet/mattermost-golang-bot/internal/cache"
 	"log"
 	"reflect"
 	"strings"
@@ -32,6 +33,7 @@ type (
 		settings     *settings.Settings
 		replyChannel *model.Channel
 		method       Method
+		cache        cache.Cache
 	}
 
 	Response struct {
@@ -41,13 +43,14 @@ type (
 	}
 )
 
-func NewCommands(settings *settings.Settings, mm *mmclient.MMClient) *Commands {
+func NewCommands(settings *settings.Settings, mm *mmclient.MMClient, cache cache.Cache) *Commands {
 	commands := Commands{
 		Settings: settings,
 		Mm:       mm,
 	}
 
 	c := BotCommand{}
+	c.cache = cache
 	t := reflect.TypeOf(&c)
 	v := reflect.ValueOf(&c)
 	for i := 0; i < t.NumMethod(); i++ {

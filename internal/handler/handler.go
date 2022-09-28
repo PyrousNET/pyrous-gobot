@@ -25,9 +25,6 @@ func NewHandler(mm *mmclient.MMClient, redis cache.Cache) (*Handler, error) {
 	settings, err := settings.NewSettings(mm.SettingsUrl)
 	users.SetupUsers(mm, redis)
 
-	u, _ := users.GetUser("trixtur", redis)
-	println("Found: " + u.Name)
-
 	return &Handler{
 		Settings: settings,
 		mm:       mm,
@@ -49,10 +46,12 @@ func (h *Handler) HandleMsgFromChannel(event *model.WebSocketEvent) {
 		return
 	}
 
-	cmds := commands.NewCommands(h.Settings, h.mm)
+	cmds := commands.NewCommands(h.Settings, h.mm, h.Cache)
 
 	channelId := event.GetBroadcast().ChannelId
 	post := model.PostFromJson(strings.NewReader(event.GetData()["post"].(string)))
+
+	err := users.HandlePost(post, h.mm, h.Cache)
 
 	// Ignore bot messages
 	if post.UserId == h.mm.BotUser.Id {
