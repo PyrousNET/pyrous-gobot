@@ -2,7 +2,7 @@ package commands
 
 import (
 	"fmt"
-	"github.com/pyrousnet/mattermost-golang-bot/internal/cache"
+	"github.com/pyrousnet/pyrous-gobot/internal/cache"
 	"log"
 	"reflect"
 	"strings"

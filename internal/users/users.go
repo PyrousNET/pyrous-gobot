@@ -2,8 +2,8 @@ package users
 
 import (
 	"github.com/mattermost/mattermost-server/v5/model"
-	"github.com/pyrousnet/mattermost-golang-bot/internal/cache"
-	"github.com/pyrousnet/mattermost-golang-bot/internal/mmclient"
+	"github.com/pyrousnet/pyrous-gobot/internal/cache"
+	"github.com/pyrousnet/pyrous-gobot/internal/mmclient"
 )
 
 const KeyPrefix = "user-"

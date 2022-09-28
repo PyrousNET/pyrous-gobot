@@ -2,7 +2,7 @@ package commands
 
 import (
 	"fmt"
-	"github.com/pyrousnet/mattermost-golang-bot/internal/users"
+	"github.com/pyrousnet/pyrous-gobot/internal/users"
 	"strings"
 )
 
