@@ -154,6 +154,7 @@ func (c *Commands) NewBotCommandFromPost(post string, sender string) (BotCommand
 		body:         body,
 		method:       method,
 		replyChannel: replyChannel,
+		sender:       sender,
 	}, nil
 }
 

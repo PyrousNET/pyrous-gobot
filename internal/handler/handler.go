@@ -51,8 +51,6 @@ func (h *Handler) HandleMsgFromChannel(quit chan bool, event *model.WebSocketEve
 	channelId := event.GetBroadcast().ChannelId
 	post := model.PostFromJson(strings.NewReader(event.GetData()["post"].(string)))
 
-	err := users.HandlePost(post, h.mm, h.Cache)
-
 	// Ignore bot messages
 	if post.UserId == h.mm.BotUser.Id {
 		return
@@ -63,6 +61,7 @@ func (h *Handler) HandleMsgFromChannel(quit chan bool, event *model.WebSocketEve
 	ok, err := regexp.MatchString(pattern, post.Message)
 	if ok {
 		response, err := cmds.HandleCommandMsgFromWebSocket(event)
+
 		if err == nil {
 			if "" == response.Channel {
 				response.Channel = channelId
@@ -114,6 +113,8 @@ func (h *Handler) HandleMsgFromChannel(quit chan bool, event *model.WebSocketEve
 			log.Println(err)
 		}
 	}
+
+	users.HandlePost(post, h.mm, h.Cache)
 
 	if err != nil {
 		log.Println(err)
