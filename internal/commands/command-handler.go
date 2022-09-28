@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"github.com/pyrousnet/pyrous-gobot/internal/cache"
 	"log"
 	"reflect"
 	"strings"
@@ -17,6 +18,7 @@ type (
 		availableMethods []Method
 		Mm               *mmclient.MMClient
 		Settings         *settings.Settings
+		Cache            cache.Cache
 	}
 
 	Method struct {
@@ -32,6 +34,7 @@ type (
 		settings     *settings.Settings
 		replyChannel *model.Channel
 		method       Method
+		cache        cache.Cache
 	}
 
 	Response struct {
@@ -41,10 +44,11 @@ type (
 	}
 )
 
-func NewCommands(settings *settings.Settings, mm *mmclient.MMClient) *Commands {
+func NewCommands(settings *settings.Settings, mm *mmclient.MMClient, cache cache.Cache) *Commands {
 	commands := Commands{
 		Settings: settings,
 		Mm:       mm,
+		Cache:    cache,
 	}
 
 	c := BotCommand{}
@@ -69,6 +73,7 @@ func (c *Commands) HandleCommandMsgFromWebSocket(event *model.WebSocketEvent) (R
 			post := model.PostFromJson(strings.NewReader(p.(string))).Message
 
 			bc, err := c.NewBotCommandFromPost(post, sender.(string))
+			bc.cache = c.Cache
 			if err != nil {
 				return c.SendErrorResponse(sender.(string), err.Error())
 			}
@@ -149,6 +154,7 @@ func (c *Commands) NewBotCommandFromPost(post string, sender string) (BotCommand
 		body:         body,
 		method:       method,
 		replyChannel: replyChannel,
+		sender:       sender,
 	}, nil
 }
 

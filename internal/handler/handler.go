@@ -10,6 +10,7 @@ import (
 	"github.com/pyrousnet/pyrous-gobot/internal/commands"
 	"github.com/pyrousnet/pyrous-gobot/internal/mmclient"
 	"github.com/pyrousnet/pyrous-gobot/internal/settings"
+	"github.com/pyrousnet/pyrous-gobot/internal/users"
 
 	"github.com/mattermost/mattermost-server/v5/model"
 )
@@ -20,13 +21,14 @@ type Handler struct {
 	mm       *mmclient.MMClient
 }
 
-func NewHandler(mm *mmclient.MMClient, redis cache.Cache) (*Handler, error) {
+func NewHandler(mm *mmclient.MMClient, botCache cache.Cache) (*Handler, error) {
 	settings, err := settings.NewSettings(mm.SettingsUrl)
+	users.SetupUsers(mm, botCache)
 
 	return &Handler{
 		Settings: settings,
 		mm:       mm,
-		Cache:    redis,
+		Cache:    botCache,
 	}, err
 }
 
@@ -44,7 +46,7 @@ func (h *Handler) HandleMsgFromChannel(quit chan bool, event *model.WebSocketEve
 		return
 	}
 
-	cmds := commands.NewCommands(h.Settings, h.mm)
+	cmds := commands.NewCommands(h.Settings, h.mm, h.Cache)
 
 	channelId := event.GetBroadcast().ChannelId
 	post := model.PostFromJson(strings.NewReader(event.GetData()["post"].(string)))
@@ -59,6 +61,7 @@ func (h *Handler) HandleMsgFromChannel(quit chan bool, event *model.WebSocketEve
 	ok, err := regexp.MatchString(pattern, post.Message)
 	if ok {
 		response, err := cmds.HandleCommandMsgFromWebSocket(event)
+
 		if err == nil {
 			if "" == response.Channel {
 				response.Channel = channelId
@@ -109,6 +112,8 @@ func (h *Handler) HandleMsgFromChannel(quit chan bool, event *model.WebSocketEve
 		} else {
 			log.Println(err)
 		}
+	} else {
+		users.HandlePost(post, h.mm, h.Cache)
 	}
 
 	if err != nil {
