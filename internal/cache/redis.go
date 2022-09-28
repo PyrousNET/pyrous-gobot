@@ -51,6 +51,12 @@ func (rc *RedisCache) Get(key string) (interface{}, error) {
 	return value, err
 }
 
+func (rc *RedisCache) Has(key string) (bool, error) {
+	value, _ := rc.conn.Exists(rc.ctx, key).Result()
+
+	return value > 0, nil
+}
+
 func (rc *RedisCache) GetAll(keys []string) map[string]interface{} {
 	entries := make(map[string]interface{})
 	for _, k := range keys {

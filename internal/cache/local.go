@@ -36,6 +36,13 @@ func (c *LocalCache) Get(key string) (interface{}, error) {
 	return data, nil
 }
 
+func (c *LocalCache) Has(key string) (bool, error) {
+	c.mu.RLock()
+	data, _ := c.data[key]
+	c.mu.RUnlock()
+	return data != nil, nil
+}
+
 func (c *LocalCache) GetAll(keys []string) map[string]interface{} {
 	entries := make(map[string]interface{})
 	for _, k := range keys {

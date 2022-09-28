@@ -70,14 +70,10 @@ func GetUser(username string, c cache.Cache) (User, error) {
 
 func HasUser(username string, c cache.Cache) (bool, error) {
 	key := KeyPrefix + username
-	user, err := c.Get(key)
+	user, err := c.Has(key)
 	if err != nil {
 		return false, err
 	}
 
-	if user != nil {
-		return true, nil
-	}
-
-	return false, nil
+	return user, nil
 }
