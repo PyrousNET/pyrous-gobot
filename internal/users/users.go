@@ -67,3 +67,17 @@ func GetUser(username string, c cache.Cache) (User, error) {
 	}
 	return u, nil
 }
+
+func HasUser(username string, c cache.Cache) (bool, error) {
+	key := KeyPrefix + username
+	user, err := c.Get(key)
+	if err != nil {
+		return false, err
+	}
+
+	if user != nil {
+		return true, nil
+	}
+
+	return false, nil
+}

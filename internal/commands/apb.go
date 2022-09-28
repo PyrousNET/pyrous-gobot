@@ -2,12 +2,18 @@ package commands
 
 import (
 	"fmt"
+	"github.com/pyrousnet/pyrous-gobot/internal/users"
 )
 
 func (bc BotCommand) Apb(event BotCommand) (response Response, err error) {
 	response.Type = "command"
-    // TODO - Check if the user exists.
-	response.Message = fmt.Sprintf(`/me sends out the blood hounds to find %s`, event.body)
+	u, err := users.HasUser(event.body, event.cache)
+	if u {
+		response.Message = fmt.Sprintf(`/me sends out the blood hounds to find %s`, event.body)
+	} else {
+		response.Type = "dm"
+		response.Message = fmt.Sprintf(`Who's ` + event.body + `?`)
+	}
 
-	return response, nil
+	return response, err
 }
