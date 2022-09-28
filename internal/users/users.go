@@ -5,6 +5,8 @@ import (
 	"github.com/pyrousnet/mattermost-golang-bot/internal/mmclient"
 )
 
+const KeyPrefix = "user-"
+
 type (
 	User struct {
 		Id            string `json:"id"`
@@ -24,6 +26,7 @@ func SetupUsers(mm *mmclient.MMClient, c cache.Cache) error {
 	if r.StatusCode == 200 {
 		for _, u := range userIds {
 			user, _ := mm.Client.GetUser(u, "")
+			key := KeyPrefix + user.Username
 			newUser := User{
 				Id:            u,
 				Name:          user.Username,
@@ -35,13 +38,14 @@ func SetupUsers(mm *mmclient.MMClient, c cache.Cache) error {
 				SyndFeed:      "",
 				FeedCount:     0,
 			}
-			c.Put(user.Username, newUser)
+			c.Put(key, newUser)
 		}
 	}
 	return nil
 }
 
 func GetUser(username string, c cache.Cache) (User, error) {
-	user := c.Get(username)
+	key := KeyPrefix + username
+	user := c.Get(key)
 	return user.(User), nil
 }
