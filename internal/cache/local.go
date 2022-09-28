@@ -10,7 +10,9 @@ type LocalCache struct {
 }
 
 func GetLocalCache() *LocalCache {
-	lc := &LocalCache{}
+	lc := &LocalCache{
+		data: make(map[string]interface{}),
+	}
 
 	return lc
 }
