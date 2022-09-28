@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"github.com/pyrousnet/mattermost-golang-bot/internal/users"
 	"log"
 	"regexp"
 	"strings"
@@ -22,6 +23,7 @@ type Handler struct {
 
 func NewHandler(mm *mmclient.MMClient, redis cache.Cache) (*Handler, error) {
 	settings, err := settings.NewSettings(mm.SettingsUrl)
+	users.SetupUsers(mm)
 
 	return &Handler{
 		Settings: settings,
