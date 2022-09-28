@@ -29,24 +29,17 @@ func (c *LocalCache) PutAll(entries map[string]interface{}) {
 	}
 }
 
-func (c *LocalCache) Get(key string) (interface{}, error) {
+func (c *LocalCache) Get(key string) (interface{}, bool, error) {
 	c.mu.RLock()
-	data, _ := c.data[key]
+	data, ok := c.data[key]
 	c.mu.RUnlock()
-	return data, nil
-}
-
-func (c *LocalCache) Has(key string) (bool, error) {
-	c.mu.RLock()
-	data, _ := c.data[key]
-	c.mu.RUnlock()
-	return data != nil, nil
+	return data, ok, nil
 }
 
 func (c *LocalCache) GetAll(keys []string) map[string]interface{} {
 	entries := make(map[string]interface{})
 	for _, k := range keys {
-		entries[k], _ = c.Get(k)
+		entries[k], _, _ = c.Get(k)
 	}
 
 	return entries

@@ -42,25 +42,20 @@ func (rc *RedisCache) PutAll(entries map[string]interface{}) {
 	}
 }
 
-func (rc *RedisCache) Get(key string) (interface{}, error) {
+func (rc *RedisCache) Get(key string) (interface{}, bool, error) {
 	value, err := rc.conn.Get(rc.ctx, key).Result()
+	ok, _ := rc.conn.Exists(rc.ctx, key).Result()
 	if err != nil {
 		fmt.Println(err)
-		return "", err
+		return "", false, err
 	}
-	return value, err
-}
-
-func (rc *RedisCache) Has(key string) (bool, error) {
-	value, _ := rc.conn.Exists(rc.ctx, key).Result()
-
-	return value > 0, nil
+	return value, ok > 0, err
 }
 
 func (rc *RedisCache) GetAll(keys []string) map[string]interface{} {
 	entries := make(map[string]interface{})
 	for _, k := range keys {
-		entries[k], _ = rc.Get(k)
+		entries[k], _, _ = rc.Get(k)
 	}
 
 	return entries
