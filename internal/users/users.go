@@ -1,7 +1,7 @@
 package users
 
 import (
-	"fmt"
+	"github.com/pyrousnet/mattermost-golang-bot/internal/cache"
 	"github.com/pyrousnet/mattermost-golang-bot/internal/mmclient"
 )
 
@@ -19,10 +19,10 @@ type (
 	}
 )
 
-func SetupUsers(mm *mmclient.MMClient) ([]User, error) {
-	users, r := mm.Client.GetKnownUsers()
+func SetupUsers(mm *mmclient.MMClient, c cache.Cache) error {
+	userIds, r := mm.Client.GetKnownUsers()
 	if r.StatusCode == 200 {
-		for _, u := range users {
+		for _, u := range userIds {
 			user, _ := mm.Client.GetUser(u, "")
 			newUser := User{
 				Id:            u,
@@ -35,9 +35,13 @@ func SetupUsers(mm *mmclient.MMClient) ([]User, error) {
 				SyndFeed:      "",
 				FeedCount:     0,
 			}
-			// TODO persist these to Redis
-			fmt.Printf("%v", newUser)
+			c.Put(user.Username, newUser)
 		}
 	}
-	return nil, nil
+	return nil
+}
+
+func GetUser(username string, c cache.Cache) (User, error) {
+	user := c.Get(username)
+	return user.(User), nil
 }

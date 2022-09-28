@@ -23,7 +23,10 @@ type Handler struct {
 
 func NewHandler(mm *mmclient.MMClient, redis cache.Cache) (*Handler, error) {
 	settings, err := settings.NewSettings(mm.SettingsUrl)
-	users.SetupUsers(mm)
+	users.SetupUsers(mm, redis)
+
+	u, _ := users.GetUser("trixtur", redis)
+	println("Found: " + u.Name)
 
 	return &Handler{
 		Settings: settings,
