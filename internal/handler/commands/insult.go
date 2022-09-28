@@ -19,7 +19,7 @@ func (bc BotCommand) Insult(event BotCommand) (response Response, err error) {
 
 		return response, nil
 	}
-	_, ok, err := users.HasUser(event.body, event.cache)
+	_, ok, err := users.GetUser(event.body, event.cache)
 	if ok {
 		arraySize := len(insults)
 

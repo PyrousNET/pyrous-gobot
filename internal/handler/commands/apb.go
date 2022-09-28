@@ -7,7 +7,7 @@ import (
 
 func (bc BotCommand) Apb(event BotCommand) (response Response, err error) {
 	response.Type = "command"
-	_, ok, err := users.HasUser(event.body, event.cache)
+	_, ok, err := users.GetUser(event.body, event.cache)
 	if ok {
 		response.Message = fmt.Sprintf(`/me sends out the blood hounds to find %s`, event.body)
 	} else {
