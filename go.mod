@@ -1,4 +1,4 @@
-module github.com/pyrousnet/mattermost-golang-bot
+module github.com/pyrousnet/pyrous-gobot
 
 go 1.19
 
