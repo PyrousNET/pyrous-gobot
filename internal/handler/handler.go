@@ -112,9 +112,9 @@ func (h *Handler) HandleMsgFromChannel(quit chan bool, event *model.WebSocketEve
 		} else {
 			log.Println(err)
 		}
+	} else {
+		users.HandlePost(post, h.mm, h.Cache)
 	}
-
-	users.HandlePost(post, h.mm, h.Cache)
 
 	if err != nil {
 		log.Println(err)

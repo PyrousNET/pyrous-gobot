@@ -6,6 +6,14 @@ import (
 	"strings"
 )
 
+func (h BotCommandHelp) S(request BotCommand) (response HelpResponse) {
+	response.Help = "Have Bender replace a typo in the last thing you just said."
+
+	response.Description = "Cause the bot to replace the string for you. Usage: '!s /{old}/new/'"
+
+	return response
+}
+
 func (bc BotCommand) S(event BotCommand) (response Response, err error) {
 	var toReplace, withText string
 
@@ -20,7 +28,10 @@ func (bc BotCommand) S(event BotCommand) (response Response, err error) {
 
 	parts := strings.Split(event.body, "/")
 	if len(parts) < 3 {
-		return Response{}, fmt.Errorf("%s", "Incorrect string replace format.")
+		response.Type = "dm"
+		response.Message = "Incorrect string replace format. Try !help s"
+
+		return response, nil
 	}
 	toReplace = parts[1]
 	withText = parts[2]
