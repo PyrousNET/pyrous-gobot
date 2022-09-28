@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/pyrousnet/pyrous-gobot/internal/cache"
-	"github.com/pyrousnet/pyrous-gobot/internal/commands"
+	"github.com/pyrousnet/pyrous-gobot/internal/handler/commands"
 	"github.com/pyrousnet/pyrous-gobot/internal/mmclient"
 	"github.com/pyrousnet/pyrous-gobot/internal/settings"
 	"github.com/pyrousnet/pyrous-gobot/internal/users"
