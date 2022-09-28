@@ -59,8 +59,8 @@ func HandlePost(post *model.Post, mm *mmclient.MMClient, c cache.Cache) error {
 func GetUser(username string, c cache.Cache) (User, error) {
 	var u User
 	key := KeyPrefix + username
-	user, err := c.Get(key)
-	if user != nil {
+	user, ok, err := c.Get(key)
+	if ok {
 		u = user.(User)
 	} else {
 		return User{}, err
@@ -68,16 +68,16 @@ func GetUser(username string, c cache.Cache) (User, error) {
 	return u, nil
 }
 
-func HasUser(username string, c cache.Cache) (bool, error) {
+func HasUser(username string, c cache.Cache) (User, bool, error) {
 	key := KeyPrefix + username
-	user, err := c.Get(key)
+	user, ok, err := c.Get(key)
 	if err != nil {
-		return false, err
+		return User{}, false, err
 	}
 
-	if user != nil {
-		return true, nil
+	if ok {
+		return user.(User), ok, nil
 	}
 
-	return false, nil
+	return User{}, ok, nil
 }

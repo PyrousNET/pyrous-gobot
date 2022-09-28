@@ -19,8 +19,8 @@ func (bc BotCommand) Insult(event BotCommand) (response Response, err error) {
 
 		return response, nil
 	}
-	u, err := users.HasUser(event.body, event.cache)
-	if u {
+	_, ok, err := users.HasUser(event.body, event.cache)
+	if ok {
 		arraySize := len(insults)
 
 		rand := rand.New(rand.NewSource(time.Now().UnixNano()))
