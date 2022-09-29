@@ -89,7 +89,10 @@ func (c *Commands) HandleCommandMsgFromWebSocket(event *model.WebSocketEvent) (R
 			} else {
 				r.Channel = bc.replyChannel.Id
 				r.Type = "command"
-				r.Message = "/echo " + r.Message
+				checkMsg := strings.Split(r.Message, " ")
+				if checkMsg[0] != "/echo" {
+					r.Message = "/echo " + r.Message
+				}
 			}
 
 			return r, err
