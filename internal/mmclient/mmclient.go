@@ -7,12 +7,14 @@ import (
 	"os/signal"
 
 	"github.com/mattermost/mattermost-server/v5/model"
+	"github.com/mattermost/mattermost-server/v5/plugin"
 	"github.com/pyrousnet/pyrous-gobot/internal/settings"
 )
 
 type MMClient struct {
 	Client           *model.Client4
 	WebSocketClient  *model.WebSocketClient
+	Api              plugin.API
 	BotUser          *model.User
 	BotTeam          *model.Team
 	DebuggingChannel *model.Channel
@@ -247,4 +249,14 @@ func (c *MMClient) NewWebSocketClient() (*model.WebSocketClient, error) {
 	}
 
 	return ws, err
+}
+
+func (b *MMClient) UpdateActive(botUserID string, isActive bool) (*model.Bot, error) {
+	var err error
+	bot, appErr := b.Api.UpdateBotActive(botUserID, isActive)
+	if appErr != nil {
+		err = fmt.Errorf("%+v", appErr)
+	}
+
+	return bot, err
 }

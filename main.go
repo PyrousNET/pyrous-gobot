@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/pyrousnet/pyrous-gobot/internal/cache"
 	"github.com/pyrousnet/pyrous-gobot/internal/handler"
@@ -32,6 +33,17 @@ func main() {
 	if err != nil {
 		log.Fatalln(err.Error())
 	}
+
+	// Keep the bot from going inactive
+	go func() {
+		for {
+			_, err := mmClient.UpdateActive(mmClient.BotUser.Id, true)
+			if err != nil {
+				log.Println(err.Error())
+			}
+			time.Sleep(290 * time.Second)
+		}
+	}()
 
 	botCache := cache.GetCachingMechanism(cfg.Cache.CONN_STR)
 
