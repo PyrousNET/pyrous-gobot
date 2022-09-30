@@ -35,7 +35,7 @@ func main() {
 		for {
 			err := mmClient.KeepBotActive(true)
 			if err != nil {
-				log.Printf("error keeping the bot activ: %v", err)
+				log.Printf("error keeping the bot active: %v", err)
 			}
 			time.Sleep(290 * time.Second)
 		}
