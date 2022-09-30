@@ -5,10 +5,10 @@ import (
 )
 
 func (h BotCommandHelp) Say(request BotCommand) (response HelpResponse) {
-    response.Help = "Give Bender a line of text to say in a channel."
+    response.Help = "Give Bender a line of text to say in a channel. " +
+        "Usage: '!say in {channel} {text}' or '!say {text}' for same channel."
 
-    response.Description = "Cause the bot to say something in a channel. \n" +
-    "Usage: '!say in {channel} {text}' or '!say {text}' for same channel."
+    response.Description = "Cause the bot to say something in a channel. Usage: !say {text}"
 
     return response
 }
