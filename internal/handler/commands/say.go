@@ -4,6 +4,14 @@ import (
 	"fmt"
 )
 
+func (h BotCommandHelp) Say(request BotCommand) (responseHelpResponse) {
+    response.Help = "Give Bender a line of text to say in a channel."
+
+    response.Description = "Cause the bot to say something in a channel. Usage: '!say in {channel} {text}'"
+
+    return response
+}
+
 func (bc BotCommand) Say(event BotCommand) (response Response, err error) {
 	response.Type = "command"
 	response.Message = fmt.Sprintf(`/echo "%s" 1`, event.body)
