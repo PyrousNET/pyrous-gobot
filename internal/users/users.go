@@ -1,7 +1,7 @@
 package users
 
 import (
-	"github.com/mattermost/mattermost-server/v5/model"
+	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/pyrousnet/pyrous-gobot/internal/cache"
 	"github.com/pyrousnet/pyrous-gobot/internal/mmclient"
 )
@@ -23,10 +23,10 @@ type (
 )
 
 func SetupUsers(mm *mmclient.MMClient, c cache.Cache) error {
-	userIds, r := mm.Client.GetKnownUsers()
+	userIds, r, err := mm.Client.GetKnownUsers()
 	if r.StatusCode == 200 {
 		for _, u := range userIds {
-			user, _ := mm.Client.GetUser(u, "")
+			user, _, _ := mm.Client.GetUser(u, "")
 			key := KeyPrefix + user.Username
 			newUser := User{
 				Id:            u,
@@ -42,11 +42,11 @@ func SetupUsers(mm *mmclient.MMClient, c cache.Cache) error {
 			c.Put(key, newUser)
 		}
 	}
-	return nil
+	return err
 }
 
 func HandlePost(post *model.Post, mm *mmclient.MMClient, c cache.Cache) error {
-	user, _ := mm.Client.GetUser(post.UserId, "")
+	user, _, err := mm.Client.GetUser(post.UserId, "")
 	key := KeyPrefix + user.Username
 	persisted, ok, _ := GetUser(user.Username, c)
 
@@ -55,7 +55,7 @@ func HandlePost(post *model.Post, mm *mmclient.MMClient, c cache.Cache) error {
 		c.Put(key, persisted)
 	}
 
-	return nil
+	return err
 }
 
 func GetUser(username string, c cache.Cache) (User, bool, error) {

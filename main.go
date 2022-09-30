@@ -1,6 +1,3 @@
-// Copyright (c) 2016 Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
-
 package main
 
 import (
@@ -9,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/pyrousnet/pyrous-gobot/internal/cache"
 	"github.com/pyrousnet/pyrous-gobot/internal/handler"
@@ -17,7 +15,6 @@ import (
 )
 
 func main() {
-	//TODO: Set default env to prod
 	env := os.Getenv("ENV")
 	if env == "" {
 		env = "dev"
@@ -32,6 +29,17 @@ func main() {
 	if err != nil {
 		log.Fatalln(err.Error())
 	}
+
+	// Keep the bot from going inactive
+	go func() {
+		for {
+			err := mmClient.KeepBotActive()
+			if err != nil {
+				log.Printf("error keeping the bot active: %v", err)
+			}
+			time.Sleep(290 * time.Second)
+		}
+	}()
 
 	botCache := cache.GetCachingMechanism(cfg.Cache.CONN_STR)
 
