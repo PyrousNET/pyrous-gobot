@@ -1,6 +1,3 @@
-// Copyright (c) 2016 Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
-
 package main
 
 import (
@@ -18,7 +15,6 @@ import (
 )
 
 func main() {
-	//TODO: Set default env to prod
 	env := os.Getenv("ENV")
 	if env == "" {
 		env = "dev"
@@ -37,9 +33,9 @@ func main() {
 	// Keep the bot from going inactive
 	go func() {
 		for {
-			_, err := mmClient.UpdateActive(mmClient.BotUser.Id, true)
+			err := mmClient.KeepBotActive(true)
 			if err != nil {
-				log.Println(err.Error())
+				log.Printf("error keeping the bot activ: %v", err)
 			}
 			time.Sleep(290 * time.Second)
 		}

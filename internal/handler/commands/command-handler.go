@@ -2,15 +2,16 @@ package commands
 
 import (
 	"fmt"
-	"github.com/pyrousnet/pyrous-gobot/internal/cache"
 	"log"
 	"reflect"
 	"strings"
 
+	"github.com/pyrousnet/pyrous-gobot/internal/cache"
+
 	"github.com/pyrousnet/pyrous-gobot/internal/mmclient"
 	"github.com/pyrousnet/pyrous-gobot/internal/settings"
 
-	"github.com/mattermost/mattermost-server/v5/model"
+	"github.com/mattermost/mattermost-server/v6/model"
 )
 
 type (
@@ -70,7 +71,7 @@ func (c *Commands) HandleCommandMsgFromWebSocket(event *model.WebSocketEvent) (R
 	if ok {
 		p, ok := event.GetData()["post"]
 		if ok {
-			post := model.PostFromJson(strings.NewReader(p.(string))).Message
+			post := c.Mm.PostFromJson(strings.NewReader(p.(string))).Message
 
 			bc, err := c.NewBotCommandFromPost(post, sender.(string))
 			bc.cache = c.Cache

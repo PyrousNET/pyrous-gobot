@@ -12,7 +12,7 @@ import (
 	"github.com/pyrousnet/pyrous-gobot/internal/settings"
 	"github.com/pyrousnet/pyrous-gobot/internal/users"
 
-	"github.com/mattermost/mattermost-server/v5/model"
+	"github.com/mattermost/mattermost-server/v6/model"
 )
 
 type Handler struct {
@@ -42,14 +42,14 @@ func (h *Handler) HandleWebSocketResponse(quit chan bool, event *model.WebSocket
 
 func (h *Handler) HandleMsgFromChannel(quit chan bool, event *model.WebSocketEvent) {
 	//Only handle messaged posted events
-	if event.EventType() != model.WEBSOCKET_EVENT_POSTED {
+	if event.EventType() != "posted" {
 		return
 	}
 
 	cmds := commands.NewCommands(h.Settings, h.mm, h.Cache)
 
 	channelId := event.GetBroadcast().ChannelId
-	post := model.PostFromJson(strings.NewReader(event.GetData()["post"].(string)))
+	post := h.mm.PostFromJson(strings.NewReader(event.GetData()["post"].(string)))
 
 	// Ignore bot messages
 	if post.UserId == h.mm.BotUser.Id {
@@ -68,7 +68,7 @@ func (h *Handler) HandleMsgFromChannel(quit chan bool, event *model.WebSocketEve
 			}
 
 			if response.Type != "shutdown" {
-				dmchannel, _ := h.mm.Client.CreateDirectChannel(post.UserId, h.mm.BotUser.Id)
+				dmchannel, _, _ := h.mm.Client.CreateDirectChannel(post.UserId, h.mm.BotUser.Id)
 				if response.Channel == dmchannel.Id {
 					response.Type = "dm"
 				}
@@ -81,25 +81,20 @@ func (h *Handler) HandleMsgFromChannel(quit chan bool, event *model.WebSocketEve
 				case "command":
 					err = h.mm.SendCmdToChannel(response.Message, response.Channel, post)
 				case "dm":
-					c, _ := h.mm.Client.CreateDirectChannel(post.UserId, h.mm.BotUser.Id)
+					c, _, _ := h.mm.Client.CreateDirectChannel(post.UserId, h.mm.BotUser.Id)
 					replyPost := &model.Post{}
 					replyPost.ChannelId = c.Id
 					replyPost.Message = response.Message
 
-					_, e := h.mm.Client.CreatePost(replyPost)
-					if e.Error != nil {
-						err = fmt.Errorf("%+v\n", e.Error)
-					}
+					_, _, err = h.mm.Client.CreatePost(replyPost)
+
 				case "shutdown":
-					c, _ := h.mm.Client.CreateDirectChannel(post.UserId, h.mm.BotUser.Id)
+					c, _, _ := h.mm.Client.CreateDirectChannel(post.UserId, h.mm.BotUser.Id)
 					replyPost := &model.Post{}
 					replyPost.ChannelId = c.Id
 					replyPost.Message = response.Message
 
-					_, e := h.mm.Client.CreatePost(replyPost)
-					if e.Error != nil {
-						err = fmt.Errorf("%+v\n", e.Error)
-					}
+					_, _, err := h.mm.Client.CreatePost(replyPost)
 
 					err = h.mm.SendMsgToChannel("Awe, Crap!", response.Channel, post)
 					if err != nil {
@@ -123,13 +118,13 @@ func (h *Handler) HandleMsgFromChannel(quit chan bool, event *model.WebSocketEve
 
 func (h *Handler) HandleMsgFromDebuggingChannel(event *model.WebSocketEvent) {
 	// Lets only reponded to messaged posted events
-	if event.EventType() != model.WEBSOCKET_EVENT_POSTED {
+	if event.EventType() != "posted" {
 		return
 	}
 
 	println("responding to debugging channel msg")
 
-	post := model.PostFromJson(strings.NewReader(event.GetData()["post"].(string)))
+	post := h.mm.PostFromJson(strings.NewReader(event.GetData()["post"].(string)))
 	if post != nil {
 
 		// ignore my events
