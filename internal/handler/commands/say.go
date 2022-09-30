@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-func (h BotCommandHelp) Say(request BotCommand) (responseHelpResponse) {
+func (h BotCommandHelp) Say(request BotCommand) (response HelpResponse) {
     response.Help = "Give Bender a line of text to say in a channel."
 
     response.Description = "Cause the bot to say something in a channel. Usage: '!say in {channel} {text}'"
