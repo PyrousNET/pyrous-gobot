@@ -33,7 +33,7 @@ type (
 		target       string
 		mm           *mmclient.MMClient
 		settings     *settings.Settings
-		replyChannel *model.Channel
+		ReplyChannel *model.Channel
 		method       Method
 		cache        cache.Cache
 	}
@@ -66,60 +66,7 @@ func NewCommands(settings *settings.Settings, mm *mmclient.MMClient, cache cache
 	return &commands
 }
 
-func (c *Commands) HandleCommandMsgFromWebSocket(event *model.WebSocketEvent) (Response, error) {
-	sender, ok := event.GetData()["sender_name"]
-	if ok {
-		p, ok := event.GetData()["post"]
-		if ok {
-			post := c.Mm.PostFromJson(strings.NewReader(p.(string))).Message
-
-			bc, err := c.NewBotCommandFromPost(post, sender.(string))
-			bc.cache = c.Cache
-			if err != nil {
-				return c.SendErrorResponse(sender.(string), err.Error())
-			}
-
-			r, err := c.callCommand(bc)
-			if err != nil {
-				log.Printf("Error Executing command: %v", err)
-				return c.SendErrorResponse(sender.(string), err.Error())
-			}
-
-			if r.Channel == "" && bc.replyChannel.Id == "" {
-				r.Channel = event.GetBroadcast().ChannelId
-			} else {
-				r.Channel = bc.replyChannel.Id
-				r.Type = "command"
-				checkMsg := strings.Split(r.Message, " ")
-				if checkMsg[0] != "/echo" {
-					r.Message = "/echo " + r.Message
-				}
-			}
-
-			return r, err
-		}
-		return Response{}, fmt.Errorf("Error: Post not found.")
-	}
-	return Response{}, fmt.Errorf("Error: Sender not found.")
-}
-
-func (c *Commands) SendErrorResponse(target string, message string) (Response, error) {
-	replyChannel, _ := c.Mm.GetChannelByName(c.Mm.DebuggingChannel.Name)
-	method, _ := c.getMethod("Message")
-
-	bc := BotCommand{
-		mm:           c.Mm,
-		settings:     c.Settings,
-		target:       target,
-		replyChannel: replyChannel,
-		method:       method,
-		body:         message,
-	}
-
-	return c.callCommand(bc)
-}
-
-func (c *Commands) NewBotCommandFromPost(post string, sender string) (BotCommand, error) {
+func (c *Commands) NewBotCommand(post string, sender string) (BotCommand, error) {
 	ps := strings.Split(post, " ")
 
 	methodName := strings.Title(strings.TrimLeft(ps[0], c.Settings.GetCommandTrigger()))
@@ -159,12 +106,13 @@ func (c *Commands) NewBotCommandFromPost(post string, sender string) (BotCommand
 		settings:     c.Settings,
 		body:         body,
 		method:       method,
-		replyChannel: replyChannel,
+		ReplyChannel: replyChannel,
 		sender:       sender,
+		cache:        c.Cache,
 	}, nil
 }
 
-func (c *Commands) callCommand(botCommand BotCommand) (response Response, err error) {
+func (c *Commands) CallCommand(botCommand BotCommand) (response Response, err error) {
 	f := botCommand.method.valueOf
 
 	in := make([]reflect.Value, 1)
