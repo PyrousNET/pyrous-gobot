@@ -10,23 +10,28 @@ import (
 )
 
 func main() {
+	cmdDir := os.Getenv("COMMAND_DIR")
+	if cmdDir == "" {
+		cmdDir = "../"
+	}
+
 	for {
 		cmd := exec.Command("git", "pull")
-		cmd.Dir = "../"
+		cmd.Dir = cmdDir
 		_, err := cmd.Output()
 		if err != nil {
 			log.Fatal(err)
 		}
 
 		cmd = exec.Command("go", "build", "-o", "gobot", ".")
-		cmd.Dir = "../"
+		cmd.Dir = cmdDir
 		_, err = cmd.Output()
 		if err != nil {
 			log.Fatal(err)
 		}
 
 		cmd = exec.Command("./gobot")
-		cmd.Dir = "../"
+		cmd.Dir = cmdDir
 		stdout, err := cmd.StdoutPipe()
 		cmd.Stderr = cmd.Stdout
 		if err != nil {
