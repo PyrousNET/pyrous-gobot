@@ -33,7 +33,7 @@ func main() {
 	// Keep the bot from going inactive
 	go func() {
 		for {
-			err := mmClient.KeepBotActive(true)
+			err := mmClient.KeepBotActive()
 			if err != nil {
 				log.Printf("error keeping the bot active: %v", err)
 			}

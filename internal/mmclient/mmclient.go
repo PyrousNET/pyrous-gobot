@@ -249,14 +249,13 @@ func (c *MMClient) NewWebSocketClient() (*model.WebSocketClient, error) {
 	return ws, err
 }
 
-func (b *MMClient) KeepBotActive(isActive bool) error {
+func (b *MMClient) KeepBotActive() error {
 	status, _, err := b.Client.GetUserStatus(b.BotUser.Id, "")
 	if err != nil {
 		return err
 	}
-	status.Status = "online"
 
-	status, _, err = b.Client.UpdateUserStatus(b.BotUser.Id, status)
+	_, _, err = b.Client.UpdateUserStatus(b.BotUser.Id, status)
 
 	return err
 }
