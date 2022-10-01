@@ -52,7 +52,7 @@ func (h *Handler) HandleGame(quit chan bool, event *model.WebSocketEvent) error 
 			err = h.Mm.SendMsgToChannel(r.Message, r.Channel, post)
 		case "command":
 			err = h.Mm.SendCmdToChannel(r.Message, r.Channel, post)
-		case "multi":
+		case "multi": // TODO - We need to rethink this. It only allows 2 commands.
 			messages := strings.Split(r.Message, "##")
 			var firstMessage, secondMessage string
 			if len(messages) > 1 {
