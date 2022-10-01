@@ -51,6 +51,15 @@ func (h *Handler) HandleWebSocketResponse(quit chan bool, event *model.WebSocket
 					triggerType = "command"
 				}
 
+				gamePattern := `^\$(.*)`
+				if ok, err := regexp.MatchString(gamePattern, post.Message); ok {
+					if err != nil {
+						log.Println(err)
+						return
+					}
+					triggerType = "game"
+				}
+
 				h.HandleMsgFromChannel(triggerType, quit, event)
 			}
 		}
@@ -61,6 +70,11 @@ func (h *Handler) HandleMsgFromChannel(triggerType string, quit chan bool, event
 	switch triggerType {
 	case "command":
 		err := h.HandleCommand(quit, event)
+		if err != nil {
+			log.Println(err)
+		}
+	case "game":
+		err := h.HandleGame(quit, event)
 		if err != nil {
 			log.Println(err)
 		}
