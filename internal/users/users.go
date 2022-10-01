@@ -1,9 +1,11 @@
 package users
 
 import (
+	"encoding/json"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/pyrousnet/pyrous-gobot/internal/cache"
 	"github.com/pyrousnet/pyrous-gobot/internal/mmclient"
+	"reflect"
 )
 
 const KeyPrefix = "user-"
@@ -14,9 +16,9 @@ type (
 		Name          string `json:"name"`
 		Message       string `json:"message"`
 		Rps           string `json:"rps"`
-		RpsPlaying    bool   `json:"rps-playing"`
+		RpsPlaying    string `json:"rps-playing"`
 		FarkleValue   int    `json:"farkle-value"`
-		FarklePlaying bool   `json:"farkle-playing"`
+		FarklePlaying string `json:"farkle-playing"`
 		SyndFeed      string `json:"synd-feed"`
 		FeedCount     int    `json:"feed-count"`
 	}
@@ -33,13 +35,14 @@ func SetupUsers(mm *mmclient.MMClient, c cache.Cache) error {
 				Name:          user.Username,
 				Message:       "",
 				Rps:           "",
-				RpsPlaying:    false,
-				FarklePlaying: false,
+				RpsPlaying:    "",
+				FarklePlaying: "",
 				FarkleValue:   0,
 				SyndFeed:      "",
 				FeedCount:     0,
 			}
-			c.Put(key, newUser)
+			u, _ := json.Marshal(newUser)
+			c.Put(key, u)
 		}
 	}
 	return err
@@ -60,14 +63,56 @@ func HandlePost(post *model.Post, mm *mmclient.MMClient, c cache.Cache) error {
 
 func GetUser(username string, c cache.Cache) (User, bool, error) {
 	key := KeyPrefix + username
-	user, ok, err := c.Get(key)
+	u, ok, err := c.Get(key)
+	var user User
+
+	user, err = getUserFromUnknownType(u, user, err)
+
 	if err != nil {
 		return User{}, false, err
 	}
 
 	if ok {
-		return user.(User), ok, nil
+		return user, ok, nil
 	}
 
 	return User{}, ok, nil
+}
+
+func GetUsers(c cache.Cache) ([]User, bool, error) {
+	userKeys := c.GetKeys(KeyPrefix)
+	var users []User
+	var err error
+
+	for _, key := range userKeys {
+		u, ok, e := c.Get(key)
+		err = e
+
+		if ok {
+			var user User
+			user, err = getUserFromUnknownType(u, user, err)
+			users = append(users, user)
+		} else {
+			break
+		}
+	}
+
+	return users, true, err
+}
+
+func getUserFromUnknownType(u interface{}, user User, err error) (User, error) {
+	if reflect.TypeOf(u).String() != "[]uint8" {
+		user = u.(User)
+	} else {
+		err = json.Unmarshal(u.([]byte), &user)
+	}
+	return user, err
+}
+
+func UpdateUser(user User, c cache.Cache) (User, bool) {
+	key := KeyPrefix + user.Name
+
+	c.Put(key, user)
+
+	return user, true
 }
