@@ -254,6 +254,7 @@ func (b *MMClient) KeepBotActive() error {
 	if err != nil {
 		return err
 	}
+	status.Status = "online"
 
 	_, _, err = b.Client.UpdateUserStatus(b.BotUser.Id, status)
 
