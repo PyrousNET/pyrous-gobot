@@ -5,6 +5,7 @@ import (
 	"log"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/pyrousnet/pyrous-gobot/internal/cache"
 
@@ -39,9 +40,11 @@ type (
 	}
 
 	Response struct {
-		Message string
-		Type    string
-		Channel string
+		Channel  string
+		Delay    time.Duration // Delay for 2nd message to be sent
+		Message  string
+		Message2 string
+		Type     string
 	}
 )
 
