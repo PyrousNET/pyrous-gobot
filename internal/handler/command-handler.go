@@ -3,6 +3,7 @@ package handler
 import (
 	"log"
 	"strings"
+	"time"
 
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/pyrousnet/pyrous-gobot/internal/handler/commands"
@@ -51,6 +52,10 @@ func (h *Handler) HandleCommand(quit chan bool, event *model.WebSocketEvent) err
 		switch r.Type {
 		case "post":
 			err = h.Mm.SendMsgToChannel(r.Message, r.Channel, post)
+			if r.Message2 != "" {
+				time.Sleep(r.Delay)
+				err = h.Mm.SendMsgToChannel(r.Message2, r.Channel, post)
+			}
 		case "command":
 			err = h.Mm.SendCmdToChannel(r.Message, r.Channel, post)
 		case "dm":
@@ -60,7 +65,14 @@ func (h *Handler) HandleCommand(quit chan bool, event *model.WebSocketEvent) err
 			replyPost.Message = r.Message
 
 			_, _, err = h.Mm.Client.CreatePost(replyPost)
+			if r.Message2 != "" {
+				time.Sleep(r.Delay)
+				replyPost := &model.Post{}
+				replyPost.ChannelId = c.Id
+				replyPost.Message = r.Message2
 
+				_, _, err = h.Mm.Client.CreatePost(replyPost)
+			}
 		case "shutdown":
 			c, _, _ := h.Mm.Client.CreateDirectChannel(post.UserId, h.Mm.BotUser.Id)
 			replyPost := &model.Post{}
