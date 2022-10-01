@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -31,7 +32,8 @@ func GetRedisCache(connStr string) *RedisCache {
 }
 
 func (rc *RedisCache) Put(key string, value interface{}) {
-	if err := rc.conn.Set(rc.ctx, key, value, 0); err != nil {
+	jsonItem, _ := json.Marshal(value)
+	if err := rc.conn.Set(rc.ctx, key, jsonItem, 0); err != nil {
 		fmt.Println(err)
 	}
 }
@@ -70,4 +72,8 @@ func (rc *RedisCache) Clean(key string) {
 // CleanAll cleans the entire cache.
 func (rc *RedisCache) CleanAll() {
 	rc.conn.FlushDB(rc.ctx)
+}
+
+func (rc *RedisCache) GetKeys(prefix string) []string {
+	return rc.conn.Keys(rc.ctx, prefix+"_*").Val()
 }
