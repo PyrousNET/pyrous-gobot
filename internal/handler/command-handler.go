@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"log"
 	"strings"
 	"time"
@@ -86,7 +87,13 @@ func (h *Handler) HandleCommand(quit chan bool, event *model.WebSocketEvent) err
 				log.Print(err)
 			}
 
-			h.Cache.Put("sys_restarted_by_user", post.UserId)
+			cache := map[string]interface{}{
+				"user":    post.UserId,
+				"channel": r.Channel,
+			}
+			cj, _ := json.Marshal(cache)
+
+			h.Cache.Put("sys_restarted_by_user", cj)
 
 			quit <- true
 		}
