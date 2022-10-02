@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"strings"
 	"sync"
 )
 
@@ -55,4 +56,15 @@ func (c *LocalCache) CleanAll() {
 	c.mu.Lock()
 	c.data = make(map[string]interface{})
 	c.mu.Unlock()
+}
+
+func (c *LocalCache) GetKeys(prefix string) []string {
+	keys := make([]string, 0, len(c.data))
+	for k, _ := range c.data {
+		if strings.Contains(k, prefix) {
+			keys = append(keys, k)
+		}
+	}
+
+	return keys
 }
