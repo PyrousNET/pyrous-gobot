@@ -12,6 +12,7 @@ import (
 const ROCK = "rock"
 const PAPER = "paper"
 const SCISSORS = "scissors"
+const PREFIX = "rps-"
 
 type RPS struct {
 	RpsPlaying string `json:"rps-playing"`
@@ -176,8 +177,18 @@ func getPlayer(player users.User) (RPS, error) {
 }
 
 func getPlayers(pUsers []users.User, c cache.Cache) ([]RPS, bool, error) {
-	// TODO
-	return []RPS{}, true, nil
+	var rpsUsers []RPS
+	for _, u := range pUsers {
+		rps, ok, _ := c.Get(PREFIX + u.Name)
+
+		if ok {
+			rpsUsers = append(rpsUsers, rps.(RPS))
+		}
+	}
+	if len(rpsUsers) == 0 {
+		return []RPS{}, false, nil
+	}
+	return rpsUsers, true, nil
 }
 
 func updateRps(playerRps RPS, c cache.Cache) (RPS, error) {
