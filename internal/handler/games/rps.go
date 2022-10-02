@@ -2,6 +2,7 @@ package games
 
 import (
 	"fmt"
+	"github.com/pyrousnet/pyrous-gobot/internal/cache"
 	"strings"
 
 	"github.com/google/uuid"
@@ -12,9 +13,19 @@ const ROCK = "rock"
 const PAPER = "paper"
 const SCISSORS = "scissors"
 
+type RPS struct {
+	RpsPlaying string `json:"rps-playing"`
+	Rps        string `json:"rps"`
+	Name       string `json:"name"`
+}
+
 func (bg BotGame) Rps(event BotGame) (response Response, err error) {
 	response.Type = "multi"
-	player, _, err := users.GetUser(strings.TrimLeft(event.sender, "@"), event.cache)
+	playerUser, _, err := users.GetUser(strings.TrimLeft(event.sender, "@"), event.cache)
+	if err != nil {
+		return Response{}, err
+	}
+	player, err := getPlayer(playerUser)
 	opponent, oErr := findApponent(event, player)
 	if !playing(player) {
 		if oErr == nil && playing(opponent) {
@@ -67,44 +78,45 @@ func (bg BotGame) Rps(event BotGame) (response Response, err error) {
 			opponent.RpsPlaying = ""
 		}
 
-		users.UpdateUser(opponent, event.cache)
+		updateRps(opponent, event.cache)
 	}
 
-	users.UpdateUser(player, event.cache)
+	updateRps(player, event.cache)
 
 	return response, err
 }
 
-func playing(player users.User) bool {
+func playing(player RPS) bool {
 	return player.RpsPlaying != ""
 }
 
-func sameGame(player users.User, opponent users.User) bool {
+func sameGame(player RPS, opponent RPS) bool {
 	return player.RpsPlaying == "" || player.RpsPlaying == opponent.RpsPlaying
 }
 
-func differentUser(player users.User, opponent users.User) bool {
+func differentUser(player RPS, opponent RPS) bool {
 	return player.Name != opponent.Name
 }
 
-func findApponent(event BotGame, forPlayer users.User) (users.User, error) {
+func findApponent(event BotGame, forPlayer RPS) (RPS, error) {
 	us, ok, err := users.GetUsers(event.cache)
-	var opponent users.User
+	rpsUs, ok, err := getPlayers(us, event.cache)
+	var opponent RPS
 	var found = false
 
 	if us == nil {
-		return users.User{}, fmt.Errorf("no opponent")
+		return RPS{}, fmt.Errorf("no opponent")
 	}
 
 	if ok {
-		for _, u := range us {
+		for _, u := range rpsUs {
 			if playing(u) && sameGame(forPlayer, u) && differentUser(forPlayer, u) {
 				opponent = u
 				found = true
 			}
 		}
 	} else {
-		return users.User{}, err
+		return RPS{}, err
 	}
 
 	if !found {
@@ -113,16 +125,16 @@ func findApponent(event BotGame, forPlayer users.User) (users.User, error) {
 	return opponent, err
 }
 
-func getWinner(player users.User, opponent users.User) ([]users.User, bool) {
+func getWinner(player RPS, opponent RPS) ([]RPS, bool) {
 	var hasWinner bool = false
-	var winners []users.User
+	var winners []RPS
 
 	if player.Rps == "" {
-		return []users.User{}, false
+		return []RPS{}, false
 	}
 
 	if opponent.Rps == "" {
-		return []users.User{}, false
+		return []RPS{}, false
 	}
 
 	if player.Rps == opponent.Rps {
@@ -156,4 +168,19 @@ func getWinner(player users.User, opponent users.User) ([]users.User, bool) {
 	}
 
 	return winners, hasWinner
+}
+
+func getPlayer(player users.User) (RPS, error) {
+	// TODO
+	return RPS{}, nil
+}
+
+func getPlayers(pUsers []users.User, c cache.Cache) ([]RPS, bool, error) {
+	// TODO
+	return []RPS{}, true, nil
+}
+
+func updateRps(playerRps RPS, c cache.Cache) (RPS, error) {
+	// TODO
+	return RPS{}, nil
 }
