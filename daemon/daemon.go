@@ -18,10 +18,11 @@ func main() {
 	for {
 		cmd := exec.Command("git", "pull")
 		cmd.Dir = cmdDir
-		_, err := cmd.Output()
+		output, err := cmd.CombinedOutput()
 		if err != nil {
 			log.Fatal(err)
 		}
+		log.Println(string(output))
 
 		cmd = exec.Command("go", "build", "-o", "gobot", ".")
 		cmd.Dir = cmdDir
