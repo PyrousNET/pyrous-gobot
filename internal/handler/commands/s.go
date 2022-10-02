@@ -2,8 +2,9 @@ package commands
 
 import (
 	"fmt"
-	"github.com/pyrousnet/pyrous-gobot/internal/users"
 	"strings"
+
+	"github.com/pyrousnet/pyrous-gobot/internal/users"
 )
 
 func (h BotCommandHelp) S(request BotCommand) (response HelpResponse) {

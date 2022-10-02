@@ -57,7 +57,9 @@ func HandlePost(post *model.Post, mm *mmclient.MMClient, c cache.Cache) error {
 
 	if ok {
 		persisted.Message = post.Message
-		c.Put(key, persisted)
+
+		ub, _ := json.Marshal(persisted)
+		c.Put(key, ub)
 	}
 
 	return err
@@ -72,13 +74,12 @@ func GetUser(username string, c cache.Cache) (User, bool, error) {
 	}
 
 	if ok {
-		var user User
-		user, err = getUserFromUnknownType(u, user, err)
+		usr, err := getUserFromUnknownType(u, err)
 		if err != nil {
 			return User{}, false, fmt.Errorf("error unmarshalling user: %v", err)
 		}
 
-		return user, ok, nil
+		return usr, ok, nil
 	}
 
 	return User{}, ok, nil
@@ -95,7 +96,7 @@ func GetUsers(c cache.Cache) ([]User, bool, error) {
 
 		if ok {
 			var user User
-			user, err = getUserFromUnknownType(u, user, err)
+			user, err = getUserFromUnknownType(u, err)
 			users = append(users, user)
 		} else {
 			break
@@ -105,16 +106,16 @@ func GetUsers(c cache.Cache) ([]User, bool, error) {
 	return users, true, err
 }
 
-func getUserFromUnknownType(u interface{}, user User, err error) (User, error) {
+func getUserFromUnknownType(u interface{}, err error) (User, error) {
+	var user User
+
 	if reflect.TypeOf(u).String() != "[]uint8" {
-		var user User
-		var jm map[string]interface{}
-		err = json.Unmarshal([]byte(u.(string)), &jm)
-		jb, _ := json.Marshal(jm)
-		err = json.Unmarshal(jb, &user)
-	} else {
-		err = json.Unmarshal(u.([]byte), &user)
+		err := json.Unmarshal([]byte(u.(string)), &user)
+		return user, err
 	}
+
+	err = json.Unmarshal(u.([]byte), &user)
+
 	return user, err
 }
 

@@ -2,7 +2,6 @@ package cache
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -32,8 +31,7 @@ func GetRedisCache(connStr string) *RedisCache {
 }
 
 func (rc *RedisCache) Put(key string, value interface{}) {
-	jsonItem, _ := json.Marshal(value)
-	if err := rc.conn.Set(rc.ctx, key, jsonItem, 0); err != nil {
+	if err := rc.conn.Set(rc.ctx, key, value, 0); err != nil {
 		fmt.Println(err)
 	}
 }
