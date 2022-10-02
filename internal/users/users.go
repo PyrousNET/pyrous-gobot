@@ -2,10 +2,12 @@ package users
 
 import (
 	"encoding/json"
+	"fmt"
+	"reflect"
+
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/pyrousnet/pyrous-gobot/internal/cache"
 	"github.com/pyrousnet/pyrous-gobot/internal/mmclient"
-	"reflect"
 )
 
 const KeyPrefix = "user-"
@@ -63,16 +65,19 @@ func HandlePost(post *model.Post, mm *mmclient.MMClient, c cache.Cache) error {
 
 func GetUser(username string, c cache.Cache) (User, bool, error) {
 	key := KeyPrefix + username
+
 	u, ok, err := c.Get(key)
-	var user User
-
-	user, err = getUserFromUnknownType(u, user, err)
-
 	if err != nil {
-		return User{}, false, err
+		return User{}, false, fmt.Errorf("error communicating with redis: %v", err)
 	}
 
 	if ok {
+		var user User
+		user, err = getUserFromUnknownType(u, user, err)
+		if err != nil {
+			return User{}, false, fmt.Errorf("error unmarshalling user: %v", err)
+		}
+
 		return user, ok, nil
 	}
 
@@ -102,7 +107,11 @@ func GetUsers(c cache.Cache) ([]User, bool, error) {
 
 func getUserFromUnknownType(u interface{}, user User, err error) (User, error) {
 	if reflect.TypeOf(u).String() != "[]uint8" {
-		user = u.(User)
+		var user User
+		var jm map[string]interface{}
+		err = json.Unmarshal([]byte(u.(string)), &jm)
+		jb, _ := json.Marshal(jm)
+		err = json.Unmarshal(jb, &user)
 	} else {
 		err = json.Unmarshal(u.([]byte), &user)
 	}
