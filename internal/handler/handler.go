@@ -24,6 +24,21 @@ func NewHandler(mm *mmclient.MMClient, botCache cache.Cache) (*Handler, error) {
 	settings, err := settings.NewSettings(mm.SettingsUrl)
 	users.SetupUsers(mm, botCache)
 
+	// restartUsr, ok, err := botCache.Get("restart-usr")
+	// if ok {
+	// 	c, _, _ := mm.Client.CreateDirectChannel(restartUsr.(string), mm.BotUser.Id)
+	// 	replyPost := &model.Post{}
+	// 	replyPost.ChannelId = c.Id
+	// 	replyPost.Message = "I' back, baby!"
+	//
+	// 	_, _, err := mm.Client.CreatePost(replyPost)
+	// 	if err != nil {
+	// 		log.Print(err)
+	// 	}
+	//
+	// 	botCache.Clean("restart-usr")
+	// }
+
 	return &Handler{
 		Settings: settings,
 		Mm:       mm,

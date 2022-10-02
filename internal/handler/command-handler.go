@@ -86,6 +86,8 @@ func (h *Handler) HandleCommand(quit chan bool, event *model.WebSocketEvent) err
 				log.Print(err)
 			}
 
+			h.Cache.Put("restart-usr", post.UserId)
+
 			quit <- true
 		}
 	}
