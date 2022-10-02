@@ -24,9 +24,10 @@ type MMClient struct {
 }
 
 type Server struct {
-	HOST     string `yaml:"host"`
-	PROTOCOL string `yaml:"protocol"`
-	PORT     string `yaml:"port"`
+	HOST      string `yaml:"host"`
+	PROTOCOL  string `yaml:"protocol"`
+	PORT      string `yaml:"port"`
+	CACHE_URI string `yaml:"cache_uri"`
 }
 
 // Documentation for the Go driver can be found

@@ -41,7 +41,7 @@ func main() {
 		}
 	}()
 
-	botCache := cache.GetCachingMechanism(cfg.Cache.CONN_STR)
+	botCache := cache.GetCachingMechanism(cfg.Server.CACHE_URI)
 
 	handler, err := handler.NewHandler(mmClient, botCache)
 	if err != nil {

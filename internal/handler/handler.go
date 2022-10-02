@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"regexp"
@@ -23,6 +24,31 @@ type Handler struct {
 func NewHandler(mm *mmclient.MMClient, botCache cache.Cache) (*Handler, error) {
 	settings, err := settings.NewSettings(mm.SettingsUrl)
 	users.SetupUsers(mm, botCache)
+
+	rb, ok, err := botCache.Get("sys_restarted_by_user")
+	if ok {
+		var rm map[string]string
+		json.Unmarshal([]byte(rb.(string)), &rm)
+
+		replyPost := &model.Post{}
+
+		mm.SendMsgToChannel("I'm back, baby!", rm["channel"], replyPost)
+
+		c, _, err := mm.Client.CreateDirectChannel(rm["user"], mm.BotUser.Id)
+		if err != nil {
+			log.Print(err)
+		}
+
+		replyPost.ChannelId = c.Id
+		replyPost.Message = "See?  😉"
+
+		_, _, err = mm.Client.CreatePost(replyPost)
+		if err != nil {
+			log.Print(err)
+		}
+
+		botCache.Clean("sys_restarted_by_user")
+	}
 
 	return &Handler{
 		Settings: settings,

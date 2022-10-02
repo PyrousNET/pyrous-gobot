@@ -2,7 +2,6 @@ package cache
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -32,8 +31,7 @@ func GetRedisCache(connStr string) *RedisCache {
 }
 
 func (rc *RedisCache) Put(key string, value interface{}) {
-	jsonItem, _ := json.Marshal(value)
-	if err := rc.conn.Set(rc.ctx, key, jsonItem, 0); err != nil {
+	if err := rc.conn.Set(rc.ctx, key, value, 0); err != nil {
 		fmt.Println(err)
 	}
 }
@@ -45,13 +43,16 @@ func (rc *RedisCache) PutAll(entries map[string]interface{}) {
 }
 
 func (rc *RedisCache) Get(key string) (interface{}, bool, error) {
-	value, err := rc.conn.Get(rc.ctx, key).Result()
-	ok, _ := rc.conn.Exists(rc.ctx, key).Result()
-	if err != nil {
-		fmt.Println(err)
-		return "", false, err
+	numkeys, _ := rc.conn.Exists(rc.ctx, key).Result()
+	if ok := numkeys > 0; ok {
+		value, err := rc.conn.Get(rc.ctx, key).Result()
+		if err != nil {
+			return "", false, err
+		}
+		return value, ok, nil
 	}
-	return value, ok > 0, err
+
+	return "", false, nil
 }
 
 func (rc *RedisCache) GetAll(keys []string) map[string]interface{} {
