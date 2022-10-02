@@ -2,9 +2,10 @@ package games
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/google/uuid"
 	"github.com/pyrousnet/pyrous-gobot/internal/users"
-	"strings"
 )
 
 const ROCK = "rock"
@@ -20,6 +21,8 @@ func (bg BotGame) Rps(event BotGame) (response Response, err error) {
 			channelId, ok, _ := event.cache.Get(opponent.RpsPlaying)
 			if ok && event.ReplyChannel != nil && channelId == event.ReplyChannel.Id {
 				player.RpsPlaying = opponent.RpsPlaying
+				response.Type = "dm"
+				response.Message = "Would you like to throw Rock, Paper or Scissors (Usage: $rps rock)"
 			}
 		} else {
 			id, e := uuid.NewRandom()
