@@ -8,9 +8,10 @@ import (
 
 type Config struct {
 	Server struct {
-		HOST     string `yaml:"host"`
-		PROTOCOL string `yaml:"protocol"`
-		PORT     string `yaml:"port"`
+		HOST      string `yaml:"host"`
+		PROTOCOL  string `yaml:"protocol"`
+		PORT      string `yaml:"port"`
+		CACHE_URI string `yaml:"cache_uri"`
 	} `yaml:"server"`
 	Bot struct {
 		SAMPLE_NAME   string `yaml:"sample_name"`
@@ -23,9 +24,6 @@ type Config struct {
 		LOG_NAME      string `yaml:"log_name"`
 		SETTINGS_URL  string `yaml:"settings_url"`
 	} `yaml:"bot"`
-	Cache struct {
-		CONN_STR string `yaml:"connection_string"`
-	} `yaml:"cache"`
 }
 
 // GetConfig reads the bot configuration file and loads into a Config struct
