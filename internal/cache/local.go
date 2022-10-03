@@ -58,7 +58,7 @@ func (c *LocalCache) CleanAll() {
 	c.mu.Unlock()
 }
 
-func (c *LocalCache) GetKeys(prefix string) []string {
+func (c *LocalCache) GetKeys(prefix string) ([]string, error) {
 	keys := make([]string, 0, len(c.data))
 	for k, _ := range c.data {
 		if strings.Contains(k, prefix) {
@@ -66,5 +66,5 @@ func (c *LocalCache) GetKeys(prefix string) []string {
 		}
 	}
 
-	return keys
+	return keys, nil
 }
