@@ -14,15 +14,11 @@ const KeyPrefix = "user-"
 
 type (
 	User struct {
-		Id            string `json:"id"`
-		Name          string `json:"name"`
-		Message       string `json:"message"`
-		Rps           string `json:"rps"`
-		RpsPlaying    string `json:"rps-playing"`
-		FarkleValue   int    `json:"farkle-value"`
-		FarklePlaying string `json:"farkle-playing"`
-		SyndFeed      string `json:"synd-feed"`
-		FeedCount     int    `json:"feed-count"`
+		Id        string `json:"id"`
+		Name      string `json:"name"`
+		Message   string `json:"message"`
+		SyndFeed  string `json:"synd-feed"`
+		FeedCount int    `json:"feed-count"`
 	}
 )
 
@@ -33,15 +29,11 @@ func SetupUsers(mm *mmclient.MMClient, c cache.Cache) error {
 			user, _, _ := mm.Client.GetUser(u, "")
 			key := KeyPrefix + user.Username
 			newUser := User{
-				Id:            u,
-				Name:          user.Username,
-				Message:       "",
-				Rps:           "",
-				RpsPlaying:    "",
-				FarklePlaying: "",
-				FarkleValue:   0,
-				SyndFeed:      "",
-				FeedCount:     0,
+				Id:        u,
+				Name:      user.Username,
+				Message:   "",
+				SyndFeed:  "",
+				FeedCount: 0,
 			}
 			u, _ := json.Marshal(newUser)
 			c.Put(key, u)
