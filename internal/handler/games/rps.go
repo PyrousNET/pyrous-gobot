@@ -89,10 +89,10 @@ func (bg BotGame) Rps(event BotGame) (response Response, err error) {
 			opponent.RpsPlaying = ""
 		}
 
-		updateRps(opponent, event.ReplyChannel.Id, event.cache)
+		updateRps(opponent, foundChannel.Id, event.cache)
 	}
 
-	updateRps(player, event.ReplyChannel.Id, event.cache)
+	updateRps(player, foundChannel.Id, event.cache)
 
 	return response, err
 }
