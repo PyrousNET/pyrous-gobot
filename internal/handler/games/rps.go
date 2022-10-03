@@ -83,10 +83,8 @@ func (bg BotGame) Rps(event BotGame) (response Response, err error) {
 				}
 			}
 
-			player.Rps = ""
-			player.RpsPlaying = ""
-			opponent.Rps = ""
-			opponent.RpsPlaying = ""
+			deleteRps(player, foundChannel.Id, event.cache)
+			deleteRps(opponent, foundChannel.Id, event.cache)
 		}
 
 		updateRps(opponent, foundChannel.Id, event.cache)
@@ -223,4 +221,9 @@ func updateRps(playerRps RPS, chanId string, c cache.Cache) (RPS, error) {
 	p, _ := json.Marshal(playerRps)
 	c.Put(key, p)
 	return playerRps, nil
+}
+
+func deleteRps(playerRps RPS, chanId string, c cache.Cache) {
+	var key string = PREFIX + playerRps.Name + "-" + chanId
+	c.Clean(key)
 }
