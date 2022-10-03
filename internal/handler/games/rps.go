@@ -24,16 +24,24 @@ type RPS struct {
 
 func (bg BotGame) Rps(event BotGame) (response Response, err error) {
 	response.Type = "multi"
+	var choice, channel string
+	fmt.Sscanf(event.body, "%s %s", &channel, &choice)
+	foundChannel, cErr := event.mm.GetChannelByName(channel)
+	if cErr == nil && foundChannel != nil {
+		response.Channel = foundChannel.Id
+	} else {
+		foundChannel = event.ReplyChannel
+	}
 	playerUser, _, err := users.GetUser(strings.TrimLeft(event.sender, "@"), event.cache)
 	if err != nil {
 		return Response{}, err
 	}
-	player, perr := getPlayer(playerUser, event.ReplyChannel.Id, event.cache)
-	opponent, oErr := findApponent(event, player, event.ReplyChannel.Id)
+	player, perr := getPlayer(playerUser, foundChannel.Id, event.cache)
+	opponent, oErr := findApponent(event, player, foundChannel.Id)
 	if perr != nil || !playing(player) {
 		if oErr == nil && playing(opponent) {
 			channelId, ok, _ := event.cache.Get(opponent.RpsPlaying)
-			if ok && event.ReplyChannel != nil && channelId == event.ReplyChannel.Id {
+			if ok && event.ReplyChannel != nil && channelId == foundChannel.Id {
 				player.RpsPlaying = opponent.RpsPlaying
 				response.Type = "dm"
 				response.Message = fmt.Sprintf("Would you like to throw Rock, Paper or Scissors (Usage: $rps %s rock)", event.ReplyChannel.Name)
@@ -50,12 +58,6 @@ func (bg BotGame) Rps(event BotGame) (response Response, err error) {
 	}
 
 	if event.body != "" {
-		var choice, channel string
-		fmt.Sscanf(event.body, "%s %s", &channel, &choice)
-		foundChannel, cErr := event.mm.GetChannelByName(channel)
-		if cErr == nil {
-			response.Channel = foundChannel.Id
-		}
 		switch strings.ToLower(choice) {
 		case "rock", "paper", "scissors":
 			player.Rps = strings.ToLower(choice)
@@ -67,7 +69,7 @@ func (bg BotGame) Rps(event BotGame) (response Response, err error) {
 		}
 	}
 
-	if oErr == nil {
+	if oErr == nil && opponent.Name != "" {
 		winners, hasWinner := getWinner(player, opponent)
 		if hasWinner {
 			channelId, ok, _ := event.cache.Get(player.RpsPlaying)
@@ -109,7 +111,7 @@ func differentUser(player RPS, opponent RPS) bool {
 
 func findApponent(event BotGame, forPlayer RPS, chanId string) (RPS, error) {
 	us, ok, err := users.GetUsers(event.cache)
-	rpsUs, ok, err := getPlayers(us, chanId, event.cache)
+	rpsUs, ok, gPerr := getPlayers(us, chanId, event.cache)
 	var opponent RPS
 	var found = false
 
@@ -125,7 +127,7 @@ func findApponent(event BotGame, forPlayer RPS, chanId string) (RPS, error) {
 			}
 		}
 	} else {
-		return RPS{}, err
+		return RPS{}, gPerr
 	}
 
 	if !found {
