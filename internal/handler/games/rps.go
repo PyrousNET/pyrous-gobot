@@ -14,7 +14,7 @@ import (
 const ROCK = "rock"
 const PAPER = "paper"
 const SCISSORS = "scissors"
-const PREFIX = "rps-"
+const PREFIX = "rps"
 
 type RPS struct {
 	RpsPlaying string `json:"rps-playing"`
@@ -86,6 +86,7 @@ func (bg BotGame) Rps(event BotGame) (response Response, err error) {
 			deleteGame(player.RpsPlaying, event.cache)
 			deleteRps(player, foundChannel.Id, event.cache)
 			deleteRps(opponent, foundChannel.Id, event.cache)
+			return response, err
 		}
 
 		updateRps(opponent, foundChannel.Id, event.cache)
@@ -181,7 +182,7 @@ func getWinner(player RPS, opponent RPS) ([]RPS, bool) {
 }
 
 func getPlayer(player users.User, chanId string, c cache.Cache) (RPS, error) {
-	var key string = PREFIX + player.Name + "-" + chanId
+	key := fmt.Sprintf("%s-%s-%s", PREFIX, player.Name, chanId)
 	var rps RPS
 	r, ok, _ := c.Get(key)
 	if ok {
@@ -198,7 +199,7 @@ func getPlayer(player users.User, chanId string, c cache.Cache) (RPS, error) {
 func getPlayers(pUsers []users.User, chanId string, c cache.Cache) ([]RPS, bool, error) {
 	var rpsUsers []RPS
 	for _, u := range pUsers {
-		var key string = PREFIX + u.Name + "-" + chanId
+		key := fmt.Sprintf("%s-%s-%s", PREFIX, u.Name, chanId)
 		r, ok, _ := c.Get(key)
 		var rps RPS
 		if ok {
@@ -218,14 +219,14 @@ func getPlayers(pUsers []users.User, chanId string, c cache.Cache) ([]RPS, bool,
 }
 
 func updateRps(playerRps RPS, chanId string, c cache.Cache) (RPS, error) {
-	var key string = PREFIX + playerRps.Name + "-" + chanId
+	key := fmt.Sprintf("%s-%s-%s", PREFIX, playerRps.Name, chanId)
 	p, _ := json.Marshal(playerRps)
 	c.Put(key, p)
 	return playerRps, nil
 }
 
 func deleteRps(playerRps RPS, chanId string, c cache.Cache) {
-	var key string = PREFIX + playerRps.Name + "-" + chanId
+	key := fmt.Sprintf("%s-%s-%s", PREFIX, playerRps.Name, chanId)
 	c.Clean(key)
 }
 func deleteGame(uuid string, c cache.Cache) {

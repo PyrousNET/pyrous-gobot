@@ -78,7 +78,10 @@ func GetUser(username string, c cache.Cache) (User, bool, error) {
 }
 
 func GetUsers(c cache.Cache) ([]User, bool, error) {
-	userKeys := c.GetKeys(KeyPrefix)
+	userKeys, kerr := c.GetKeys(KeyPrefix)
+	if kerr != nil {
+		return []User{}, false, kerr
+	}
 	var users []User
 	var err error
 

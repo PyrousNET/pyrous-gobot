@@ -10,7 +10,7 @@ type Cache interface {
 	Get(key string) (interface{}, bool, error)
 	GetAll(keys []string) map[string]interface{}
 	Clean(key string)
-	GetKeys(prefix string) []string
+	GetKeys(prefix string) ([]string, error)
 	CleanAll()
 }
 
