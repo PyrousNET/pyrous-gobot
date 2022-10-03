@@ -75,6 +75,6 @@ func (rc *RedisCache) CleanAll() {
 	rc.conn.FlushDB(rc.ctx)
 }
 
-func (rc *RedisCache) GetKeys(prefix string) []string {
-	return rc.conn.Keys(rc.ctx, prefix+"_*").Val()
+func (rc *RedisCache) GetKeys(prefix string) ([]string, error) {
+	return rc.conn.Keys(rc.ctx, prefix+"*").Result()
 }
