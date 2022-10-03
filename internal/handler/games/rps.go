@@ -1,8 +1,10 @@
 package games
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/pyrousnet/pyrous-gobot/internal/cache"
+	"reflect"
 	"strings"
 
 	"github.com/google/uuid"
@@ -26,20 +28,20 @@ func (bg BotGame) Rps(event BotGame) (response Response, err error) {
 	if err != nil {
 		return Response{}, err
 	}
-	player, err := getPlayer(playerUser)
-	opponent, oErr := findApponent(event, player)
-	if !playing(player) {
+	player, perr := getPlayer(playerUser, event.ReplyChannel.Id, event.cache)
+	opponent, oErr := findApponent(event, player, event.ReplyChannel.Id)
+	if perr != nil || !playing(player) {
 		if oErr == nil && playing(opponent) {
 			channelId, ok, _ := event.cache.Get(opponent.RpsPlaying)
 			if ok && event.ReplyChannel != nil && channelId == event.ReplyChannel.Id {
 				player.RpsPlaying = opponent.RpsPlaying
 				response.Type = "dm"
-				response.Message = "Would you like to throw Rock, Paper or Scissors (Usage: $rps rock)"
+				response.Message = fmt.Sprintf("Would you like to throw Rock, Paper or Scissors (Usage: $rps %s rock)", event.ReplyChannel.Name)
 			}
 		} else {
 			id, e := uuid.NewRandom()
 			event.cache.Put(id.String(), event.ReplyChannel.Id)
-			response.Message = fmt.Sprintf("Would you like to throw Rock, Paper or Scissors (Usage: $rps rock)##%s is looking for an opponent in RPS.", event.sender)
+			response.Message = fmt.Sprintf("Would you like to throw Rock, Paper or Scissors (Usage: $rps %s rock)##%s is looking for an opponent in RPS.", event.ReplyChannel.Name, event.sender)
 			if e != nil {
 				return response, e
 			}
@@ -48,14 +50,20 @@ func (bg BotGame) Rps(event BotGame) (response Response, err error) {
 	}
 
 	if event.body != "" {
-		switch strings.ToLower(event.body) {
+		var choice, channel string
+		fmt.Sscanf(event.body, "%s %s", &channel, &choice)
+		foundChannel, cErr := event.mm.GetChannelByName(channel)
+		if cErr == nil {
+			response.Channel = foundChannel.Id
+		}
+		switch strings.ToLower(choice) {
 		case "rock", "paper", "scissors":
-			player.Rps = strings.ToLower(event.body)
+			player.Rps = strings.ToLower(choice)
 			response.Type = "dm"
-			response.Message = fmt.Sprintf("I have you down for: %s", strings.Title(strings.ToLower(event.body)))
+			response.Message = fmt.Sprintf("I have you down for: %s", strings.Title(strings.ToLower(choice)))
 		default:
 			response.Type = "dm"
-			response.Message = fmt.Sprintf(`Uh, %s isn't an option. Try rock, paper or scissors'`, event.body)
+			response.Message = fmt.Sprintf(`Uh, %s isn't an option. Try rock, paper or scissors'`, choice)
 		}
 	}
 
@@ -79,10 +87,10 @@ func (bg BotGame) Rps(event BotGame) (response Response, err error) {
 			opponent.RpsPlaying = ""
 		}
 
-		updateRps(opponent, event.cache)
+		updateRps(opponent, event.ReplyChannel.Id, event.cache)
 	}
 
-	updateRps(player, event.cache)
+	updateRps(player, event.ReplyChannel.Id, event.cache)
 
 	return response, err
 }
@@ -99,9 +107,9 @@ func differentUser(player RPS, opponent RPS) bool {
 	return player.Name != opponent.Name
 }
 
-func findApponent(event BotGame, forPlayer RPS) (RPS, error) {
+func findApponent(event BotGame, forPlayer RPS, chanId string) (RPS, error) {
 	us, ok, err := users.GetUsers(event.cache)
-	rpsUs, ok, err := getPlayers(us, event.cache)
+	rpsUs, ok, err := getPlayers(us, chanId, event.cache)
 	var opponent RPS
 	var found = false
 
@@ -171,18 +179,35 @@ func getWinner(player RPS, opponent RPS) ([]RPS, bool) {
 	return winners, hasWinner
 }
 
-func getPlayer(player users.User) (RPS, error) {
-	// TODO
-	return RPS{}, nil
+func getPlayer(player users.User, chanId string, c cache.Cache) (RPS, error) {
+	var key string = PREFIX + player.Name + "-" + chanId
+	var rps RPS
+	r, ok, _ := c.Get(key)
+	if ok {
+		if reflect.TypeOf(r).String() != "[]uint8" {
+			json.Unmarshal([]byte(r.(string)), &rps)
+		} else {
+			json.Unmarshal(r.([]byte), &rps)
+		}
+		return rps, nil
+	}
+	return RPS{Name: player.Name}, fmt.Errorf("not found")
 }
 
-func getPlayers(pUsers []users.User, c cache.Cache) ([]RPS, bool, error) {
+func getPlayers(pUsers []users.User, chanId string, c cache.Cache) ([]RPS, bool, error) {
 	var rpsUsers []RPS
 	for _, u := range pUsers {
-		rps, ok, _ := c.Get(PREFIX + u.Name)
-
+		var key string = PREFIX + u.Name + "-" + chanId
+		r, ok, _ := c.Get(key)
+		var rps RPS
 		if ok {
-			rpsUsers = append(rpsUsers, rps.(RPS))
+			if reflect.TypeOf(r).String() != "[]uint8" {
+				json.Unmarshal([]byte(r.(string)), &rps)
+			} else {
+				json.Unmarshal(r.([]byte), &rps)
+			}
+
+			rpsUsers = append(rpsUsers, rps)
 		}
 	}
 	if len(rpsUsers) == 0 {
@@ -191,7 +216,9 @@ func getPlayers(pUsers []users.User, c cache.Cache) ([]RPS, bool, error) {
 	return rpsUsers, true, nil
 }
 
-func updateRps(playerRps RPS, c cache.Cache) (RPS, error) {
-	// TODO
-	return RPS{}, nil
+func updateRps(playerRps RPS, chanId string, c cache.Cache) (RPS, error) {
+	var key string = PREFIX + playerRps.Name + "-" + chanId
+	p, _ := json.Marshal(playerRps)
+	c.Put(key, p)
+	return playerRps, nil
 }
