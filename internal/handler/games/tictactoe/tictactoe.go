@@ -15,7 +15,7 @@ const (
 
 // TicTacToe implements the bg.BoardGame interface
 type TicTacToe struct {
-	state   *state
+	State   *State
 	actions []*bg.BoardGameAction
 }
 
@@ -33,14 +33,14 @@ func NewTicTacToe(options *bg.BoardGameOptions) (*TicTacToe, error) {
 		}
 	}
 	return &TicTacToe{
-		state:   newState(options.Teams),
+		State:   newState(options.Teams),
 		actions: make([]*bg.BoardGameAction, 0),
 	}, nil
 }
 
 // Do performs an action on the game
 func (t *TicTacToe) Do(action *bg.BoardGameAction) error {
-	if len(t.state.winners) > 0 {
+	if len(t.State.Winners) > 0 {
 		return &bgerr.Error{
 			Err:    fmt.Errorf("game already over"),
 			Status: bgerr.StatusGameOver,
@@ -55,7 +55,7 @@ func (t *TicTacToe) Do(action *bg.BoardGameAction) error {
 				Status: bgerr.StatusInvalidActionDetails,
 			}
 		}
-		if err := t.state.MarkLocation(action.Team, details.Row, details.Column); err != nil {
+		if err := t.State.MarkLocation(action.Team, details.Row, details.Column); err != nil {
 			return err
 		}
 		t.actions = append(t.actions, action)
@@ -78,18 +78,18 @@ func (t *TicTacToe) GetSnapshot(team ...string) (*bg.BoardGameSnapshot, error) {
 		}
 	}
 	var targets []*bg.BoardGameAction
-	if len(t.state.winners) == 0 && (len(team) == 0 || (len(team) == 1 && team[0] == t.state.turn)) {
-		targets = t.state.targets()
+	if len(t.State.Winners) == 0 && (len(team) == 0 || (len(team) == 1 && team[0] == t.State.Turn)) {
+		targets = t.State.targets()
 	}
 	return &bg.BoardGameSnapshot{
-		Turn:    t.state.turn,
-		Teams:   t.state.teams,
-		Winners: t.state.winners,
+		Turn:    t.State.Turn,
+		Teams:   t.State.Teams,
+		Winners: t.State.Winners,
 		MoreData: TicTacToeSnapshotData{
-			Board: t.state.board,
+			Board: t.State.Board,
 		},
 		Targets: targets,
 		Actions: t.actions,
-		Message: t.state.message(),
+		Message: t.State.message(),
 	}, nil
 }

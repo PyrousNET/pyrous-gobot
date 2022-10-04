@@ -16,33 +16,33 @@ var (
 )
 
 // state handles all the internal game logic for the game
-type state struct {
-	turn    string
-	teams   []string
-	winners []string
-	board   [size][size]string
+type State struct {
+	Turn    string
+	Teams   []string
+	Winners []string
+	Board   [size][size]string
 }
 
-func newState(teams []string) *state {
-	return &state{
-		turn:    teams[0],
-		teams:   teams,
-		winners: make([]string, 0),
-		board:   [size][size]string{},
+func newState(teams []string) *State {
+	return &State{
+		Turn:    teams[0],
+		Teams:   teams,
+		Winners: make([]string, 0),
+		Board:   [size][size]string{},
 	}
 }
 
-func (s *state) MarkLocation(team string, row, column int) error {
-	index := indexOf(s.teams, team)
+func (s *State) MarkLocation(team string, row, column int) error {
+	index := indexOf(s.Teams, team)
 	if index < 0 {
 		return &bgerr.Error{
 			Err:    fmt.Errorf("%s not playing the game", team),
 			Status: bgerr.StatusInvalidActionDetails,
 		}
 	}
-	if team != s.turn {
+	if team != s.Turn {
 		return &bgerr.Error{
-			Err:    fmt.Errorf("%s cannot play on %s turn", team, s.turn),
+			Err:    fmt.Errorf("%s cannot play on %s turn", team, s.Turn),
 			Status: bgerr.StatusInvalidAction,
 		}
 	}
@@ -52,7 +52,7 @@ func (s *state) MarkLocation(team string, row, column int) error {
 			Status: bgerr.StatusInvalidActionDetails,
 		}
 	}
-	if s.board[row][column] != "" {
+	if s.Board[row][column] != "" {
 		return &bgerr.Error{
 			Err:    fmt.Errorf("%d,%d already marked", row, column),
 			Status: bgerr.StatusInvalidAction,
@@ -60,27 +60,27 @@ func (s *state) MarkLocation(team string, row, column int) error {
 	}
 
 	// mark index
-	s.board[row][column] = indexToMark[index]
+	s.Board[row][column] = indexToMark[index]
 
 	// check and update winner
-	if winner(s.board) != "" {
-		s.winners = []string{s.teams[markToIndex[winner(s.board)]]}
-	} else if draw(s.board) {
-		s.winners = s.teams
+	if winner(s.Board) != "" {
+		s.Winners = []string{s.Teams[markToIndex[winner(s.Board)]]}
+	} else if draw(s.Board) {
+		s.Winners = s.Teams
 	}
 
 	// update turn
-	s.turn = s.teams[(index+1)%2]
+	s.Turn = s.Teams[(index+1)%2]
 	return nil
 }
 
-func (s *state) targets() []*bg.BoardGameAction {
+func (s *State) targets() []*bg.BoardGameAction {
 	targets := make([]*bg.BoardGameAction, 0)
-	for r, row := range s.board {
+	for r, row := range s.Board {
 		for c, loc := range row {
 			if loc == "" {
 				targets = append(targets, &bg.BoardGameAction{
-					Team:       s.turn,
+					Team:       s.Turn,
 					ActionType: ActionMarkLocation,
 					MoreDetails: MarkLocationActionDetails{
 						Row:    r,
@@ -93,12 +93,12 @@ func (s *state) targets() []*bg.BoardGameAction {
 	return targets
 }
 
-func (s *state) message() string {
-	message := fmt.Sprintf("%s must mark a location", s.turn)
-	if len(s.winners) > 0 {
-		message = fmt.Sprintf("%s tie", strings.Join(s.winners, " and "))
-		if len(s.winners) == 1 {
-			message = fmt.Sprintf("%s wins", s.winners[0])
+func (s *State) message() string {
+	message := fmt.Sprintf("%s must mark a location", s.Turn)
+	if len(s.Winners) > 0 {
+		message = fmt.Sprintf("%s tie", strings.Join(s.Winners, " and "))
+		if len(s.Winners) == 1 {
+			message = fmt.Sprintf("%s wins", s.Winners[0])
 		}
 	}
 	return message

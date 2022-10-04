@@ -54,12 +54,12 @@ func decodeMarkLocationActionDetailsBGN(details []string) (*MarkLocationActionDe
 func (t *TicTacToe) GetBGN() *bgn.Game {
 	tags := map[string]string{
 		"Game":  key,
-		"Teams": strings.Join(t.state.teams, ", "),
+		"Teams": strings.Join(t.State.Teams, ", "),
 	}
 	actions := make([]bgn.Action, 0)
 	for _, action := range t.actions {
 		bgnAction := bgn.Action{
-			TeamIndex: indexOf(t.state.teams, action.Team),
+			TeamIndex: indexOf(t.State.Teams, action.Team),
 			ActionKey: rune(actionToNotation[action.ActionType][0]),
 		}
 		switch action.ActionType {

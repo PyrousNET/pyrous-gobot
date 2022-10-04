@@ -3,6 +3,7 @@ package games
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"reflect"
 	"strings"
 
@@ -14,8 +15,8 @@ import (
 )
 
 type GameData struct {
-	Players []users.User        `json:"players,omitempty"`
-	Game    boardgame.BoardGame `json:"Game,omitempty"`
+	Players []users.User  `json:"players,omitempty"`
+	Game    ttt.TicTacToe `json:"game"`
 }
 
 type TicTacToeGame struct {
@@ -35,10 +36,14 @@ func (h BotGameHelp) Ttt(request BotGame) (response HelpResponse) {
 func (bg BotGame) Ttt(event BotGame) (response Response, err error) {
 	g, err := NewTicTacToeGame(event)
 	if err != nil {
+		log.Println("It's seeing the error")
 		switch err.Error() {
 		case "please wait for player 2 to join":
+			log.Println("only one player")
 			response.Type = "post"
 			response.Message = fmt.Sprintf("%s is looking for an opponent to play Tic Tac Toe.", g.Player)
+
+			return response, nil
 		case "maximum number of players":
 			response.Type = "post"
 			response.Message = fmt.Sprintf(
@@ -47,20 +52,19 @@ func (bg BotGame) Ttt(event BotGame) (response Response, err error) {
 				g.Data.Players[1].Name,
 				g.Channel.Name,
 			)
+
+			return response, nil
 		case "ready to start":
 			response.Type = "post"
-			response.Message = fmt.Sprint(
-				"The Tic Tac Toe game between %s and % is starting!\n%s",
-				g.Data.Players[0].Name,
-				g.Data.Players[1].Name,
-				g.PrintBoard(),
-			)
+			response.Message = g.PrintBoard()
+
+			return response, nil
 		default:
 			response.Type = "dm"
 			response.Message = fmt.Sprintf("There was an error starting your game in %s: %v", g.Channel.Name, err)
-		}
 
-		return response, err
+			return response, err
+		}
 	}
 
 	if event.body != "" {
@@ -74,7 +78,7 @@ func (bg BotGame) Ttt(event BotGame) (response Response, err error) {
 		}
 
 		err = g.Data.Game.Do(&boardgame.BoardGameAction{
-			Team:       g.Player,
+			Team:       strings.TrimLeft(event.sender, "@"),
 			ActionType: "MarkLocation",
 			MoreDetails: ttt.MarkLocationActionDetails{
 				Row:    row - 1,
@@ -87,9 +91,14 @@ func (bg BotGame) Ttt(event BotGame) (response Response, err error) {
 
 			return response, err
 		}
+		err = g.CacheGameData()
+		if err != nil {
+			response.Type = "dm"
+			response.Message = fmt.Sprintf("could not cache game data: %v", err)
+		}
 
-		response.Type = "post"
-		response.Message = g.PrintBoard()
+		response.Type = "command"
+		response.Message = fmt.Sprintf("/echo %s", g.PrintBoard())
 
 		return response, err
 	}
@@ -112,8 +121,12 @@ func NewTicTacToeGame(event BotGame) (*TicTacToeGame, error) {
 		return g, fmt.Errorf("user not found: %v", err)
 	}
 
-	gd, err := g.GetGameData()
+	gd, ok, err := g.GetGameData()
 	if err != nil {
+		return g, fmt.Errorf("error fetching game data: %v", err)
+	}
+
+	if !ok {
 		// It's a new game. Make new GameData and let player 1 know to wait for player 2
 		g.Data = GameData{}
 		g.Data.Players = append(g.Data.Players, player)
@@ -127,15 +140,10 @@ func NewTicTacToeGame(event BotGame) (*TicTacToeGame, error) {
 
 	g.Data = gd
 
-	if len(g.Data.Players) == 2 && player.Id != g.Data.Players[0].Id && player.Id != g.Data.Players[1].Id {
-		return g, fmt.Errorf("maximum number of players")
-	}
-
-	if len(g.Data.Players) < 2 {
+	if len(g.Data.Players) == 1 {
 		// Player 2 has joined!
 		g.Data.Players = append(g.Data.Players, player)
-		builder := &ttt.Builder{}
-		game, _ := builder.Create(
+		game, err := ttt.NewTicTacToe(
 			&boardgame.BoardGameOptions{
 				Teams: []string{
 					g.Data.Players[0].Name,
@@ -143,8 +151,12 @@ func NewTicTacToeGame(event BotGame) (*TicTacToeGame, error) {
 				},
 			},
 		)
+		if err != nil {
+			log.Print(err)
+			return g, fmt.Errorf("could not create game: %v", err)
+		}
 
-		g.Data.Game = game
+		g.Data.Game = *game
 
 		err = g.CacheGameData()
 		if err != nil {
@@ -154,28 +166,32 @@ func NewTicTacToeGame(event BotGame) (*TicTacToeGame, error) {
 		return g, fmt.Errorf("ready to start")
 	}
 
+	if len(g.Data.Players) == 2 && player.Id != g.Data.Players[0].Id && player.Id != g.Data.Players[1].Id {
+		return g, fmt.Errorf("maximum number of players")
+	}
+
 	return g, nil
 }
 
-func (tttg *TicTacToeGame) GetGameData() (GameData, error) {
+func (tttg *TicTacToeGame) GetGameData() (GameData, bool, error) {
 	var gd GameData
-	key := "tttg" + tttg.Channel.Id
+	key := fmt.Sprintf("tttg_%s", tttg.Channel.Id)
 
-	r, ok, _ := tttg.Cache.Get(key)
+	r, ok, err := tttg.Cache.Get(key)
 	if ok {
 		if reflect.TypeOf(r).String() != "[]uint8" {
 			json.Unmarshal([]byte(r.(string)), &gd)
 		} else {
 			json.Unmarshal(r.([]byte), &gd)
 		}
-		return gd, nil
+		return gd, ok, nil
 	}
-	return gd, fmt.Errorf("game data not found")
+	return gd, ok, err
 
 }
 
 func (tttg *TicTacToeGame) CacheGameData() error {
-	key := "tttg" + tttg.Channel.Id
+	key := fmt.Sprintf("tttg_%s", tttg.Channel.Id)
 	dj, err := json.Marshal(tttg.Data)
 	if err != nil {
 		return fmt.Errorf("could not save game data: %v", err)
@@ -186,7 +202,7 @@ func (tttg *TicTacToeGame) CacheGameData() error {
 }
 
 func (tttg *TicTacToeGame) DeleteGameData() {
-	key := "tttg" + tttg.Channel.Id
+	key := fmt.Sprintf("tttg_%s", tttg.Channel.Id)
 	tttg.Cache.Clean(key)
 }
 
@@ -194,13 +210,13 @@ func (tttg *TicTacToeGame) PrintBoard() string {
 	snapshot, _ := tttg.Data.Game.GetSnapshot(tttg.Player)
 	sb := snapshot.MoreData.(ttt.TicTacToeSnapshotData).Board
 
-	snap := fmt.Sprintf("||1|2|3|\n|:-:||:-:|:-:|:-:|\n")
+	snap := fmt.Sprintf("||1|2|3|\n|:-:|:-:|:-:|:-:|\n")
 	for r, row := range sb {
 		snap = fmt.Sprintf("%s|%v|", snap, r+1)
 		for _, c := range row {
 			snap = fmt.Sprintf("%s%s|", snap, c)
 		}
-		snap = fmt.Sprintf("%s\n", snap)
+		snap = fmt.Sprintf("%s \n", snap)
 
 	}
 
