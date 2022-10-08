@@ -1,0 +1,10 @@
+{
+    "name": "Counter Spell",
+    "sequence": "wws|wpp",
+    "sh-sequence": "",
+    "description": "Any other spell cast upon the subject in the same turn has no effect. In the case of blanket spells, which affect more than one person, the subject of the counter-spell alone is protected.\n\nFor example, a fire storm spell could kill off a monster but not if a counter-spell were cast on the monster in the same turn. Everyone else would be affected as usual by the fire storm unless they had their own protection. The counter-spell will cancel all the spells cast at the subject for that turn (including remove enchantment and magic mirror) except dispel magic and finger of death. It will combine with another spell of its own type for the same effect as if it were alone. The counter-spell will also act as a shield on the final gesture in addition to its other properties, but the shield effect is on the same subject as its other effect.",
+    "usage": "Counter-Spell can be cast with Gestures: \nWave (W), Proffered Palm (P) and Proffered Palm (P) or Wave (W), Wave (W) and Snap (S).",
+    "damage": 0,
+    "resistances": "",
+    "protections": ""
+}

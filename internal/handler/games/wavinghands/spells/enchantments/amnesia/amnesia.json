@@ -1,0 +1,10 @@
+{
+    "name": "Amnesia",
+    "sequence": "ddp",
+    "sh-sequence": "",
+    "description": "If the subject of this spell is a wizard, next turn they must repeat identically the gestures they made in the current turn, including stabs. If the subject is a monster it will attack whoever it attacked in this turn. If the subject is simultaneously the subject of any of confusion, charm person, charm monster, paralysis or fear then none of the spells work.",
+    "usage": "Amnesia can be cast with Gestures:\nDigitPoint (D), ProfferedPalm (P) and ProfferedPalm (P)",
+    "damage": 0,
+    "resistances": "",
+    "protections": ""
+}

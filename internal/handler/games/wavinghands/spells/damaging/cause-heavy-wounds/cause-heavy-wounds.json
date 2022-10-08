@@ -1,0 +1,10 @@
+{
+    "name": "Cause Heavy Wounds",
+    "sequence": "wpfd",
+    "sh-sequence": "",
+    "description": "This has the same effect as cause light wounds but inflicts three points of damage instead of two.",
+    "usage": "Cause Heavy Wounds can be cast with Gestures:\nWave (W), Proffered Palm (P), Wiggling Fingers (F) and Digit Point (D)",
+    "damage": 3,
+    "resistances": "",
+    "protections": ""
+}
