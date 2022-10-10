@@ -12,6 +12,10 @@ type Cache interface {
 	Clean(key string)
 	GetKeys(prefix string) ([]string, error)
 	CleanAll()
+	GetJsonObj(key string) ([]byte, error)
+	GetJsonObjKeys(key string) (interface{}, error)
+	PutJsonObj(key string, object interface{}) error
+	PutJsonFromLocalFile() error
 }
 
 func GetCachingMechanism(connStr string) Cache {

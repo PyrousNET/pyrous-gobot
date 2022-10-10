@@ -2,15 +2,22 @@ package cache
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/url"
+	"os"
 
 	"github.com/go-redis/redis/v8"
+	redigo "github.com/gomodule/redigo/redis"
+	"github.com/nitishm/go-rejson/v4"
+	"github.com/nitishm/go-rejson/v4/rjs"
 )
 
 type RedisCache struct {
-	conn *redis.Client
-	ctx  context.Context
+	conn     *redis.Client
+	ctx      context.Context
+	jHandler *rejson.Handler
 }
 
 func GetRedisCache(connStr string) *RedisCache {
@@ -26,6 +33,10 @@ func GetRedisCache(connStr string) *RedisCache {
 	}
 
 	cch.ctx = context.Background()
+
+	rh := rejson.NewReJSONHandler()
+	rh.SetGoRedisClient(cch.conn)
+	cch.jHandler = rh
 
 	return cch
 }
@@ -77,4 +88,46 @@ func (rc *RedisCache) CleanAll() {
 
 func (rc *RedisCache) GetKeys(prefix string) ([]string, error) {
 	return rc.conn.Keys(rc.ctx, prefix+"*").Result()
+}
+
+func (rc *RedisCache) GetJsonObj(key string) ([]byte, error) {
+	return redigo.Bytes(
+		rc.jHandler.JSONGet(key, ".",
+			rjs.GETOptionINDENT,
+			rjs.GETOptionNOESCAPE,
+			rjs.GETOptionNEWLINE,
+			rjs.GETOptionSPACE,
+		),
+	)
+}
+
+func (rc *RedisCache) GetJsonObjKeys(key string) (interface{}, error) {
+	return rc.jHandler.JSONObjKeys(key, ".")
+}
+
+func (rc *RedisCache) PutJsonObj(key string, object interface{}) error {
+	_, err := rc.jHandler.JSONSet(key, ".", object)
+
+	return err
+}
+
+func (rc *RedisCache) PutJsonFromLocalFile() error {
+	jf, err := os.Open("./local.json")
+	if err != nil {
+		return err
+	}
+	defer jf.Close()
+	b, _ := ioutil.ReadAll(jf)
+
+	var m map[string]interface{}
+	json.Unmarshal(b, &m)
+
+	for key, obj := range m {
+		err = rc.PutJsonObj(key, obj)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
