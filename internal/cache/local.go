@@ -1,6 +1,10 @@
 package cache
 
 import (
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"os"
 	"strings"
 	"sync"
 )
@@ -60,11 +64,68 @@ func (c *LocalCache) CleanAll() {
 
 func (c *LocalCache) GetKeys(prefix string) ([]string, error) {
 	keys := make([]string, 0, len(c.data))
-	for k, _ := range c.data {
+	for k := range c.data {
 		if strings.Contains(k, prefix) {
 			keys = append(keys, k)
 		}
 	}
 
 	return keys, nil
+}
+
+func (c *LocalCache) GetJsonObj(key string) ([]byte, error) {
+	jf, err := os.Open("./local.json")
+	if err != nil {
+		return nil, err
+	}
+	defer jf.Close()
+	b, _ := ioutil.ReadAll(jf)
+
+	return b, err
+}
+
+func (c *LocalCache) GetJsonObjKeys(objKey string) (interface{}, error) {
+	jf, err := os.Open("./local.json")
+	if err != nil {
+		return nil, err
+	}
+	defer jf.Close()
+	b, _ := ioutil.ReadAll(jf)
+
+	var m map[string]interface{}
+	json.Unmarshal(b, &m)
+
+	var keys []string
+	if obj, ok := m[objKey]; ok {
+		for key := range obj.(map[string]interface{}) {
+			keys = append(keys, key)
+		}
+
+		return keys, nil
+	}
+
+	return nil, fmt.Errorf("JSON object not found")
+}
+
+func (c *LocalCache) PutJsonObj(key string, object interface{}) error {
+	jf, err := os.Open("./local.json")
+	if err != nil {
+		return err
+	}
+	defer jf.Close()
+	b, _ := ioutil.ReadAll(jf)
+
+	var m map[string]interface{}
+	json.Unmarshal(b, &m)
+
+	m[key] = object
+	jm, _ := json.MarshalIndent(m, "", "    ")
+
+	jf.Truncate(0)
+
+	return ioutil.WriteFile("./local.json", jm, 0644)
+}
+
+func (c *LocalCache) PutJsonFromLocalFile() error {
+	return fmt.Errorf("you're using local cache, silly")
 }
