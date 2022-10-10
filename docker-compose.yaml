@@ -14,8 +14,21 @@ services:
 
   redis:
     container_name: redis
-    image: "redis:6.0.9-alpine"
-    command: redis-server --requirepass password
+    image: "redislabs/redismod"
+    entrypoint: >
+      redis-server
+        --loadmodule /usr/lib/redis/modules/redisai.so
+          ONNX redisai_onnxruntime/redisai_onnxruntime.so
+          TF redisai_tensorflow/redisai_tensorflow.so
+          TFLITE redisai_tflite/redisai_tflite.so
+          TORCH redisai_torch/redisai_torch.so
+        --loadmodule /usr/lib/redis/modules/redisearch.so
+        --loadmodule /usr/lib/redis/modules/redisgraph.so
+        --loadmodule /usr/lib/redis/modules/redistimeseries.so
+        --loadmodule /usr/lib/redis/modules/rejson.so
+        --loadmodule /usr/lib/redis/modules/redisbloom.so
+        --appendonly yes
+        --requirepass password
     restart: always
     ports:
       - 6379:6379
