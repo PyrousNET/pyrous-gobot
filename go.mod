@@ -9,6 +9,7 @@ require (
 	github.com/mitchellh/mapstructure v1.4.2
 	github.com/quibbble/go-boardgame v1.0.2
 	github.com/tkanos/gonfig v0.0.0-20210106201359-53e13348de2f
+	golang.org/x/exp v0.0.0-20221012134508-3640c57a48ea
 )
 
 require (
