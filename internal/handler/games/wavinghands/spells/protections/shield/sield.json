@@ -1,0 +1,10 @@
+{
+  "name": "Shield",
+  "sequence": "p",
+  "sh-sequence": "",
+  "description": "This spell protects the subject from monsters (that is, creatures created by a summoning spell), from missile spells and from stabs by wizards. The shield will block any number of such attacks but lasts for only one round. The shield protects the subject on the turn in which it was cast.",
+  "usage": "Counter-Spell can be cast with Gestures: \nProffered Palm (P)",
+  "damage": 0,
+  "resistances": "",
+  "protections": "shield"
+}
