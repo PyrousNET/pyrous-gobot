@@ -30,7 +30,6 @@ type (
 		Protections string `json:"protections"`
 	}
 	Wizard struct {
-		WhPlaying   string  `json:"wh-playing"`
 		Right       Hand    `json:"right"`
 		Left        Hand    `json:"left"`
 		Name        string  `json:"name"`
@@ -39,10 +38,15 @@ type (
 		Protections string  `json:"protections"`
 		Monsters    Monster `json:"monsters"`
 	}
-	GameData struct {
-	}
 )
 
 func Remove[T any](slice []T, s int) []T {
 	return append(slice[:s], slice[s+1:]...)
+}
+
+func GetMaxTeams() int {
+	return maxTeams
+}
+func GetMinTeams() int {
+	return minTeams
 }
