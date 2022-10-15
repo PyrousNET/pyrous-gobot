@@ -52,25 +52,25 @@ func (h *Handler) HandleGame(quit chan bool, event *model.WebSocketEvent) error 
 			err = h.Mm.SendMsgToChannel(r.Message, r.Channel, post)
 		case "command":
 			err = h.Mm.SendCmdToChannel(r.Message, r.Channel, post)
-		case "multi": // TODO - We need to rethink this. It only allows 2 commands.
+		case "multi":
 			messages := strings.Split(r.Message, "##")
-			var firstMessage, secondMessage string
-			if len(messages) > 1 {
-				firstMessage = messages[0]
-				secondMessage = messages[1]
-			} else {
+			if len(messages) <= 1 {
 				return fmt.Errorf("multi message wasn't formatted properly")
 			}
-			if err != nil {
-				return err
+			for _, m := range messages {
+				messageParts := strings.Split(m, ";;")
+				if len(messageParts) == 2 {
+					u, _, _ := h.Mm.Client.GetUserByUsername(messageParts[0], "")
+					c, _, _ := h.Mm.Client.CreateDirectChannel(u.Id, h.Mm.BotUser.Id)
+					replyPost := &model.Post{}
+					replyPost.ChannelId = c.Id
+					replyPost.Message = messageParts[1]
+					_, _, err = h.Mm.Client.CreatePost(replyPost)
+				} else {
+					err = h.Mm.SendMsgToChannel(m, r.Channel, post)
+				}
 			}
-			c, _, _ := h.Mm.Client.CreateDirectChannel(post.UserId, h.Mm.BotUser.Id)
-			replyPost := &model.Post{}
-			replyPost.ChannelId = c.Id
-			replyPost.Message = firstMessage
 
-			_, _, err = h.Mm.Client.CreatePost(replyPost)
-			err = h.Mm.SendMsgToChannel(secondMessage, r.Channel, post)
 		case "dm":
 			c, _, _ := h.Mm.Client.CreateDirectChannel(post.UserId, h.Mm.BotUser.Id)
 			replyPost := &model.Post{}

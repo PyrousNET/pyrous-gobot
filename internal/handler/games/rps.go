@@ -44,7 +44,7 @@ func (bg BotGame) Rps(event BotGame) (response Response, err error) {
 		} else {
 			id, e := uuid.NewRandom()
 			event.cache.Put(id.String(), event.ReplyChannel.Id)
-			response.Message = fmt.Sprintf("Would you like to throw Rock, Paper or Scissors (Usage: $rps %s rock)##%s is looking for an opponent in RPS.", event.ReplyChannel.Name, event.sender)
+			response.Message = fmt.Sprintf("%s;;Would you like to throw Rock, Paper or Scissors (Usage: $rps %s rock)##%s is looking for an opponent in RPS.", playerUser.Name, event.ReplyChannel.Name, event.sender)
 			if e != nil {
 				return response, e
 			}
@@ -60,7 +60,7 @@ func (bg BotGame) Rps(event BotGame) (response Response, err error) {
 			response.Message = fmt.Sprintf("I have you down for: %s", strings.Title(strings.ToLower(choice)))
 		default:
 			response.Type = "dm"
-			response.Message = fmt.Sprintf(`Uh, %s isn't an option. Try rock, paper or scissors'`, choice)
+			response.Message = fmt.Sprintf(`Uh, %s isn't an option. Try {channel} rock, paper or scissors'`, choice)
 		}
 	}
 
