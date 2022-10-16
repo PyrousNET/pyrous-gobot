@@ -40,6 +40,18 @@ type (
 	}
 )
 
+func (h *Hand) Set(s string) {
+	h.Sequence = s
+}
+
+func (h Hand) Get() []byte {
+	return []byte(h.Sequence)
+}
+
+func (h Hand) GetAt(index int) byte {
+	return h.Sequence[index]
+}
+
 func Remove[T any](slice []T, s int) []T {
 	return append(slice[:s], slice[s+1:]...)
 }

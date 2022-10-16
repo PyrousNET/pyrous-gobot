@@ -122,6 +122,10 @@ func SetChannelGame(channelId string, g WHGameData, c cache.Cache) error {
 	c.Put(channelId, gS)
 	return nil
 }
+func ClearGame(channelId string, c cache.Cache) error {
+	c.Clean(channelId)
+	return nil
+}
 func GetChannelGame(channelId string, c cache.Cache) (WHGameData, error) {
 	g, ok, _ := c.Get(channelId)
 	var wHGD WHGameData
@@ -138,24 +142,8 @@ func GetChannelGame(channelId string, c cache.Cache) (WHGameData, error) {
 
 func (bg BotGame) Wh(event BotGame) (response Response, err error) {
 	response.Type = "command"
-	var directive string = event.body
 
-	switch directive {
-	case "start":
-		g, err := StartWavingHands(event)
-		if err != nil {
-			response.Type = "dm"
-			response.Message = err.Error()
-			return response, nil
-		}
-		response.Type = "multi"
-		messages := []string{}
-		for _, w := range g.gData.Players {
-			messages = append(messages, fmt.Sprintf("%s;;Please supply 2 gestures for %s (f, p, s, w, d, c {requires both hands}, stab, nothing)", w.Name, g.Channel.Name))
-		}
-		messages = append(messages, "This game of Waving Hands has begun!")
-		response.Message = strings.Join(messages, "##")
-	default:
+	if event.body == "" {
 		g, err := NewWavingHands(event)
 		if err != nil {
 			response.Type = "dm"
@@ -170,7 +158,140 @@ func (bg BotGame) Wh(event BotGame) (response Response, err error) {
 		} else if len(g.gData.Players) < wavinghands.GetMinTeams() {
 			response.Message = fmt.Sprintf("/echo %s would like to play a game of Waving Hands.\n", event.sender)
 		}
+	} else {
+		parts := strings.Split(event.body, " ")
+		directive := parts[0]
+		switch directive {
+		case "start":
+			g, err := StartWavingHands(event)
+			if err != nil {
+				response.Type = "dm"
+				response.Message = err.Error()
+				return response, nil
+			}
+			response.Type = "multi"
+			messages := []string{}
+			for _, w := range g.gData.Players {
+				messages = append(messages, fmt.Sprintf("%s;;Please supply 2 gestures for %s (f, p, s, w, d, c {requires both hands}, stab, nothing)", w.Name, g.Channel.Name))
+			}
+			messages = append(messages, "This game of Waving Hands has begun!")
+			response.Message = strings.Join(messages, "##")
+		default:
+			var channelName, rGesture, lGesture, target string
+			var wHGameData WHGameData
+			name := strings.TrimLeft(event.sender, "@")
+			if err != nil {
+				return response, err
+			}
+			fmt.Sscanf(event.body, "%s %s %s %s", &channelName, &rGesture, &lGesture, &target)
+			if channelName != "" {
+				channel, err := event.mm.GetChannelByName(channelName)
+				if err != nil {
+					return response, err
+				}
+				wHGameData, err = GetChannelGame(channel.Id, event.cache)
+			} else {
+				return response, fmt.Errorf("no channel name included")
+			}
+			g := Game{gData: wHGameData, Channel: event.ReplyChannel}
+			p, err := GetCurrentPlayer(g, name)
+
+			if err != nil {
+				return response, err
+			} else {
+				if rGesture == "stab" {
+					rGesture = "1"
+				}
+				if lGesture == "stab" {
+					lGesture = "1"
+				}
+				if rGesture == "nothing" {
+					rGesture = "0"
+				}
+				if rGesture == "stab" {
+					lGesture = "0"
+				}
+				rightGestures := append(p.Right.Get(), rGesture[0])
+				leftGestures := append(p.Left.Get(), lGesture[0])
+
+				p.Right.Set(string(rightGestures))
+				p.Left.Set(string(leftGestures))
+			}
+
+			// Check All Players for gestures
+			hasAllMoves := CheckAllPlayers(g)
+			if hasAllMoves {
+				// Run Protection Spells
+				// Run Damage Spells
+				// Run Summon Spells
+				// Clear Player Gestures
+				ClearGestures(g)
+			}
+
+			winner, err := getWHWinner(g)
+			if err == nil {
+				response.Channel = g.Channel.Id
+				response.Type = "command"
+				response.Message = fmt.Sprintf("%s has won the game of waving hands.", winner.Name)
+
+				ClearGame(g.Channel.Id, event.cache)
+			}
+
+			SetChannelGame(g.Channel.Id, g.gData, event.cache)
+		}
 	}
 
 	return response, nil
+}
+
+func getWHWinner(g Game) (wavinghands.Wizard, error) {
+	var winner wavinghands.Wizard
+	var found = false
+	for _, w := range g.gData.Players {
+		if !found && w.Living.HitPoints > 0 {
+			winner = w
+			found = true
+		} else if w.Living.HitPoints > 0 {
+			return wavinghands.Wizard{}, fmt.Errorf("no winner yet")
+		}
+	}
+
+	return winner, nil
+}
+
+func GetCurrentPlayer(g Game, name string) (wavinghands.Wizard, error) {
+	var player wavinghands.Wizard
+	var found = false
+
+	for _, w := range g.gData.Players {
+		if w.Name == name {
+			found = true
+			player = w
+		}
+	}
+
+	if found {
+		return player, nil
+	} else {
+		return wavinghands.Wizard{}, fmt.Errorf("not found")
+	}
+}
+
+func ClearGestures(g Game) {
+	for _, w := range g.gData.Players {
+		w.Right.Set("")
+		w.Left.Set("")
+	}
+}
+
+func CheckAllPlayers(g Game) bool {
+	for _, w := range g.gData.Players {
+		if len(w.Right.Get()) == 0 {
+			return false
+		}
+		if len(w.Left.Get()) == 0 {
+			return false
+		}
+	}
+	return true
 }
