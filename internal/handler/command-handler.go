@@ -33,7 +33,7 @@ func (h *Handler) HandleCommand(quit chan bool, event *model.WebSocketEvent) err
 		r.Channel = bc.ReplyChannel.Id
 		r.Type = "command"
 		checkMsg := strings.Split(r.Message, " ")
-		if checkMsg[0] != "/echo" {
+		if checkMsg[0] != "/echo" && !strings.HasPrefix(checkMsg[0], "/") {
 			r.Message = "/echo " + r.Message
 		}
 	}
