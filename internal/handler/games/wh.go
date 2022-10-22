@@ -162,6 +162,14 @@ func (bg BotGame) Wh(event BotGame) (response Response, err error) {
 		parts := strings.Split(event.body, " ")
 		directive := parts[0]
 		switch directive {
+		case "help":
+			response.Channel = event.ReplyChannel.Id
+			response.Message = wavinghands.GetHelpSpell(parts[1])
+			return response, nil
+		case "help-spells":
+			response.Channel = event.ReplyChannel.Id
+			response.Message = wavinghands.GetHelpSpells()
+			return response, nil
 		case "start":
 			g, err := StartWavingHands(event)
 			if err != nil {
