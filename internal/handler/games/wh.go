@@ -14,6 +14,7 @@ type (
 	WHGameData struct {
 		State   string               `json:"state"`
 		Players []wavinghands.Wizard `json:"players"`
+		Round   int                  `json:"round"`
 	}
 	Game struct {
 		gData   WHGameData
@@ -37,7 +38,7 @@ func NewWavingHands(event BotGame) (Game, error) {
 			Monsters:    wavinghands.Monster{},
 		}
 		wizards := append(wHGameData.Players, w)
-		g := Game{gData: WHGameData{State: "starting", Players: wizards}, Channel: event.ReplyChannel}
+		g := Game{gData: WHGameData{State: "starting", Players: wizards, Round: 0}, Channel: event.ReplyChannel}
 		SetChannelGame(event.ReplyChannel.Id, g.gData, event.cache)
 		return g, nil
 	} else {
@@ -57,10 +58,10 @@ func NewWavingHands(event BotGame) (Game, error) {
 					Monsters:    wavinghands.Monster{},
 				}
 				wizards := append(wHGameData.Players, w)
-				g = Game{gData: WHGameData{State: "starting", Players: wizards}, Channel: event.ReplyChannel}
+				g = Game{gData: WHGameData{State: "starting", Players: wizards, Round: 0}, Channel: event.ReplyChannel}
 				SetChannelGame(event.ReplyChannel.Id, g.gData, event.cache)
 			} else {
-				g = Game{gData: WHGameData{State: "starting", Players: wizards}, Channel: event.ReplyChannel}
+				g = Game{gData: WHGameData{State: "starting", Players: wizards, Round: 0}, Channel: event.ReplyChannel}
 				return g, fmt.Errorf("you're already in the game in %s channel", event.ReplyChannel.Name)
 			}
 			return g, nil
@@ -234,6 +235,7 @@ func (bg BotGame) Wh(event BotGame) (response Response, err error) {
 				// Run Summon Spells
 				// Clear Player Gestures
 				ClearGestures(g)
+				g.gData.Round += 1
 			}
 
 			winner, err := getWHWinner(g)
@@ -243,9 +245,9 @@ func (bg BotGame) Wh(event BotGame) (response Response, err error) {
 				response.Message = fmt.Sprintf("%s has won the game of waving hands.", winner.Name)
 
 				ClearGame(g.Channel.Id, event.cache)
+			} else {
+				SetChannelGame(g.Channel.Id, g.gData, event.cache)
 			}
-
-			SetChannelGame(g.Channel.Id, g.gData, event.cache)
 		}
 	}
 
@@ -294,10 +296,10 @@ func ClearGestures(g Game) {
 
 func CheckAllPlayers(g Game) bool {
 	for _, w := range g.gData.Players {
-		if len(w.Right.Get()) == 0 {
+		if len(w.Right.Get()) <= g.gData.Round {
 			return false
 		}
-		if len(w.Left.Get()) == 0 {
+		if len(w.Left.Get()) <= g.gData.Round {
 			return false
 		}
 	}
