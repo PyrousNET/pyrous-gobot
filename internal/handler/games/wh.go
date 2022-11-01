@@ -29,10 +29,12 @@ func NewWavingHands(event BotGame) (Game, error) {
 
 	if err != nil {
 		w := wavinghands.Wizard{
-			Right:       wavinghands.Hand{},
-			Left:        wavinghands.Hand{},
-			Name:        name,
-			Living:      wavinghands.Living{},
+			Right: wavinghands.Hand{},
+			Left:  wavinghands.Hand{},
+			Name:  name,
+			Living: wavinghands.Living{
+				HitPoints: 15,
+			},
 			Curses:      "",
 			Protections: "",
 			Monsters:    wavinghands.Monster{},
@@ -49,10 +51,12 @@ func NewWavingHands(event BotGame) (Game, error) {
 			inGame = isWizardInGame(wizards, inGame, name)
 			if !inGame {
 				w := wavinghands.Wizard{
-					Right:       wavinghands.Hand{},
-					Left:        wavinghands.Hand{},
-					Name:        name,
-					Living:      wavinghands.Living{},
+					Right: wavinghands.Hand{},
+					Left:  wavinghands.Hand{},
+					Name:  name,
+					Living: wavinghands.Living{
+						HitPoints: 15,
+					},
 					Curses:      "",
 					Protections: "",
 					Monsters:    wavinghands.Monster{},
@@ -266,25 +270,21 @@ func getWHWinner(g Game) (wavinghands.Wizard, error) {
 		}
 	}
 
-	return winner, nil
+	if found {
+		return winner, nil
+	} else {
+		return wavinghands.Wizard{}, fmt.Errorf("no winner yet")
+	}
 }
 
-func GetCurrentPlayer(g Game, name string) (wavinghands.Wizard, error) {
-	var player wavinghands.Wizard
-	var found = false
-
-	for _, w := range g.gData.Players {
+func GetCurrentPlayer(g Game, name string) (*wavinghands.Wizard, error) {
+	for i, w := range g.gData.Players {
 		if w.Name == name {
-			found = true
-			player = w
+			return &g.gData.Players[i], nil
 		}
 	}
 
-	if found {
-		return player, nil
-	} else {
-		return wavinghands.Wizard{}, fmt.Errorf("not found")
-	}
+	return &wavinghands.Wizard{}, fmt.Errorf("not found")
 }
 
 func ClearGestures(g Game) {
