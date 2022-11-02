@@ -6,6 +6,7 @@ import (
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/pyrousnet/pyrous-gobot/internal/cache"
 	"github.com/pyrousnet/pyrous-gobot/internal/handler/games/wavinghands"
+	"github.com/pyrousnet/pyrous-gobot/internal/handler/games/wavinghands/spells"
 	"reflect"
 	"strings"
 )
@@ -37,7 +38,7 @@ func NewWavingHands(event BotGame) (Game, error) {
 			},
 			Curses:      "",
 			Protections: "",
-			Monsters:    wavinghands.Monster{},
+			Monsters:    []wavinghands.Monster{},
 		}
 		wizards := append(wHGameData.Players, w)
 		g := Game{gData: WHGameData{State: "starting", Players: wizards, Round: 0}, Channel: event.ReplyChannel}
@@ -59,7 +60,7 @@ func NewWavingHands(event BotGame) (Game, error) {
 					},
 					Curses:      "",
 					Protections: "",
-					Monsters:    wavinghands.Monster{},
+					Monsters:    []wavinghands.Monster{},
 				}
 				wizards := append(wHGameData.Players, w)
 				g = Game{gData: WHGameData{State: "starting", Players: wizards, Round: 0}, Channel: event.ReplyChannel}
@@ -192,6 +193,7 @@ func (bg BotGame) Wh(event BotGame) (response Response, err error) {
 		default:
 			var channelName, rGesture, lGesture, target string
 			var wHGameData WHGameData
+			var t *wavinghands.Living
 			name := strings.TrimLeft(event.sender, "@")
 			if err != nil {
 				return response, err
@@ -202,12 +204,18 @@ func (bg BotGame) Wh(event BotGame) (response Response, err error) {
 				if err != nil {
 					return response, err
 				}
+				response.Channel = channel.Id
 				wHGameData, err = GetChannelGame(channel.Id, event.cache)
 			} else {
 				return response, fmt.Errorf("no channel name included")
 			}
+
 			g := Game{gData: wHGameData, Channel: event.ReplyChannel}
 			p, err := GetCurrentPlayer(g, name)
+
+			if target != "" {
+				t, err = FindTarget(g, target)
+			}
 
 			if err != nil {
 				return response, err
@@ -234,8 +242,42 @@ func (bg BotGame) Wh(event BotGame) (response Response, err error) {
 			// Check All Players for gestures
 			hasAllMoves := CheckAllPlayers(g)
 			if hasAllMoves {
+				sr, err := spells.GetSurrenderSpell(wavinghands.GetSpell("Surrender"))
+				if err != nil {
+					return response, err
+				}
+				surrenderString, err := sr.Cast(p, t)
+				if err == nil && surrenderString != "" {
+					response.Type = "multi"
+					response.Message = surrenderString + "##"
+				} else if err != nil {
+					return response, err
+				}
 				// Run Protection Spells
+
+				cHW, err := spells.GetCureHeavyWoundsSpell(wavinghands.GetSpell("Cure Heavy Wounds"))
+				if err != nil {
+					return response, err
+				}
+				chwResult, err := cHW.Cast(p, t)
+				if err == nil && chwResult != "" {
+					response.Message += chwResult + "##"
+				} else if err != nil {
+					return response, err
+				}
+
 				// Run Damage Spells
+				CHW, err := spells.GetCauseHeavyWoundsSpell(wavinghands.GetSpell("Cause Heavy Wounds"))
+				if err != nil {
+					return response, err
+				}
+				chwResult, err = CHW.Cast(p, t)
+				if err == nil && chwResult != "" {
+					response.Message += chwResult + "##"
+				} else if err != nil {
+					return response, err
+				}
+
 				// Run Summon Spells
 				// Clear Player Gestures
 				ClearGestures(g)
@@ -244,9 +286,7 @@ func (bg BotGame) Wh(event BotGame) (response Response, err error) {
 
 			winner, err := getWHWinner(g)
 			if err == nil {
-				response.Channel = g.Channel.Id
-				response.Type = "command"
-				response.Message = fmt.Sprintf("%s has won the game of waving hands.", winner.Name)
+				response.Message += fmt.Sprintf("%s has won the game of waving hands.", winner.Name)
 
 				ClearGame(g.Channel.Id, event.cache)
 			} else {
@@ -277,6 +317,39 @@ func getWHWinner(g Game) (wavinghands.Wizard, error) {
 	}
 }
 
+func FindTarget(g Game, selector string) (*wavinghands.Living, error) {
+	var name, monster string
+	var wizard *wavinghands.Wizard
+	parts := strings.Split(selector, ":")
+	if len(parts) > 1 {
+		name = parts[0]
+		monster = parts[1]
+	} else {
+		name = selector
+	}
+	for i, w := range g.gData.Players {
+		if w.Name == name {
+			wizard = &g.gData.Players[i]
+		}
+
+		if monster == "" {
+			wizard.Living.Selector = selector
+			return &wizard.Living, nil
+		}
+	}
+
+	if monster != "" {
+		for i, m := range wizard.Monsters {
+			if m.Type == monster {
+				wizard.Living.Selector = selector
+				return &wizard.Monsters[i].Living, nil
+			}
+		}
+	}
+
+	return &wavinghands.Living{}, fmt.Errorf("not found")
+}
+
 func GetCurrentPlayer(g Game, name string) (*wavinghands.Wizard, error) {
 	for i, w := range g.gData.Players {
 		if w.Name == name {
@@ -296,6 +369,9 @@ func ClearGestures(g Game) {
 
 func CheckAllPlayers(g Game) bool {
 	for _, w := range g.gData.Players {
+		if w.Living.HitPoints <= 0 { // Dead wizards have no gestures
+			continue
+		}
 		if len(w.Right.Get()) <= g.gData.Round {
 			return false
 		}

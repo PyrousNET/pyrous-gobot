@@ -28,6 +28,7 @@ type (
 		Protections string `json:"protections"`
 	}
 	Living struct {
+		Selector  string `json:"selector"`
 		HitPoints int    `json:"hp"`
 		Wards     string `json:"wards"`
 	}
@@ -38,13 +39,13 @@ type (
 		Protections string `json:"protections"`
 	}
 	Wizard struct {
-		Right       Hand    `json:"right"`
-		Left        Hand    `json:"left"`
-		Name        string  `json:"name"`
-		Living      Living  `json:"living"`
-		Curses      string  `json:"curses"`
-		Protections string  `json:"protections"`
-		Monsters    Monster `json:"monsters"`
+		Right       Hand      `json:"right"`
+		Left        Hand      `json:"left"`
+		Name        string    `json:"name"`
+		Living      Living    `json:"living"`
+		Curses      string    `json:"curses"`
+		Protections string    `json:"protections"`
+		Monsters    []Monster `json:"monsters"`
 	}
 )
 
@@ -123,4 +124,16 @@ func getSpells() []Spell {
 	var spells []Spell
 	json.Unmarshal(byteValue, &spells)
 	return spells
+}
+
+func GetSpell(name string) (*Spell, error) {
+	spells := getSpells()
+
+	for i, cs := range spells {
+		if cs.Name == name {
+			return &spells[i], nil
+		}
+	}
+
+	return &Spell{}, fmt.Errorf("not found")
 }
