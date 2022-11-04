@@ -35,6 +35,7 @@ type (
 		settings     *settings.Settings
 		ReplyChannel *model.Channel
 		method       Method
+		MmMessage    chan Response
 		cache        cache.Cache
 	}
 
@@ -109,11 +110,12 @@ func (g *Games) NewBotGame(post string, sender string) (BotGame, error) {
 		method:       method,
 		ReplyChannel: replyChannel,
 		sender:       sender,
+		MmMessage:    make(chan Response),
 		cache:        g.Cache,
 	}, nil
 }
 
-func (g *Games) CallGame(botGame BotGame) (response Response, err error) {
+func (g *Games) CallGame(botGame BotGame) (err error) {
 	f := botGame.method.valueOf
 
 	in := make([]reflect.Value, 1)
@@ -129,7 +131,9 @@ func (g *Games) CallGame(botGame BotGame) (response Response, err error) {
 		}
 	}
 
-	return rIface.(Response), err
+	botGame.MmMessage <- rIface.(Response)
+
+	return err
 }
 
 func (g *Games) getMethod(methodName string) (Method, error) {
