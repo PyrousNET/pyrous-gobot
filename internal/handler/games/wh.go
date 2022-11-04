@@ -26,6 +26,9 @@ type (
 func NewWavingHands(event BotGame) (Game, error) {
 	wHGameData, err := GetChannelGame(event.ReplyChannel.Id, event.cache)
 	name := strings.TrimLeft(event.sender, "@")
+	if name == "" {
+		return Game{}, fmt.Errorf("player is missing a name")
+	}
 	inGame := false
 
 	if err != nil {
@@ -192,6 +195,7 @@ func handleGameWithDirective(event BotGame, response Response, err error) (Respo
 		response.Message = strings.Join(messages, "##")
 	default:
 		var channelName, rGesture, lGesture, target string
+		var channel *model.Channel
 		var wHGameData WHGameData
 		var t *wavinghands.Living
 		name := strings.TrimLeft(event.sender, "@")
@@ -200,17 +204,18 @@ func handleGameWithDirective(event BotGame, response Response, err error) (Respo
 		}
 		fmt.Sscanf(event.body, "%s %s %s %s", &channelName, &rGesture, &lGesture, &target)
 		if channelName != "" {
-			channel, err := event.mm.GetChannelByName(channelName)
+			c, err := event.mm.GetChannelByName(channelName)
 			if err != nil {
 				return response, err, true
 			}
+			channel = c
 			response.Channel = channel.Id
 			wHGameData, err = GetChannelGame(channel.Id, event.cache)
 		} else {
 			return response, fmt.Errorf("no channel name included"), true
 		}
 
-		g := Game{gData: wHGameData, Channel: event.ReplyChannel}
+		g := Game{gData: wHGameData, Channel: channel}
 		p, err := GetCurrentPlayer(g, name)
 
 		if target != "" {
@@ -238,6 +243,7 @@ func handleGameWithDirective(event BotGame, response Response, err error) (Respo
 			p.Right.Set(string(rightGestures))
 			p.Left.Set(string(leftGestures))
 		}
+		// Completed setting gestures for the current player
 
 		// Check All Players for gestures
 		hasAllMoves := CheckAllPlayers(g)
@@ -293,7 +299,7 @@ func handleGameWithDirective(event BotGame, response Response, err error) (Respo
 			SetChannelGame(g.Channel.Id, g.gData, event.cache)
 		}
 	}
-	return Response{}, nil, false
+	return response, nil, true
 }
 
 func handleEmptyBody(event BotGame, response Response) (Response, error, bool) {
@@ -311,7 +317,7 @@ func handleEmptyBody(event BotGame, response Response) (Response, error, bool) {
 	} else if len(g.gData.Players) < wavinghands.GetMinTeams() {
 		response.Message = fmt.Sprintf("/echo %s would like to play a game of Waving Hands.\n", event.sender)
 	}
-	return Response{}, nil, false
+	return response, nil, false
 }
 
 func getWHWinner(g Game) (wavinghands.Wizard, error) {
@@ -388,10 +394,7 @@ func CheckAllPlayers(g Game) bool {
 		if w.Living.HitPoints <= 0 { // Dead wizards have no gestures
 			continue
 		}
-		if len(w.Right.Get()) <= g.gData.Round {
-			return false
-		}
-		if len(w.Left.Get()) <= g.gData.Round {
+		if len(w.Right.Get()) <= g.gData.Round && len(w.Left.Get()) <= g.gData.Round {
 			return false
 		}
 	}
