@@ -16,6 +16,7 @@ func (h *Handler) HandleGame(quit chan bool, event *model.WebSocketEvent) error 
 	var e error
 
 	bg, err := gms.NewBotGame(post.Message, sender)
+	bg.ResponseChannel = h.ResponseChannel // They are shared now!
 	if err != nil {
 		return h.SendErrorResponse(post, err.Error())
 	}
@@ -23,46 +24,6 @@ func (h *Handler) HandleGame(quit chan bool, event *model.WebSocketEvent) error 
 	if e != nil {
 		return h.SendErrorResponse(post, e.Error())
 	}
-
-	go func() {
-		for {
-			mmsg := <-bg.MmMessage
-			if mmsg.Message != "" {
-				switch mmsg.Type {
-				case "post":
-					err = h.Mm.SendMsgToChannel(mmsg.Message, mmsg.Channel, post)
-				case "command":
-					err = h.Mm.SendCmdToChannel(mmsg.Message, mmsg.Channel, post)
-				case "multi":
-					messages := strings.Split(mmsg.Message, "##")
-					if len(messages) <= 1 {
-						panic("multi message wasn't formatted properly")
-					}
-					for _, m := range messages {
-						messageParts := strings.Split(m, ";;")
-						if len(messageParts) == 2 {
-							u, _, _ := h.Mm.Client.GetUserByUsername(messageParts[0], "")
-							c, _, _ := h.Mm.Client.CreateDirectChannel(u.Id, h.Mm.BotUser.Id)
-							replyPost := &model.Post{}
-							replyPost.ChannelId = c.Id
-							replyPost.Message = messageParts[1]
-							_, _, err = h.Mm.Client.CreatePost(replyPost)
-						} else {
-							err = h.Mm.SendMsgToChannel(m, mmsg.Channel, post)
-						}
-					}
-
-				case "dm":
-					c, _, _ := h.Mm.Client.CreateDirectChannel(post.UserId, h.Mm.BotUser.Id)
-					replyPost := &model.Post{}
-					replyPost.ChannelId = c.Id
-					replyPost.Message = mmsg.Message
-
-					_, _, err = h.Mm.Client.CreatePost(replyPost)
-				}
-			}
-		}
-	}()
 
 	err = gms.CallGame(bg)
 	if err != nil {
