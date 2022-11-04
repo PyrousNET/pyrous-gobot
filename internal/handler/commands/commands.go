@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"github.com/pyrousnet/pyrous-gobot/internal/comms"
 	"log"
 	"reflect"
 	"strings"
@@ -29,14 +30,15 @@ type (
 	}
 
 	BotCommand struct {
-		body         string
-		sender       string
-		target       string
-		mm           *mmclient.MMClient
-		settings     *settings.Settings
-		ReplyChannel *model.Channel
-		method       Method
-		cache        cache.Cache
+		body            string
+		sender          string
+		target          string
+		mm              *mmclient.MMClient
+		settings        *settings.Settings
+		ReplyChannel    *model.Channel
+		ResponseChannel chan comms.Response
+		method          Method
+		cache           cache.Cache
 	}
 
 	Response struct {

@@ -15,6 +15,7 @@ func (h *Handler) HandleCommand(quit chan bool, event *model.WebSocketEvent) err
 	sender := event.GetData()["sender_name"].(string)
 
 	bc, err := cmds.NewBotCommand(post.Message, sender)
+	bc.ReplyChannel, _, err = h.Mm.Client.GetChannel(channelId, "")
 	if err != nil {
 		return h.SendErrorResponse(post, err.Error())
 	}
