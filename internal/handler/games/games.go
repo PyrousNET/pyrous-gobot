@@ -37,7 +37,7 @@ type (
 		ReplyChannel    *model.Channel
 		method          Method
 		ResponseChannel chan comms.Response
-		cache           cache.Cache
+		Cache           cache.Cache
 	}
 
 	Response struct {
@@ -111,7 +111,7 @@ func (g *Games) NewBotGame(post string, sender string) (BotGame, error) {
 		method:       method,
 		ReplyChannel: replyChannel,
 		sender:       sender,
-		cache:        g.Cache,
+		Cache:        g.Cache,
 	}, nil
 }
 

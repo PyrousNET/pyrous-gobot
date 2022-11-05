@@ -10,3 +10,5 @@ func (bg BotGame) Farkle(event BotGame) (response Response, err error) {
 
 	return response, nil
 }
+
+

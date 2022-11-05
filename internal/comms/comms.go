@@ -47,7 +47,7 @@ func (h *MessageHandler) SendMessage(r *Response) {
 	}
 
 	if r.Type != "shutdown" {
-		dmchannel, _, _ := h.Mm.Client.CreateDirectChannel(post.UserId, h.Mm.BotUser.Id)
+		dmchannel, _, _ := h.Mm.Client.CreateDirectChannel(r.UserId, h.Mm.BotUser.Id)
 		if r.ReplyChannelId == dmchannel.Id {
 			r.Type = "dm"
 		}

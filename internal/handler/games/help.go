@@ -19,7 +19,7 @@ type (
 )
 
 func (gc BotGame) Help(event BotGame) error {
-	u, _, _ := users.GetUser(strings.TrimLeft(event.sender, "@"), event.cache)
+	u, _, _ := users.GetUser(strings.TrimLeft(event.sender, "@"), event.Cache)
 	response := comms.Response{
 		ReplyChannelId: event.ReplyChannel.Id,
 		UserId:         u.Id,
