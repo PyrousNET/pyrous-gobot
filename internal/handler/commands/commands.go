@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"github.com/pyrousnet/pyrous-gobot/internal/comms"
 	"log"
 	"reflect"
 	"strings"
@@ -29,14 +30,16 @@ type (
 	}
 
 	BotCommand struct {
-		body         string
-		sender       string
-		target       string
-		mm           *mmclient.MMClient
-		settings     *settings.Settings
-		ReplyChannel *model.Channel
-		method       Method
-		cache        cache.Cache
+		body            string
+		sender          string
+		target          string
+		mm              *mmclient.MMClient
+		settings        *settings.Settings
+		ReplyChannel    *model.Channel
+		ResponseChannel chan comms.Response
+		method          Method
+		cache           cache.Cache
+		Quit            chan bool
 	}
 
 	Response struct {
@@ -115,23 +118,27 @@ func (c *Commands) NewBotCommand(post string, sender string) (BotCommand, error)
 	}, nil
 }
 
-func (c *Commands) CallCommand(botCommand BotCommand) (response Response, err error) {
+func (c *Commands) CallCommand(botCommand BotCommand) error {
+	var err error
 	f := botCommand.method.valueOf
+
+	if botCommand.method.typeOf.Type == nil {
+		return fmt.Errorf("Man! What are you talking about? You need `!help`")
+	}
 
 	in := make([]reflect.Value, 1)
 	in[0] = reflect.ValueOf(botCommand)
 
 	var res []reflect.Value
 	res = f.Call(in)
-	rIface := res[0].Interface()
-	if len(res) > 1 {
-		e := res[1].Interface()
+	if len(res) > 0 {
+		e := res[0].Interface()
 		if e != nil {
 			err = e.(error)
 		}
 	}
 
-	return rIface.(Response), err
+	return err
 }
 
 func (c *Commands) getMethod(methodName string) (Method, error) {

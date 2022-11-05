@@ -2,10 +2,13 @@ package commands
 
 import (
 	"encoding/json"
+	"github.com/pyrousnet/pyrous-gobot/internal/comms"
+	"github.com/pyrousnet/pyrous-gobot/internal/users"
 	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -35,14 +38,25 @@ func (h BotCommandHelp) Joke(request BotCommand) (response HelpResponse) {
 	return response
 }
 
-func (bc BotCommand) Joke(event BotCommand) (response Response, err error) {
+func (bc BotCommand) Joke(event BotCommand) error {
+	u, ok, err := users.GetUser(strings.TrimLeft(event.sender, "@"), event.cache)
+	if !ok {
+		return err
+	}
+	response := comms.Response{
+		ReplyChannelId: event.ReplyChannel.Id,
+		Message:        "",
+		Type:           "command",
+		UserId:         u.Id,
+	}
 	uri := "https://www.teddit.net/r/dadjokes/?api&target=reddit"
 	hc := &http.Client{Timeout: 10 * time.Second}
 	r, err := hc.Get(uri)
 	if err != nil {
 		response.Type = "dm"
 		response.Message = err.Error()
-		return response, err
+		event.ResponseChannel <- response
+		return err
 	}
 	defer r.Body.Close()
 
@@ -50,7 +64,8 @@ func (bc BotCommand) Joke(event BotCommand) (response Response, err error) {
 	if err != nil {
 		response.Type = "dm"
 		response.Message = err.Error()
-		return response, err
+		event.ResponseChannel <- response
+		return err
 	}
 
 	var feed jokeFeed
@@ -70,12 +85,15 @@ func (bc BotCommand) Joke(event BotCommand) (response Response, err error) {
 		jokeData := child.JokeData
 		if !jokeData.Over18 && !jokeData.Stickied && !jokeData.IsVideo {
 			response.Message = jokeData.Title
-			response.Delay = time.Duration(5 * time.Second)
-			response.Message2 = jokeData.Selftext
-			return response, nil
+			event.ResponseChannel <- response
+			response.Type = "command"
+			response.Message = "/echo \"" + jokeData.Selftext + "\" 5"
+			event.ResponseChannel <- response
+			return nil
 		}
 	}
 
 	response.Message = "I couldn't find anything that wouldn't make you blush. :-("
-	return response, nil
+	event.ResponseChannel <- response
+	return nil
 }

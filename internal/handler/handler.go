@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/pyrousnet/pyrous-gobot/internal/comms"
 	"log"
 	"regexp"
 	"strings"
@@ -16,9 +17,10 @@ import (
 )
 
 type Handler struct {
-	Cache    cache.Cache
-	Settings *settings.Settings
-	Mm       *mmclient.MMClient
+	Cache           cache.Cache
+	Settings        *settings.Settings
+	Mm              *mmclient.MMClient
+	ResponseChannel chan comms.Response
 }
 
 func NewHandler(mm *mmclient.MMClient, botCache cache.Cache) (*Handler, error) {
@@ -49,12 +51,22 @@ func NewHandler(mm *mmclient.MMClient, botCache cache.Cache) (*Handler, error) {
 
 		botCache.Clean("sys_restarted_by_user")
 	}
+	mRH := comms.MessageHandler{
+		Mm:         mm,
+		ResponseCh: make(chan comms.Response),
+		Cache:      botCache,
+	}
 
-	return &Handler{
-		Settings: settings,
-		Mm:       mm,
-		Cache:    botCache,
-	}, err
+	h := &Handler{
+		Settings:        settings,
+		Mm:              mm,
+		Cache:           botCache,
+		ResponseChannel: mRH.ResponseCh,
+	}
+
+	mRH.StartMessageHandler()
+
+	return h, err
 }
 
 func (h *Handler) HandleWebSocketResponse(quit chan bool, event *model.WebSocketEvent) {

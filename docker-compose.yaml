@@ -8,7 +8,7 @@ services:
     image: mattermost/mattermost-preview
     container_name: test_mm
     ports:
-    - "8065:8065"
+    - "80:8065"
     environment:
       MM_SERVICESETTINGS_ENABLELOCALMODE: "true"
 

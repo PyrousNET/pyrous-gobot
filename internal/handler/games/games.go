@@ -2,6 +2,7 @@ package games
 
 import (
 	"fmt"
+	"github.com/pyrousnet/pyrous-gobot/internal/comms"
 	"log"
 	"reflect"
 	"strings"
@@ -28,14 +29,15 @@ type (
 	}
 
 	BotGame struct {
-		body         string
-		sender       string
-		target       string
-		mm           *mmclient.MMClient
-		settings     *settings.Settings
-		ReplyChannel *model.Channel
-		method       Method
-		cache        cache.Cache
+		body            string
+		sender          string
+		target          string
+		mm              *mmclient.MMClient
+		settings        *settings.Settings
+		ReplyChannel    *model.Channel
+		method          Method
+		ResponseChannel chan comms.Response
+		cache           cache.Cache
 	}
 
 	Response struct {
@@ -113,7 +115,7 @@ func (g *Games) NewBotGame(post string, sender string) (BotGame, error) {
 	}, nil
 }
 
-func (g *Games) CallGame(botGame BotGame) (response Response, err error) {
+func (g *Games) CallGame(botGame BotGame) (err error) {
 	f := botGame.method.valueOf
 
 	in := make([]reflect.Value, 1)
@@ -121,7 +123,6 @@ func (g *Games) CallGame(botGame BotGame) (response Response, err error) {
 
 	var res []reflect.Value
 	res = f.Call(in)
-	rIface := res[0].Interface()
 	if len(res) > 1 {
 		e := res[1].Interface()
 		if e != nil {
@@ -129,7 +130,7 @@ func (g *Games) CallGame(botGame BotGame) (response Response, err error) {
 		}
 	}
 
-	return rIface.(Response), err
+	return err
 }
 
 func (g *Games) getMethod(methodName string) (Method, error) {

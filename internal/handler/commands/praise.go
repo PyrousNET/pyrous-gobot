@@ -2,10 +2,12 @@ package commands
 
 import (
 	"fmt"
-	"github.com/pyrousnet/pyrous-gobot/internal/users"
 	"math/rand"
 	"strings"
 	"time"
+
+	"github.com/pyrousnet/pyrous-gobot/internal/comms"
+	"github.com/pyrousnet/pyrous-gobot/internal/users"
 )
 
 func (h BotCommandHelp) Praise(request BotCommand) (response HelpResponse) {
@@ -16,18 +18,25 @@ func (h BotCommandHelp) Praise(request BotCommand) (response HelpResponse) {
 	return response
 }
 
-func (bc BotCommand) Praise(event BotCommand) (response Response, err error) {
+func (bc BotCommand) Praise(event BotCommand) error {
+	u, _, _ := users.GetUser(strings.TrimLeft(event.sender, "@"), event.cache)
+	response := comms.Response{
+		ReplyChannelId: event.ReplyChannel.Id,
+		UserId:         u.Id,
+		Type:           "post",
+	}
+
 	praises := event.settings.GetPraises()
-	response.Type = "post"
 	var index int
 
 	if event.body == "" {
 		response.Type = "dm"
 		response.Message = "You must tell me who to praise"
 
-		return response, nil
+		event.ResponseChannel <- response
+		return nil
 	}
-	_, ok, err := users.GetUser(event.body, event.cache)
+	_, ok, _ := users.GetUser(event.body, event.cache)
 	if ok {
 		arraySize := len(praises)
 
@@ -41,5 +50,6 @@ func (bc BotCommand) Praise(event BotCommand) (response Response, err error) {
 		response.Message = fmt.Sprintf(`Who's ` + event.body + `?`)
 	}
 
-	return response, nil
+	event.ResponseChannel <- response
+	return nil
 }
