@@ -117,7 +117,8 @@ func (c *Commands) NewBotCommand(post string, sender string) (BotCommand, error)
 	}, nil
 }
 
-func (c *Commands) CallCommand(botCommand BotCommand) (response Response, err error) {
+func (c *Commands) CallCommand(botCommand BotCommand) error {
+	var err error
 	f := botCommand.method.valueOf
 
 	in := make([]reflect.Value, 1)
@@ -125,15 +126,14 @@ func (c *Commands) CallCommand(botCommand BotCommand) (response Response, err er
 
 	var res []reflect.Value
 	res = f.Call(in)
-	rIface := res[0].Interface()
-	if len(res) > 1 {
-		e := res[1].Interface()
+	if len(res) > 0 {
+		e := res[0].Interface()
 		if e != nil {
 			err = e.(error)
 		}
 	}
 
-	return rIface.(Response), err
+	return err
 }
 
 func (c *Commands) getMethod(methodName string) (Method, error) {

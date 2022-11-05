@@ -85,10 +85,10 @@ func (bc BotCommand) Joke(event BotCommand) error {
 		jokeData := child.JokeData
 		if !jokeData.Over18 && !jokeData.Stickied && !jokeData.IsVideo {
 			response.Message = jokeData.Title
-			bc.ResponseChannel <- response
+			event.ResponseChannel <- response
 			time.Sleep(5)
 			response.Message = jokeData.Selftext
-			bc.ResponseChannel <- response
+			event.ResponseChannel <- response
 			return nil
 		}
 	}
