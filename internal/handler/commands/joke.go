@@ -86,8 +86,8 @@ func (bc BotCommand) Joke(event BotCommand) error {
 		if !jokeData.Over18 && !jokeData.Stickied && !jokeData.IsVideo {
 			response.Message = jokeData.Title
 			event.ResponseChannel <- response
-			time.Sleep(5)
-			response.Message = jokeData.Selftext
+			response.Type = "command"
+			response.Message = "/echo \"" + jokeData.Selftext + "\" 5"
 			event.ResponseChannel <- response
 			return nil
 		}
