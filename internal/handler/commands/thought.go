@@ -6,7 +6,11 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"strings"
 	"time"
+
+	"github.com/pyrousnet/pyrous-gobot/internal/comms"
+	"github.com/pyrousnet/pyrous-gobot/internal/users"
 )
 
 type (
@@ -28,14 +32,22 @@ func (h BotCommandHelp) Thought(request BotCommand) (response HelpResponse) {
 	return response
 }
 
-func (bc BotCommand) Thought(event BotCommand) (response Response, err error) {
+func (bc BotCommand) Thought(event BotCommand) error {
+	u, _, _ := users.GetUser(strings.TrimLeft(event.sender, "@"), event.cache)
+	response := comms.Response{
+		ReplyChannelId: event.ReplyChannel.Id,
+		UserId:         u.Id,
+	}
+
 	url := "https://www.teddit.net/r/Showerthoughts/?api"
 	hc := &http.Client{Timeout: 10 * time.Second}
 	r, err := hc.Get(url)
 	if err != nil {
 		response.Type = "dm"
 		response.Message = err.Error()
-		return response, err
+
+		event.ResponseChannel <- response
+		return err
 	}
 	defer r.Body.Close()
 
@@ -43,7 +55,9 @@ func (bc BotCommand) Thought(event BotCommand) (response Response, err error) {
 	if err != nil {
 		response.Type = "dm"
 		response.Message = err.Error()
-		return response, err
+
+		event.ResponseChannel <- response
+		return err
 	}
 
 	var feed thoughtFeed
@@ -60,10 +74,14 @@ func (bc BotCommand) Thought(event BotCommand) (response Response, err error) {
 	for _, link := range feed.Links {
 		if !link.Over18 && !link.Stickied {
 			response.Message = link.Title
-			return response, nil
+
+			event.ResponseChannel <- response
+			return nil
 		}
 	}
 
 	response.Message = "I couldn't find anything that wouldn't make you blush. :-("
-	return response, nil
+
+	event.ResponseChannel <- response
+	return nil
 }

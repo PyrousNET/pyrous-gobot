@@ -3,7 +3,11 @@ package commands
 import (
 	"fmt"
 	"math/rand"
+	"strings"
 	"time"
+
+	"github.com/pyrousnet/pyrous-gobot/internal/comms"
+	"github.com/pyrousnet/pyrous-gobot/internal/users"
 )
 
 func (h BotCommandHelp) Roll(request BotCommand) (response HelpResponse) {
@@ -13,10 +17,15 @@ func (h BotCommandHelp) Roll(request BotCommand) (response HelpResponse) {
 	}
 }
 
-func (bc BotCommand) Roll(event BotCommand) (response Response, err error) {
-	dieSize := 5
+func (bc BotCommand) Roll(event BotCommand) error {
+	u, _, _ := users.GetUser(strings.TrimLeft(event.sender, "@"), event.cache)
+	response := comms.Response{
+		ReplyChannelId: event.ReplyChannel.Id,
+		UserId:         u.Id,
+		Type:           "post",
+	}
 
-	response.Type = "post"
+	dieSize := 5
 
 	rand := rand.New(rand.NewSource(time.Now().UnixNano()))
 	d1 := rand.Intn(dieSize) + 1
@@ -24,5 +33,6 @@ func (bc BotCommand) Roll(event BotCommand) (response Response, err error) {
 
 	response.Message = fmt.Sprintf("%s rolled a %d and a %d for a total of %d", event.sender, d1, d2, d1+d2)
 
-	return response, nil
+	event.ResponseChannel <- response
+	return nil
 }

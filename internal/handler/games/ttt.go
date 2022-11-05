@@ -9,6 +9,7 @@ import (
 
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/pyrousnet/pyrous-gobot/internal/cache"
+	"github.com/pyrousnet/pyrous-gobot/internal/comms"
 	ttt "github.com/pyrousnet/pyrous-gobot/internal/handler/games/tictactoe"
 	"github.com/pyrousnet/pyrous-gobot/internal/users"
 	boardgame "github.com/quibbble/go-boardgame"
@@ -33,17 +34,22 @@ func (h BotGameHelp) Ttt(request BotGame) (response HelpResponse) {
 	return response
 }
 
-func (bg BotGame) Ttt(event BotGame) (response Response, err error) {
+func (bg BotGame) Ttt(event BotGame) error {
+	u, _, _ := users.GetUser(strings.TrimLeft(event.sender, "@"), event.cache)
+	response := comms.Response{
+		ReplyChannelId: event.ReplyChannel.Id,
+		UserId:         u.Id,
+	}
+
 	g, err := NewTicTacToeGame(event)
 	if err != nil {
-		log.Println("It's seeing the error")
 		switch err.Error() {
 		case "please wait for player 2 to join":
-			log.Println("only one player")
 			response.Type = "post"
 			response.Message = fmt.Sprintf("%s is looking for an opponent to play Tic Tac Toe.", g.Player)
 
-			return response, nil
+			event.ResponseChannel <- response
+			return nil
 		case "maximum number of players":
 			response.Type = "post"
 			response.Message = fmt.Sprintf(
@@ -53,17 +59,20 @@ func (bg BotGame) Ttt(event BotGame) (response Response, err error) {
 				g.Channel.Name,
 			)
 
-			return response, nil
+			event.ResponseChannel <- response
+			return nil
 		case "ready to start":
 			response.Type = "post"
 			response.Message = g.PrintBoard()
 
-			return response, nil
+			event.ResponseChannel <- response
+			return nil
 		default:
 			response.Type = "dm"
 			response.Message = fmt.Sprintf("There was an error starting your game in %s: %v", g.Channel.Name, err)
 
-			return response, err
+			event.ResponseChannel <- response
+			return err
 		}
 	}
 
@@ -74,7 +83,8 @@ func (bg BotGame) Ttt(event BotGame) (response Response, err error) {
 			response.Type = "dm"
 			response.Message = fmt.Sprintf("I didn't understand your command: %v\n%s", err, g.PrintHelp())
 
-			return response, err
+			event.ResponseChannel <- response
+			return err
 		}
 
 		err = g.Data.Game.Do(&boardgame.BoardGameAction{
@@ -89,7 +99,8 @@ func (bg BotGame) Ttt(event BotGame) (response Response, err error) {
 			response.Type = "dm"
 			response.Message = fmt.Sprintf("invalid move: %v\n%s", err, g.PrintHelp())
 
-			return response, err
+			event.ResponseChannel <- response
+			return err
 		}
 		err = g.CacheGameData()
 		if err != nil {
@@ -100,13 +111,15 @@ func (bg BotGame) Ttt(event BotGame) (response Response, err error) {
 		response.Type = "command"
 		response.Message = fmt.Sprintf("/echo %s", g.PrintBoard())
 
-		return response, err
+		event.ResponseChannel <- response
+		return err
 	}
 
 	response.Type = "post"
 	response.Message = g.PrintBoard()
 
-	return response, err
+	event.ResponseChannel <- response
+	return err
 }
 
 func NewTicTacToeGame(event BotGame) (*TicTacToeGame, error) {
