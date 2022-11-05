@@ -240,7 +240,7 @@ func (c *MMClient) SendMsgToChannel(msg string, channelId string, prePost *model
 
 func (c *MMClient) NewWebSocketClient() (*model.WebSocketClient, error) {
 	var err error
-	uri := fmt.Sprintf("ws://%s:%s", c.Server.HOST, c.Server.PORT)
+	uri := fmt.Sprintf("wss://%s:%s", c.Server.HOST, c.Server.PORT)
 
 	ws, appErr := model.NewWebSocketClient4(uri, c.Client.AuthToken)
 	if appErr != nil {
