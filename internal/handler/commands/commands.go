@@ -121,6 +121,10 @@ func (c *Commands) CallCommand(botCommand BotCommand) error {
 	var err error
 	f := botCommand.method.valueOf
 
+	if botCommand.method.typeOf.Type == nil {
+		return fmt.Errorf("Man! What are you talking about? You need `!help`")
+	}
+
 	in := make([]reflect.Value, 1)
 	in[0] = reflect.ValueOf(botCommand)
 

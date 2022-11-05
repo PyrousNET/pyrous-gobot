@@ -19,8 +19,7 @@ func (bc BotCommand) Message(event BotCommand) error {
 	channelObj, _ := event.mm.GetChannel(event.mm.DebuggingChannel.Name)
 	response.ReplyChannelId = channelObj.Id
 
-	target := strings.TrimLeft(event.target, "@")
-	response.Message = fmt.Sprintf(`/msg %s %s`, target, event.body)
+	response.Message = fmt.Sprintf(`/msg %s %s`, u.Name, strings.TrimLeft(event.body, u.Name))
 
 	event.ResponseChannel <- response
 	return nil
