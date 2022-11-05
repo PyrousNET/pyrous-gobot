@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+
+	"github.com/pyrousnet/pyrous-gobot/internal/comms"
+	"github.com/pyrousnet/pyrous-gobot/internal/users"
 )
 
 type (
@@ -15,8 +18,13 @@ type (
 	}
 )
 
-func (bc BotCommand) Help(event BotCommand) (response Response, err error) {
-	response.Type = "dm"
+func (bc BotCommand) Help(event BotCommand) error {
+	u, _, _ := users.GetUser(strings.TrimLeft(event.sender, "@"), event.cache)
+	response := comms.Response{
+		ReplyChannelId: event.ReplyChannel.Id,
+		UserId:         u.Id,
+		Type:           "dm",
+	}
 
 	helpMethods := getHelpMethods()
 	helpDocs := compileHelpDocs(helpMethods, event)
@@ -38,7 +46,8 @@ func (bc BotCommand) Help(event BotCommand) (response Response, err error) {
 		response.Message = fmt.Sprintf("%s```", mess)
 	}
 
-	return response, nil
+	event.ResponseChannel <- response
+	return nil
 }
 
 func getHelpMethods() []Method {
