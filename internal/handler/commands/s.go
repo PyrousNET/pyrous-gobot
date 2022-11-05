@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"github.com/pyrousnet/pyrous-gobot/internal/comms"
 	"strings"
 
 	"github.com/pyrousnet/pyrous-gobot/internal/users"
@@ -15,14 +16,17 @@ func (h BotCommandHelp) S(request BotCommand) (response HelpResponse) {
 	return response
 }
 
-func (bc BotCommand) S(event BotCommand) (response Response, err error) {
+func (bc BotCommand) S(event BotCommand) error {
+	response := comms.Response{
+		ReplyChannelId: event.ReplyChannel.Id,
+	}
 	var toReplace, withText string
 
 	response.Type = "command"
 	u, ok, err := users.GetUser(strings.TrimLeft(event.sender, "@"), event.cache)
 
 	if err != nil {
-		return Response{}, err
+		return err
 	}
 
 	var oldMessage string
@@ -35,7 +39,7 @@ func (bc BotCommand) S(event BotCommand) (response Response, err error) {
 		response.Type = "dm"
 		response.Message = "Incorrect string replace format. Try !help s"
 
-		return response, nil
+		return nil
 	}
 	toReplace = parts[1]
 	withText = parts[2]
@@ -44,5 +48,7 @@ func (bc BotCommand) S(event BotCommand) (response Response, err error) {
 
 	response.Message = fmt.Sprintf(`/echo %s meant: "%s"`, event.sender, newMessage)
 
-	return response, nil
+	event.ResponseChannel <- response
+
+	return nil
 }
