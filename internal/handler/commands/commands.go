@@ -39,6 +39,7 @@ type (
 		ResponseChannel chan comms.Response
 		method          Method
 		cache           cache.Cache
+		Quit            chan bool
 	}
 
 	Response struct {
