@@ -4,8 +4,12 @@ go 1.19
 
 require (
 	github.com/go-redis/redis/v8 v8.11.5
+	github.com/google/uuid v1.3.0
 	github.com/mattermost/mattermost-server/v6 v6.7.2
+	github.com/mitchellh/mapstructure v1.4.2
+	github.com/quibbble/go-boardgame v1.0.2
 	github.com/tkanos/gonfig v0.0.0-20210106201359-53e13348de2f
+	golang.org/x/exp v0.0.0-20221012134508-3640c57a48ea
 )
 
 require (
@@ -17,7 +21,6 @@ require (
 	github.com/francoispqt/gojay v1.2.13 // indirect
 	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/go-asn1-ber/asn1-ber v1.5.3 // indirect
-	github.com/google/uuid v1.3.0 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/graph-gophers/graphql-go v1.3.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect

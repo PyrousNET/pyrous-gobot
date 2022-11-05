@@ -1,6 +1,12 @@
 package commands
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+
+	"github.com/pyrousnet/pyrous-gobot/internal/comms"
+	"github.com/pyrousnet/pyrous-gobot/internal/users"
+)
 
 func (h BotCommandHelp) React(request BotCommand) (response HelpResponse) {
 	reactions := request.settings.GetReactions()
@@ -15,16 +21,23 @@ func (h BotCommandHelp) React(request BotCommand) (response HelpResponse) {
 	return response
 }
 
-func (bc BotCommand) React(event BotCommand) (response Response, err error) {
+func (bc BotCommand) React(event BotCommand) error {
+	u, _, _ := users.GetUser(strings.TrimLeft(event.sender, "@"), event.cache)
+	response := comms.Response{
+		ReplyChannelId: event.ReplyChannel.Id,
+		UserId:         u.Id,
+	}
+
 	reactions := event.settings.GetReactions()
 	if r, ok := reactions[event.body]; ok {
 		response.Type = "command"
 		response.Message = fmt.Sprintf(`/echo "%s" 1`, r.Url)
 	} else {
 		response.Type = "post"
-		err = fmt.Errorf("Response key '%s' not found.", event.body)
+		err := fmt.Errorf("Response key '%s' not found.", event.body)
 		response.Message = fmt.Sprintf("%s", err)
 	}
 
-	return response, err
+	event.ResponseChannel <- response
+	return nil
 }

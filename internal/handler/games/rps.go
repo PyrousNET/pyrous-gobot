@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/pyrousnet/pyrous-gobot/internal/cache"
+	"github.com/pyrousnet/pyrous-gobot/internal/comms"
 	"reflect"
 	"strings"
 
@@ -11,30 +12,28 @@ import (
 	"github.com/pyrousnet/pyrous-gobot/internal/users"
 )
 
-const ROCK = "rock"
-const PAPER = "paper"
-const SCISSORS = "scissors"
-const PREFIX = "rps"
-
 type RPS struct {
 	RpsPlaying string `json:"rps-playing"`
 	Rps        string `json:"rps"`
 	Name       string `json:"name"`
 }
 
-func (bg BotGame) Rps(event BotGame) (response Response, err error) {
-	response.Type = "multi"
+func (bg BotGame) Rps(event BotGame) error {
+	response := comms.Response{
+		Type:           "command",
+		ReplyChannelId: event.ReplyChannel.Id,
+	}
 	var choice, channel string
 	fmt.Sscanf(event.body, "%s %s", &channel, &choice)
 	foundChannel, cErr := event.mm.GetChannelByName(channel)
 	if cErr == nil && foundChannel != nil {
-		response.Channel = foundChannel.Id
+		response.ReplyChannelId = foundChannel.Id
 	} else {
 		foundChannel = event.ReplyChannel
 	}
 	playerUser, _, err := users.GetUser(strings.TrimLeft(event.sender, "@"), event.cache)
 	if err != nil {
-		return Response{}, err
+		return err
 	}
 	player, perr := getPlayer(playerUser, foundChannel.Id, event.cache)
 	opponent, oErr := findApponent(event, player, foundChannel.Id)
@@ -44,14 +43,21 @@ func (bg BotGame) Rps(event BotGame) (response Response, err error) {
 			if ok && event.ReplyChannel != nil && channelId == foundChannel.Id {
 				player.RpsPlaying = opponent.RpsPlaying
 				response.Type = "dm"
+				response.UserId = playerUser.Id
 				response.Message = fmt.Sprintf("Would you like to throw Rock, Paper or Scissors (Usage: $rps %s rock)", event.ReplyChannel.Name)
 			}
 		} else {
 			id, e := uuid.NewRandom()
+			dmResponse := comms.Response{
+				Type:   "dm",
+				UserId: playerUser.Id,
+			}
 			event.cache.Put(id.String(), event.ReplyChannel.Id)
-			response.Message = fmt.Sprintf("Would you like to throw Rock, Paper or Scissors (Usage: $rps %s rock)##%s is looking for an opponent in RPS.", event.ReplyChannel.Name, event.sender)
+			response.Message = fmt.Sprintf("/echo %s is looking for an opponent in RPS.", event.sender)
+			dmResponse.Message = fmt.Sprintf("Would you like to throw Rock, Paper or Scissors (Usage: $rps %s rock)", event.ReplyChannel.Name)
+			event.ResponseChannel <- dmResponse
 			if e != nil {
-				return response, e
+				return e
 			}
 			player.RpsPlaying = id.String()
 		}
@@ -62,10 +68,12 @@ func (bg BotGame) Rps(event BotGame) (response Response, err error) {
 		case "rock", "paper", "scissors":
 			player.Rps = strings.ToLower(choice)
 			response.Type = "dm"
+			response.UserId = playerUser.Id
 			response.Message = fmt.Sprintf("I have you down for: %s", strings.Title(strings.ToLower(choice)))
 		default:
 			response.Type = "dm"
-			response.Message = fmt.Sprintf(`Uh, %s isn't an option. Try rock, paper or scissors'`, choice)
+			response.UserId = playerUser.Id
+			response.Message = fmt.Sprintf(`Uh, %s isn't an option. Try {channel} rock, paper or scissors'`, choice)
 		}
 	}
 
@@ -75,7 +83,7 @@ func (bg BotGame) Rps(event BotGame) (response Response, err error) {
 			channelId, ok, _ := event.cache.Get(player.RpsPlaying)
 			response.Type = "command"
 			if ok {
-				response.Channel = channelId.(string)
+				response.ReplyChannelId = channelId.(string)
 				if len(winners) > 1 {
 					response.Message = fmt.Sprintf("/echo The RPS game between %s and %s ended in a draw.", player.Name, opponent.Name)
 				} else {
@@ -86,7 +94,8 @@ func (bg BotGame) Rps(event BotGame) (response Response, err error) {
 			deleteGame(player.RpsPlaying, event.cache)
 			deleteRps(player, foundChannel.Id, event.cache)
 			deleteRps(opponent, foundChannel.Id, event.cache)
-			return response, err
+			event.ResponseChannel <- response
+			return err
 		}
 
 		updateRps(opponent, foundChannel.Id, event.cache)
@@ -94,7 +103,9 @@ func (bg BotGame) Rps(event BotGame) (response Response, err error) {
 
 	updateRps(player, foundChannel.Id, event.cache)
 
-	return response, err
+	event.ResponseChannel <- response
+
+	return err
 }
 
 func playing(player RPS) bool {
@@ -152,27 +163,27 @@ func getWinner(player RPS, opponent RPS) ([]RPS, bool) {
 		winners = append(winners, player)
 		winners = append(winners, opponent)
 		hasWinner = true
-	} else if strings.ToLower(player.Rps) == ROCK {
-		if strings.ToLower(opponent.Rps) == PAPER {
+	} else if strings.ToLower(player.Rps) == "rock" {
+		if strings.ToLower(opponent.Rps) == "paper" {
 			winners = append(winners, opponent)
 			hasWinner = true
-		} else if strings.ToLower(opponent.Rps) == SCISSORS {
+		} else if strings.ToLower(opponent.Rps) == "scissors" {
 			winners = append(winners, player)
 			hasWinner = true
 		}
-	} else if strings.ToLower(player.Rps) == PAPER {
-		if strings.ToLower(opponent.Rps) == SCISSORS {
+	} else if strings.ToLower(player.Rps) == "paper" {
+		if strings.ToLower(opponent.Rps) == "scissors" {
 			winners = append(winners, opponent)
 			hasWinner = true
-		} else if strings.ToLower(opponent.Rps) == ROCK {
+		} else if strings.ToLower(opponent.Rps) == "rock" {
 			winners = append(winners, player)
 			hasWinner = true
 		}
-	} else if strings.ToLower(player.Rps) == SCISSORS {
-		if strings.ToLower(opponent.Rps) == ROCK {
+	} else if strings.ToLower(player.Rps) == "scissors" {
+		if strings.ToLower(opponent.Rps) == "rock" {
 			winners = append(winners, opponent)
 			hasWinner = true
-		} else if strings.ToLower(opponent.Rps) == PAPER {
+		} else if strings.ToLower(opponent.Rps) == "paper" {
 			winners = append(winners, player)
 			hasWinner = true
 		}
@@ -182,7 +193,7 @@ func getWinner(player RPS, opponent RPS) ([]RPS, bool) {
 }
 
 func getPlayer(player users.User, chanId string, c cache.Cache) (RPS, error) {
-	key := fmt.Sprintf("%s-%s-%s", PREFIX, player.Name, chanId)
+	key := fmt.Sprintf("%s-%s-%s", "rps", player.Name, chanId)
 	var rps RPS
 	r, ok, _ := c.Get(key)
 	if ok {
@@ -199,7 +210,7 @@ func getPlayer(player users.User, chanId string, c cache.Cache) (RPS, error) {
 func getPlayers(pUsers []users.User, chanId string, c cache.Cache) ([]RPS, bool, error) {
 	var rpsUsers []RPS
 	for _, u := range pUsers {
-		key := fmt.Sprintf("%s-%s-%s", PREFIX, u.Name, chanId)
+		key := fmt.Sprintf("%s-%s-%s", "rps", u.Name, chanId)
 		r, ok, _ := c.Get(key)
 		var rps RPS
 		if ok {
@@ -219,14 +230,14 @@ func getPlayers(pUsers []users.User, chanId string, c cache.Cache) ([]RPS, bool,
 }
 
 func updateRps(playerRps RPS, chanId string, c cache.Cache) (RPS, error) {
-	key := fmt.Sprintf("%s-%s-%s", PREFIX, playerRps.Name, chanId)
+	key := fmt.Sprintf("%s-%s-%s", "rps", playerRps.Name, chanId)
 	p, _ := json.Marshal(playerRps)
 	c.Put(key, p)
 	return playerRps, nil
 }
 
 func deleteRps(playerRps RPS, chanId string, c cache.Cache) {
-	key := fmt.Sprintf("%s-%s-%s", PREFIX, playerRps.Name, chanId)
+	key := fmt.Sprintf("%s-%s-%s", "rps", playerRps.Name, chanId)
 	c.Clean(key)
 }
 func deleteGame(uuid string, c cache.Cache) {

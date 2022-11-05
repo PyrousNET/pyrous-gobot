@@ -2,10 +2,14 @@ package commands
 
 import (
 	"fmt"
+	"github.com/pyrousnet/pyrous-gobot/internal/comms"
 	"strconv"
 )
 
-func (c BotCommand) Caffeine(event BotCommand) (response Response, err error) {
+func (c BotCommand) Caffeine(event BotCommand) error {
+	response := comms.Response{
+		ReplyChannelId: event.ReplyChannel.Id,
+	}
 	response.Type = "command"
 
 	if event.body != "" {
@@ -18,5 +22,7 @@ func (c BotCommand) Caffeine(event BotCommand) (response Response, err error) {
 		response.Message = fmt.Sprintf("/me walks over to %s and gives them a shot of caffeine straight into the blood stream.", event.sender)
 	}
 
-	return response, nil
+	event.ResponseChannel <- response
+
+	return nil
 }
