@@ -3,6 +3,8 @@ package commands
 import (
 	"fmt"
 	"github.com/pyrousnet/pyrous-gobot/internal/comms"
+	"github.com/pyrousnet/pyrous-gobot/internal/users"
+	"strings"
 )
 
 func (h BotCommandHelp) Say(request BotCommand) (response HelpResponse) {
@@ -15,11 +17,12 @@ func (h BotCommandHelp) Say(request BotCommand) (response HelpResponse) {
 }
 
 func (bc BotCommand) Say(event BotCommand) error {
+	u, _, _ := users.GetUser(strings.TrimLeft(event.sender, "@"), event.cache)
 	response := comms.Response{
 		ReplyChannelId: event.ReplyChannel.Id,
 		Message:        fmt.Sprintf(`/echo "%s" 1`, event.body),
 		Type:           "command",
-		UserId:         "",
+		UserId:         u.Id,
 	}
 
 	event.ResponseChannel <- response
