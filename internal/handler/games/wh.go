@@ -24,7 +24,7 @@ type (
 )
 
 func NewWavingHands(event BotGame) (Game, error) {
-	wHGameData, err := GetChannelGame(event.ReplyChannel.Id, event.cache)
+	wHGameData, err := GetChannelGame(event.ReplyChannel.Id, event.Cache)
 	name := strings.TrimLeft(event.sender, "@")
 	if name == "" {
 		return Game{}, fmt.Errorf("player is missing a name")
@@ -45,7 +45,7 @@ func NewWavingHands(event BotGame) (Game, error) {
 		}
 		wizards := append(wHGameData.Players, w)
 		g := Game{gData: WHGameData{State: "starting", Players: wizards, Round: 0}, Channel: event.ReplyChannel}
-		SetChannelGame(event.ReplyChannel.Id, g.gData, event.cache)
+		SetChannelGame(event.ReplyChannel.Id, g.gData, event.Cache)
 		return g, nil
 	} else {
 		g := Game{gData: wHGameData}
@@ -67,7 +67,7 @@ func NewWavingHands(event BotGame) (Game, error) {
 				}
 				wizards := append(wHGameData.Players, w)
 				g = Game{gData: WHGameData{State: "starting", Players: wizards, Round: 0}, Channel: event.ReplyChannel}
-				SetChannelGame(event.ReplyChannel.Id, g.gData, event.cache)
+				SetChannelGame(event.ReplyChannel.Id, g.gData, event.Cache)
 			} else {
 				g = Game{gData: WHGameData{State: "starting", Players: wizards, Round: 0}, Channel: event.ReplyChannel}
 				return g, fmt.Errorf("you're already in the game in %s channel", event.ReplyChannel.Name)
@@ -82,7 +82,7 @@ func NewWavingHands(event BotGame) (Game, error) {
 }
 
 func StartWavingHands(event BotGame) (Game, error) {
-	wHGameData, err := GetChannelGame(event.ReplyChannel.Id, event.cache)
+	wHGameData, err := GetChannelGame(event.ReplyChannel.Id, event.Cache)
 	g := Game{gData: wHGameData, Channel: event.ReplyChannel}
 	name := strings.TrimLeft(event.sender, "@")
 	inGame := false
@@ -102,7 +102,7 @@ func StartWavingHands(event BotGame) (Game, error) {
 		} else if len(g.gData.Players) < wavinghands.GetMinTeams() {
 			return Game{}, fmt.Errorf("not enough players to start the game")
 		}
-		SetChannelGame(event.ReplyChannel.Id, g.gData, event.cache)
+		SetChannelGame(event.ReplyChannel.Id, g.gData, event.Cache)
 	default:
 		return Game{}, fmt.Errorf("cannot start game at this time")
 	}
@@ -210,7 +210,7 @@ func handleGameWithDirective(event BotGame, response Response, err error) (Respo
 			}
 			channel = c
 			response.Channel = channel.Id
-			wHGameData, err = GetChannelGame(channel.Id, event.cache)
+			wHGameData, err = GetChannelGame(channel.Id, event.Cache)
 		} else {
 			return response, fmt.Errorf("no channel name included"), true
 		}
@@ -294,9 +294,9 @@ func handleGameWithDirective(event BotGame, response Response, err error) (Respo
 		if err == nil {
 			response.Message += fmt.Sprintf("%s has won the game of waving hands.", winner.Name)
 
-			ClearGame(g.Channel.Id, event.cache)
+			ClearGame(g.Channel.Id, event.Cache)
 		} else {
-			SetChannelGame(g.Channel.Id, g.gData, event.cache)
+			SetChannelGame(g.Channel.Id, g.gData, event.Cache)
 		}
 	}
 	return response, nil, true

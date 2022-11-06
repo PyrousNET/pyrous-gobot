@@ -256,3 +256,5 @@ func deleteRps(playerRps RPS, chanId string, c cache.Cache) {
 func deleteGame(uuid string, c cache.Cache) {
 	c.Clean(uuid)
 }
+
+

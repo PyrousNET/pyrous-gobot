@@ -35,7 +35,7 @@ func (h BotGameHelp) Ttt(request BotGame) (response HelpResponse) {
 }
 
 func (bg BotGame) Ttt(event BotGame) error {
-	u, _, _ := users.GetUser(strings.TrimLeft(event.sender, "@"), event.cache)
+	u, _, _ := users.GetUser(strings.TrimLeft(event.sender, "@"), event.Cache)
 	response := comms.Response{
 		ReplyChannelId: event.ReplyChannel.Id,
 		UserId:         u.Id,
@@ -125,11 +125,11 @@ func (bg BotGame) Ttt(event BotGame) error {
 func NewTicTacToeGame(event BotGame) (*TicTacToeGame, error) {
 	g := &TicTacToeGame{
 		Channel: event.ReplyChannel,
-		Cache:   event.cache,
+		Cache:   event.Cache,
 		Player:  event.sender,
 	}
 
-	player, _, err := users.GetUser(strings.TrimLeft(event.sender, "@"), event.cache)
+	player, _, err := users.GetUser(strings.TrimLeft(event.sender, "@"), event.Cache)
 	if err != nil {
 		return g, fmt.Errorf("user not found: %v", err)
 	}
