@@ -11,6 +11,7 @@ import (
 const (
 	minTeams = 2
 	maxTeams = 6
+	PREFIX   = "wh-"
 )
 
 type (
@@ -41,6 +42,7 @@ type (
 	Wizard struct {
 		Right       Hand      `json:"right"`
 		Left        Hand      `json:"left"`
+		Target      string    `json:"target"`
 		Name        string    `json:"name"`
 		Living      Living    `json:"living"`
 		Curses      string    `json:"curses"`
@@ -48,6 +50,13 @@ type (
 		Monsters    []Monster `json:"monsters"`
 	}
 )
+
+func (w *Wizard) SetTarget(t string) {
+	w.Target = t
+}
+func (w *Wizard) GetTarget() string {
+	return w.Target
+}
 
 func (h *Hand) Set(s string) {
 	h.Sequence = s

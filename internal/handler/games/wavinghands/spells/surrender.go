@@ -18,7 +18,7 @@ type Surrender struct {
 }
 
 func (s Surrender) Cast(wizard *wavinghands.Wizard, target *wavinghands.Living) (string, error) {
-	if strings.HasSuffix(wizard.Right.Sequence, s.Sequence) || strings.HasSuffix(wizard.Left.Sequence, s.ShSequence) {
+	if strings.HasSuffix(wizard.Right.Sequence, s.Sequence) && strings.HasSuffix(wizard.Left.Sequence, s.ShSequence) {
 		wizard.Living.HitPoints = 0
 
 		return fmt.Sprintf("%s has surrendered", wizard.Name), nil
