@@ -40,7 +40,7 @@ func (h *MessageHandler) SendMessage(r *Response) {
 	post.UserId = r.UserId
 	var err error
 	checkMsg := strings.Split(r.Message, " ")
-	if r.Type != "shutdown" {
+	if r.Type == "command" {
 		if checkMsg[0] != "/echo" && !strings.HasPrefix(checkMsg[0], "/") {
 			r.Message = "/echo " + r.Message
 		}
