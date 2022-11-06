@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/pyrousnet/pyrous-gobot/internal/cache"
+	"github.com/pyrousnet/pyrous-gobot/internal/comms"
 	"github.com/pyrousnet/pyrous-gobot/internal/handler/games/wavinghands"
 	"github.com/pyrousnet/pyrous-gobot/internal/handler/games/wavinghands/spells"
+	"github.com/pyrousnet/pyrous-gobot/internal/users"
 	"reflect"
 	"strings"
 )
@@ -149,50 +151,80 @@ func GetChannelGame(channelId string, c cache.Cache) (WHGameData, error) {
 	return WHGameData{}, fmt.Errorf("not found")
 }
 
-func (bg BotGame) Wh(event BotGame) (response Response, err error) {
-	response.Type = "command"
+func (bg BotGame) Wh(event BotGame) error {
+	player, _, err := users.GetUser(strings.TrimLeft(event.sender, "@"), event.Cache)
+	response := comms.Response{
+		ReplyChannelId: event.ReplyChannel.Id,
+		Type:           "command",
+		UserId:         player.Id,
+		Quit:           nil,
+	}
 
 	if event.body == "" {
-		r, err, done := handleEmptyBody(event, response)
+		err, done := handleEmptyBody(event)
 		if done {
-			return r, err
+			event.ResponseChannel <- response
+			return err
 		}
 	} else {
-		r, err, done := handleGameWithDirective(event, response, err)
+		err, done := handleGameWithDirective(event, err)
 		if done {
-			return r, err
+			event.ResponseChannel <- response
+			return err
 		}
 	}
 
-	return response, nil
+	return nil
 }
 
-func handleGameWithDirective(event BotGame, response Response, err error) (Response, error, bool) {
+func handleGameWithDirective(event BotGame, err error) (error, bool) {
+	player, _, err := users.GetUser(strings.TrimLeft(event.sender, "@"), event.Cache)
+	response := comms.Response{
+		ReplyChannelId: event.ReplyChannel.Id,
+		Type:           "command",
+		UserId:         player.Id,
+		Quit:           nil,
+	}
 	parts := strings.Split(event.body, " ")
 	directive := parts[0]
 	switch directive {
 	case "help":
-		response.Channel = event.ReplyChannel.Id
 		response.Message = wavinghands.GetHelpSpell(parts[1])
-		return response, nil, true
+		response.Type = "dm"
+		event.ResponseChannel <- response
+		return nil, true
 	case "help-spells":
-		response.Channel = event.ReplyChannel.Id
 		response.Message = wavinghands.GetHelpSpells()
-		return response, nil, true
+		response.Type = "dm"
+		event.ResponseChannel <- response
+		return nil, true
 	case "start":
 		g, err := StartWavingHands(event)
 		if err != nil {
 			response.Type = "dm"
 			response.Message = err.Error()
-			return response, nil, true
+			event.ResponseChannel <- response
+			return nil, true
 		}
-		response.Type = "multi"
-		messages := []string{}
 		for _, w := range g.gData.Players {
-			messages = append(messages, fmt.Sprintf("%s;;Please supply 2 gestures for %s (f, p, s, w, d, c {requires both hands}, stab, nothing)", w.Name, g.Channel.Name))
+			response.Type = "dm"
+			player, _, err := users.GetUser(w.Name, event.Cache)
+			if err != nil {
+				response.Type = "dm"
+				response.Message = err.Error()
+				event.ResponseChannel <- response
+				return nil, true
+			}
+			response.UserId = player.Id
+			response.Message = fmt.Sprintf(
+				"Please supply 2 gestures for %s (f, p, s, w, d, c {requires both hands}, stab, nothing)",
+				g.Channel.Name)
+			event.ResponseChannel <- response
 		}
-		messages = append(messages, "This game of Waving Hands has begun!")
-		response.Message = strings.Join(messages, "##")
+
+		response.Type = "command"
+		response.Message = "/echo This game of Waving Hands has begun!"
+		event.ResponseChannel <- response
 	default:
 		var channelName, rGesture, lGesture, target string
 		var channel *model.Channel
@@ -200,19 +232,19 @@ func handleGameWithDirective(event BotGame, response Response, err error) (Respo
 		var t *wavinghands.Living
 		name := strings.TrimLeft(event.sender, "@")
 		if err != nil {
-			return response, err, true
+			return err, true
 		}
 		fmt.Sscanf(event.body, "%s %s %s %s", &channelName, &rGesture, &lGesture, &target)
 		if channelName != "" {
 			c, err := event.mm.GetChannelByName(channelName)
 			if err != nil {
-				return response, err, true
+				return err, true
 			}
 			channel = c
-			response.Channel = channel.Id
+			response.ReplyChannelId = channel.Id
 			wHGameData, err = GetChannelGame(channel.Id, event.Cache)
 		} else {
-			return response, fmt.Errorf("no channel name included"), true
+			return fmt.Errorf("no channel name included"), true
 		}
 
 		g := Game{gData: wHGameData, Channel: channel}
@@ -223,7 +255,7 @@ func handleGameWithDirective(event BotGame, response Response, err error) (Respo
 		}
 
 		if err != nil {
-			return response, err, true
+			return err, true
 		} else {
 			if rGesture == "stab" {
 				rGesture = "1"
@@ -250,38 +282,40 @@ func handleGameWithDirective(event BotGame, response Response, err error) (Respo
 		if hasAllMoves {
 			sr, err := spells.GetSurrenderSpell(wavinghands.GetSpell("Surrender"))
 			if err != nil {
-				return response, err, true
+				return err, true
 			}
 			surrenderString, err := sr.Cast(p, t)
 			if err == nil && surrenderString != "" {
-				response.Type = "multi"
-				response.Message = surrenderString + "##"
+				response.Message = surrenderString
+				event.ResponseChannel <- response
 			} else if err != nil {
-				return response, err, true
+				return err, true
 			}
 			// Run Protection Spells
 
 			cHW, err := spells.GetCureHeavyWoundsSpell(wavinghands.GetSpell("Cure Heavy Wounds"))
 			if err != nil {
-				return response, err, true
+				return err, true
 			}
 			chwResult, err := cHW.Cast(p, t)
 			if err == nil && chwResult != "" {
-				response.Message += chwResult + "##"
+				response.Message = chwResult
+				event.ResponseChannel <- response
 			} else if err != nil {
-				return response, err, true
+				return err, true
 			}
 
 			// Run Damage Spells
 			CHW, err := spells.GetCauseHeavyWoundsSpell(wavinghands.GetSpell("Cause Heavy Wounds"))
 			if err != nil {
-				return response, err, true
+				return err, true
 			}
 			chwResult, err = CHW.Cast(p, t)
 			if err == nil && chwResult != "" {
-				response.Message += chwResult + "##"
+				response.Message = chwResult
+				event.ResponseChannel <- response
 			} else if err != nil {
-				return response, err, true
+				return err, true
 			}
 
 			// Run Summon Spells
@@ -292,22 +326,31 @@ func handleGameWithDirective(event BotGame, response Response, err error) (Respo
 
 		winner, err := getWHWinner(g)
 		if err == nil {
-			response.Message += fmt.Sprintf("%s has won the game of waving hands.", winner.Name)
+			response.Message = fmt.Sprintf("%s has won the game of waving hands.", winner.Name)
+			event.ResponseChannel <- response
 
 			ClearGame(g.Channel.Id, event.Cache)
 		} else {
 			SetChannelGame(g.Channel.Id, g.gData, event.Cache)
 		}
 	}
-	return response, nil, true
+	return nil, true
 }
 
-func handleEmptyBody(event BotGame, response Response) (Response, error, bool) {
+func handleEmptyBody(event BotGame) (error, bool) {
+	player, _, err := users.GetUser(strings.TrimLeft(event.sender, "@"), event.Cache)
+	response := comms.Response{
+		ReplyChannelId: event.ReplyChannel.Id,
+		Type:           "command",
+		UserId:         player.Id,
+		Quit:           nil,
+	}
 	g, err := NewWavingHands(event)
 	if err != nil {
 		response.Type = "dm"
 		response.Message = err.Error()
-		return response, nil, true
+		event.ResponseChannel <- response
+		return nil, true
 	}
 
 	if len(g.gData.Players) >= wavinghands.GetMinTeams() && len(g.gData.Players) <= wavinghands.GetMaxTeams() {
@@ -317,7 +360,8 @@ func handleEmptyBody(event BotGame, response Response) (Response, error, bool) {
 	} else if len(g.gData.Players) < wavinghands.GetMinTeams() {
 		response.Message = fmt.Sprintf("/echo %s would like to play a game of Waving Hands.\n", event.sender)
 	}
-	return response, nil, false
+	event.ResponseChannel <- response
+	return nil, false
 }
 
 func getWHWinner(g Game) (wavinghands.Wizard, error) {
