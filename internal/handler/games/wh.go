@@ -9,6 +9,7 @@ import (
 	"github.com/pyrousnet/pyrous-gobot/internal/handler/games/wavinghands"
 	"github.com/pyrousnet/pyrous-gobot/internal/handler/games/wavinghands/spells"
 	"github.com/pyrousnet/pyrous-gobot/internal/users"
+	"golang.org/x/exp/slices"
 	"reflect"
 	"strings"
 )
@@ -130,15 +131,15 @@ func isWizardInGame(wizards []wavinghands.Wizard, inGame bool, name string) bool
 
 func SetChannelGame(channelId string, g WHGameData, c cache.Cache) error {
 	gS, _ := json.Marshal(g)
-	c.Put(channelId, gS)
+	c.Put(wavinghands.PREFIX+channelId, gS)
 	return nil
 }
 func ClearGame(channelId string, c cache.Cache) error {
-	c.Clean(channelId)
+	c.Clean(wavinghands.PREFIX + channelId)
 	return nil
 }
 func GetChannelGame(channelId string, c cache.Cache) (WHGameData, error) {
-	g, ok, _ := c.Get(channelId)
+	g, ok, _ := c.Get(wavinghands.PREFIX + channelId)
 	var wHGD WHGameData
 	if ok {
 		if reflect.TypeOf(g).String() != "[]uint8" {
@@ -169,7 +170,6 @@ func (bg BotGame) Wh(event BotGame) error {
 	} else {
 		err, done := handleGameWithDirective(event, err)
 		if done {
-			event.ResponseChannel <- response
 			return err
 		}
 	}
@@ -274,53 +274,58 @@ func handleGameWithDirective(event BotGame, err error) (error, bool) {
 
 			p.Right.Set(string(rightGestures))
 			p.Left.Set(string(leftGestures))
+			p.SetTarget(target)
 		}
 		// Completed setting gestures for the current player
 
 		// Check All Players for gestures
 		hasAllMoves := CheckAllPlayers(g)
 		if hasAllMoves {
-			sr, err := spells.GetSurrenderSpell(wavinghands.GetSpell("Surrender"))
-			if err != nil {
-				return err, true
-			}
-			surrenderString, err := sr.Cast(p, t)
-			if err == nil && surrenderString != "" {
-				response.Message = surrenderString
-				event.ResponseChannel <- response
-			} else if err != nil {
-				return err, true
-			}
-			// Run Protection Spells
+			for i, p := range g.gData.Players {
+				rG := p.Right.GetAt(len(p.Right.Sequence) - 1)
+				lG := p.Left.GetAt(len(p.Left.Sequence) - 1)
+				announceGestures(&p, event.ResponseChannel, response, string(rG), string(lG), p.GetTarget())
+				sr, err := spells.GetSurrenderSpell(wavinghands.GetSpell("Surrender"))
+				if err != nil {
+					return err, true
+				}
+				t = &p.Living
+				surrenderString, err := sr.Cast(&g.gData.Players[i], t)
+				if err == nil && surrenderString != "" {
+					response.Message = surrenderString
+					event.ResponseChannel <- response
+				} else if err != nil {
+					return err, true
+				}
+				// Run Protection Spells
 
-			cHW, err := spells.GetCureHeavyWoundsSpell(wavinghands.GetSpell("Cure Heavy Wounds"))
-			if err != nil {
-				return err, true
-			}
-			chwResult, err := cHW.Cast(p, t)
-			if err == nil && chwResult != "" {
-				response.Message = chwResult
-				event.ResponseChannel <- response
-			} else if err != nil {
-				return err, true
-			}
+				cHW, err := spells.GetCureHeavyWoundsSpell(wavinghands.GetSpell("Cure Heavy Wounds"))
+				if err != nil {
+					return err, true
+				}
+				chwResult, err := cHW.Cast(&g.gData.Players[i], t)
+				if err == nil && chwResult != "" {
+					response.Message = chwResult
+					event.ResponseChannel <- response
+				} else if err != nil {
+					return err, true
+				}
 
-			// Run Damage Spells
-			CHW, err := spells.GetCauseHeavyWoundsSpell(wavinghands.GetSpell("Cause Heavy Wounds"))
-			if err != nil {
-				return err, true
-			}
-			chwResult, err = CHW.Cast(p, t)
-			if err == nil && chwResult != "" {
-				response.Message = chwResult
-				event.ResponseChannel <- response
-			} else if err != nil {
-				return err, true
+				// Run Damage Spells
+				CHW, err := spells.GetCauseHeavyWoundsSpell(wavinghands.GetSpell("Cause Heavy Wounds"))
+				if err != nil {
+					return err, true
+				}
+				chwResult, err = CHW.Cast(&g.gData.Players[i], t)
+				if err == nil && chwResult != "" {
+					response.Message = chwResult
+					event.ResponseChannel <- response
+				} else if err != nil {
+					return err, true
+				}
 			}
 
 			// Run Summon Spells
-			// Clear Player Gestures
-			ClearGestures(g)
 			g.gData.Round += 1
 		}
 
@@ -335,6 +340,52 @@ func handleGameWithDirective(event BotGame, err error) (error, bool) {
 		}
 	}
 	return nil, true
+}
+
+func announceGestures(
+	p *wavinghands.Wizard,
+	channel chan comms.Response,
+	response comms.Response,
+	gesture string,
+	gesture2 string,
+	target string) {
+	protections := strings.Split(p.Protections, ",")
+	gestureName := convertGesture(gesture)
+	gestureName2 := convertGesture(gesture2)
+
+	if !slices.Contains(protections, "invisible") {
+		if target != "" {
+			response.Message = fmt.Sprintf("%s %s and %s at %s", p.Name, gestureName, gestureName2, target)
+		} else {
+			response.Message = fmt.Sprintf("%s %s and %s", p.Name, gestureName, gestureName2)
+
+		}
+	}
+
+	channel <- response
+}
+
+func convertGesture(gesture string) string {
+	// Please supply 2 gestures for town-square (f, p, s, w, d, c {requires both hands}, stab, nothing)
+	switch gesture {
+	case "p":
+		return "Proffers Palm (P)"
+	case "f":
+		return "Wiggled Fingers (F)"
+	case "s":
+		return "Snaps (S)"
+	case "w":
+		return "Waves (W)"
+	case "d":
+		return "Digit Points (D)"
+	case "c":
+		return "Claps (C)"
+	case "1":
+		return "Stabs (stabs)"
+	case "0":
+		return "Does Nothing (nothing)"
+	}
+	return ""
 }
 
 func handleEmptyBody(event BotGame) (error, bool) {
