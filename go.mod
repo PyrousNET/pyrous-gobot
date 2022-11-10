@@ -7,6 +7,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/mattermost/mattermost-server/v6 v6.7.2
 	github.com/mitchellh/mapstructure v1.4.2
+	github.com/opentracing/opentracing-go v1.2.0
 	github.com/quibbble/go-boardgame v1.0.2
 	github.com/tkanos/gonfig v0.0.0-20210106201359-53e13348de2f
 	golang.org/x/exp v0.0.0-20221012134508-3640c57a48ea
@@ -35,7 +36,6 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
-	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/pborman/uuid v1.2.1 // indirect
 	github.com/pelletier/go-toml v1.9.4 // indirect
 	github.com/philhofer/fwd v1.1.1 // indirect
