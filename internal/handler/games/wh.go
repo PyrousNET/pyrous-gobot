@@ -331,7 +331,7 @@ func handleGameWithDirective(event BotGame, err error) (error, bool) {
 
 		winner, err := getWHWinner(g)
 		if err == nil {
-			response.Message = fmt.Sprintf("%s has won the game of waving hands.", winner.Name)
+			response.Message = fmt.Sprintf("/echo %s \"has won the game of waving hands.\" 2", winner.Name)
 			event.ResponseChannel <- response
 
 			ClearGame(g.Channel.Id, event.Cache)
