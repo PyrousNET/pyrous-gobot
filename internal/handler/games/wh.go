@@ -250,10 +250,6 @@ func handleGameWithDirective(event BotGame, err error) (error, bool) {
 		g := Game{gData: wHGameData, Channel: channel}
 		p, err := GetCurrentPlayer(g, name)
 
-		if target != "" {
-			t, err = FindTarget(g, target)
-		}
-
 		if err != nil {
 			return err, true
 		} else {
@@ -284,12 +280,14 @@ func handleGameWithDirective(event BotGame, err error) (error, bool) {
 			for i, p := range g.gData.Players {
 				rG := p.Right.GetAt(len(p.Right.Sequence) - 1)
 				lG := p.Left.GetAt(len(p.Left.Sequence) - 1)
+				if p.Target != "" {
+					t, err = FindTarget(g, p.Target)
+				}
 				announceGestures(&p, event.ResponseChannel, response, string(rG), string(lG), p.GetTarget())
 				sr, err := spells.GetSurrenderSpell(wavinghands.GetSpell("Surrender"))
 				if err != nil {
 					return err, true
 				}
-				t = &p.Living
 				surrenderString, err := sr.Cast(&g.gData.Players[i], t)
 				if err == nil && surrenderString != "" {
 					response.Message = surrenderString
@@ -312,6 +310,17 @@ func handleGameWithDirective(event BotGame, err error) (error, bool) {
 				}
 
 				// Run Damage Spells
+				m, mErr := spells.GetMissileSpell(wavinghands.GetSpell("Missile"))
+				if mErr != nil {
+					return mErr, true
+				}
+				mResult, err := m.Cast(&g.gData.Players[i], t)
+				if err == nil && mResult != "" {
+					response.Message = mResult
+					event.ResponseChannel <- response
+				} else if err != nil {
+					return err, true
+				}
 				CHW, err := spells.GetCauseHeavyWoundsSpell(wavinghands.GetSpell("Cause Heavy Wounds"))
 				if err != nil {
 					return err, true
@@ -323,6 +332,8 @@ func handleGameWithDirective(event BotGame, err error) (error, bool) {
 				} else if err != nil {
 					return err, true
 				}
+
+				cHW.Clear(&p.Living)
 			}
 
 			// Run Summon Spells
@@ -447,6 +458,8 @@ func FindTarget(g Game, selector string) (*wavinghands.Living, error) {
 	for i, w := range g.gData.Players {
 		if w.Name == name {
 			wizard = &g.gData.Players[i]
+		} else {
+			continue
 		}
 
 		if monster == "" {
