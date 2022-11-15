@@ -100,7 +100,7 @@ func StartWavingHands(event BotGame) (Game, error) {
 		if !inGame {
 			return Game{}, fmt.Errorf("player not active in game, cannot start")
 		}
-		if len(g.gData.Players) > wavinghands.GetMinTeams() && len(g.gData.Players) <= wavinghands.GetMaxTeams() {
+		if len(g.gData.Players) >= wavinghands.GetMinTeams() && len(g.gData.Players) <= wavinghands.GetMaxTeams() {
 			g.gData.State = "playing"
 		} else if len(g.gData.Players) < wavinghands.GetMinTeams() {
 			return Game{}, fmt.Errorf("not enough players to start the game")
@@ -235,6 +235,12 @@ func handleGameWithDirective(event BotGame, err error) (error, bool) {
 			return err, true
 		}
 		fmt.Sscanf(event.body, "%s %s %s %s", &channelName, &rGesture, &lGesture, &target)
+		if target == "" {
+			response.Type = "dm"
+			response.Message = "missing target"
+			event.ResponseChannel <- response
+			return fmt.Errorf("missing target for waving hands"), true
+		}
 		if channelName != "" {
 			c, err := event.mm.GetChannelByName(channelName)
 			if err != nil {
@@ -248,7 +254,7 @@ func handleGameWithDirective(event BotGame, err error) (error, bool) {
 		}
 
 		g := Game{gData: wHGameData, Channel: channel}
-		p, err := GetCurrentPlayer(g, name)
+		p, err := GetCurrentPlayer(&g, name)
 
 		if err != nil {
 			return err, true
@@ -277,11 +283,16 @@ func handleGameWithDirective(event BotGame, err error) (error, bool) {
 		// Check All Players for gestures
 		hasAllMoves := CheckAllPlayers(g)
 		if hasAllMoves {
-			for i, p := range g.gData.Players {
+			for i := range g.gData.Players {
+				p := g.gData.Players[i]
 				rG := p.Right.GetAt(len(p.Right.Sequence) - 1)
 				lG := p.Left.GetAt(len(p.Left.Sequence) - 1)
-				if p.Target != "" {
-					t, err = FindTarget(g, p.Target)
+				if p.GetTarget() != "" {
+					t, err = FindTarget(g, p.GetTarget())
+					if err != nil {
+						return err, true
+					}
+					t.Selector = p.GetTarget()
 				}
 				announceGestures(&p, event.ResponseChannel, response, string(rG), string(lG), p.GetTarget())
 				sr, err := spells.GetSurrenderSpell(wavinghands.GetSpell("Surrender"))
@@ -480,7 +491,7 @@ func FindTarget(g Game, selector string) (*wavinghands.Living, error) {
 	return &wavinghands.Living{}, fmt.Errorf("not found")
 }
 
-func GetCurrentPlayer(g Game, name string) (*wavinghands.Wizard, error) {
+func GetCurrentPlayer(g *Game, name string) (*wavinghands.Wizard, error) {
 	for i, w := range g.gData.Players {
 		if w.Name == name {
 			return &g.gData.Players[i], nil
