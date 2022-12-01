@@ -34,10 +34,11 @@ func (h *MessageHandler) StartMessageHandler() {
 }
 
 func (h *MessageHandler) SendMessage(r *Response) {
-	post := &model.Post{}
-	post.ChannelId = r.ReplyChannelId
-	post.Message = r.Message
-	post.UserId = r.UserId
+	post := &model.Post{
+		ChannelId: r.ReplyChannelId,
+		Message:   r.Message,
+		UserId:    r.UserId,
+	}
 	var err error
 	checkMsg := strings.Split(r.Message, " ")
 	if r.Type == "command" {
