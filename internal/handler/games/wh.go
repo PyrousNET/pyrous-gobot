@@ -100,7 +100,7 @@ func StartWavingHands(event BotGame) (Game, error) {
 		if !inGame {
 			return Game{}, fmt.Errorf("player not active in game, cannot start")
 		}
-		if len(g.gData.Players) > wavinghands.GetMinTeams() && len(g.gData.Players) <= wavinghands.GetMaxTeams() {
+		if len(g.gData.Players) >= wavinghands.GetMinTeams() && len(g.gData.Players) <= wavinghands.GetMaxTeams() {
 			g.gData.State = "playing"
 		} else if len(g.gData.Players) < wavinghands.GetMinTeams() {
 			return Game{}, fmt.Errorf("not enough players to start the game")
@@ -235,6 +235,12 @@ func handleGameWithDirective(event BotGame, err error) (error, bool) {
 			return err, true
 		}
 		fmt.Sscanf(event.body, "%s %s %s %s", &channelName, &rGesture, &lGesture, &target)
+		if target == "" {
+			response.Type = "dm"
+			response.Message = "missing target"
+			event.ResponseChannel <- response
+			return fmt.Errorf("missing target for waving hands"), true
+		}
 		if channelName != "" {
 			c, err := event.mm.GetChannelByName(channelName)
 			if err != nil {
@@ -248,11 +254,7 @@ func handleGameWithDirective(event BotGame, err error) (error, bool) {
 		}
 
 		g := Game{gData: wHGameData, Channel: channel}
-		p, err := GetCurrentPlayer(g, name)
-
-		if target != "" {
-			t, err = FindTarget(g, target)
-		}
+		p, err := GetCurrentPlayer(&g, name)
 
 		if err != nil {
 			return err, true
@@ -281,15 +283,22 @@ func handleGameWithDirective(event BotGame, err error) (error, bool) {
 		// Check All Players for gestures
 		hasAllMoves := CheckAllPlayers(g)
 		if hasAllMoves {
-			for i, p := range g.gData.Players {
+			for i := range g.gData.Players {
+				p := g.gData.Players[i]
 				rG := p.Right.GetAt(len(p.Right.Sequence) - 1)
 				lG := p.Left.GetAt(len(p.Left.Sequence) - 1)
+				if p.GetTarget() != "" {
+					t, err = FindTarget(g, p.GetTarget())
+					if err != nil {
+						return err, true
+					}
+					t.Selector = p.GetTarget()
+				}
 				announceGestures(&p, event.ResponseChannel, response, string(rG), string(lG), p.GetTarget())
 				sr, err := spells.GetSurrenderSpell(wavinghands.GetSpell("Surrender"))
 				if err != nil {
 					return err, true
 				}
-				t = &p.Living
 				surrenderString, err := sr.Cast(&g.gData.Players[i], t)
 				if err == nil && surrenderString != "" {
 					response.Message = surrenderString
@@ -312,6 +321,17 @@ func handleGameWithDirective(event BotGame, err error) (error, bool) {
 				}
 
 				// Run Damage Spells
+				m, mErr := spells.GetMissileSpell(wavinghands.GetSpell("Missile"))
+				if mErr != nil {
+					return mErr, true
+				}
+				mResult, err := m.Cast(&g.gData.Players[i], t)
+				if err == nil && mResult != "" {
+					response.Message = mResult
+					event.ResponseChannel <- response
+				} else if err != nil {
+					return err, true
+				}
 				CHW, err := spells.GetCauseHeavyWoundsSpell(wavinghands.GetSpell("Cause Heavy Wounds"))
 				if err != nil {
 					return err, true
@@ -323,6 +343,8 @@ func handleGameWithDirective(event BotGame, err error) (error, bool) {
 				} else if err != nil {
 					return err, true
 				}
+
+				cHW.Clear(&p.Living)
 			}
 
 			// Run Summon Spells
@@ -331,7 +353,7 @@ func handleGameWithDirective(event BotGame, err error) (error, bool) {
 
 		winner, err := getWHWinner(g)
 		if err == nil {
-			response.Message = fmt.Sprintf("%s has won the game of waving hands.", winner.Name)
+			response.Message = fmt.Sprintf("/echo %s \"has won the game of waving hands.\" 2", winner.Name)
 			event.ResponseChannel <- response
 
 			ClearGame(g.Channel.Id, event.Cache)
@@ -447,6 +469,8 @@ func FindTarget(g Game, selector string) (*wavinghands.Living, error) {
 	for i, w := range g.gData.Players {
 		if w.Name == name {
 			wizard = &g.gData.Players[i]
+		} else {
+			continue
 		}
 
 		if monster == "" {
@@ -467,7 +491,7 @@ func FindTarget(g Game, selector string) (*wavinghands.Living, error) {
 	return &wavinghands.Living{}, fmt.Errorf("not found")
 }
 
-func GetCurrentPlayer(g Game, name string) (*wavinghands.Wizard, error) {
+func GetCurrentPlayer(g *Game, name string) (*wavinghands.Wizard, error) {
 	for i, w := range g.gData.Players {
 		if w.Name == name {
 			return &g.gData.Players[i], nil

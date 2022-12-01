@@ -18,19 +18,31 @@ type CauseHeavyWounds struct {
 }
 
 func (cHW CauseHeavyWounds) Cast(wizard *wavinghands.Wizard, target *wavinghands.Living) (string, error) {
-	if (len(wizard.Right.Sequence) >= len(cHW.Sequence) && strings.HasSuffix(wizard.Right.Sequence, cHW.Sequence)) ||
-		(len(wizard.Left.Sequence) >= len(cHW.Sequence) && strings.HasSuffix(wizard.Left.Sequence, cHW.ShSequence)) {
+	var returnString string = ""
+	if strings.HasSuffix(wizard.Right.Sequence, cHW.Sequence) {
 
 		if strings.Contains(target.Wards, "cureHeavyWounds") {
-			target.HitPoints -= 1
-			return fmt.Sprintf("%s caused heavy wounds on %s but they were protected and only sustained minimal damage", wizard.Name, target.Selector), nil
+			target.HitPoints -= cHW.Damage - 2
+			returnString = fmt.Sprintf("%s caused heavy wounds on %s but they were protected and only sustained minimal damage", wizard.Name, target.Selector)
 		} else {
-			target.HitPoints -= 3
-			return fmt.Sprintf("%s caused heavy wounds on %s", wizard.Name, target.Selector), nil
+			target.HitPoints -= cHW.Damage
+			returnString = fmt.Sprintf("%s caused heavy wounds on %s", wizard.Name, target.Selector)
+		}
+	}
+	if strings.HasSuffix(wizard.Left.Sequence, cHW.Sequence) {
+		if returnString != "" {
+			returnString = returnString + "\n"
+		}
+		if strings.Contains(target.Wards, "cureHeavyWounds") {
+			target.HitPoints -= cHW.Damage - 2
+			returnString += fmt.Sprintf("%s caused heavy wounds on %s but they were protected and only sustained minimal damage", wizard.Name, target.Selector)
+		} else {
+			target.HitPoints -= cHW.Damage
+			returnString += fmt.Sprintf("%s caused heavy wounds on %s", wizard.Name, target.Selector)
 		}
 	}
 
-	return "", nil
+	return returnString, nil
 }
 func GetCauseHeavyWoundsSpell(s *wavinghands.Spell, e error) (*CauseHeavyWounds, error) {
 	if e != nil {
