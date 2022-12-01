@@ -15,7 +15,7 @@ func (h *Handler) HandleCommand(quit chan bool, event *model.WebSocketEvent) err
 
 	bc, err := cmds.NewBotCommand(post.Message, sender)
 	bc.ResponseChannel = h.ResponseChannel
-	if bc.ReplyChannel == nil {
+	if bc.ReplyChannel == nil || bc.ReplyChannel.Id == "" {
 		bc.ReplyChannel, _, err = h.Mm.Client.GetChannel(channelId, "")
 	}
 	bc.Quit = quit
