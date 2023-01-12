@@ -24,10 +24,11 @@ type MMClient struct {
 }
 
 type Server struct {
-	HOST      string `yaml:"host"`
-	PROTOCOL  string `yaml:"protocol"`
-	PORT      string `yaml:"port"`
-	CACHE_URI string `yaml:"cache_uri"`
+	HOST        string `yaml:"host"`
+	PROTOCOL    string `yaml:"protocol"`
+	PORT        string `yaml:"port"`
+	CACHE_URI   string `yaml:"cache_uri"`
+	WS_PROTOCOL string `yaml:"ws_protocol"`
 }
 
 // Documentation for the Go driver can be found
@@ -240,7 +241,7 @@ func (c *MMClient) SendMsgToChannel(msg string, channelId string, prePost *model
 
 func (c *MMClient) NewWebSocketClient() (*model.WebSocketClient, error) {
 	var err error
-	uri := fmt.Sprintf("wss://%s:%s", c.Server.HOST, c.Server.PORT)
+	uri := fmt.Sprintf("%s://%s:%s", c.Server.WS_PROTOCOL, c.Server.HOST, c.Server.PORT)
 
 	ws, appErr := model.NewWebSocketClient4(uri, c.Client.AuthToken)
 	if appErr != nil {
