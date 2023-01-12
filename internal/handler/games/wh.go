@@ -12,6 +12,7 @@ import (
 	"golang.org/x/exp/slices"
 	"reflect"
 	"strings"
+	"time"
 )
 
 type (
@@ -302,6 +303,7 @@ func handleGameWithDirective(event BotGame, err error) (error, bool) {
 				surrenderString, err := sr.Cast(&g.gData.Players[i], t)
 				if err == nil && surrenderString != "" {
 					response.Message = surrenderString
+					time.Sleep(time.Second)
 					event.ResponseChannel <- response
 				} else if err != nil {
 					return err, true
@@ -353,7 +355,8 @@ func handleGameWithDirective(event BotGame, err error) (error, bool) {
 
 		winner, err := getWHWinner(g)
 		if err == nil {
-			response.Message = fmt.Sprintf("/echo %s \"has won the game of waving hands.\" 2", winner.Name)
+			time.Sleep(time.Second)
+			response.Message = fmt.Sprintf("%s has won the game of waving hands.", winner.Name)
 			event.ResponseChannel <- response
 
 			ClearGame(g.Channel.Id, event.Cache)
@@ -473,7 +476,7 @@ func FindTarget(g Game, selector string) (*wavinghands.Living, error) {
 			continue
 		}
 
-		if monster == "" {
+		if wizard != nil && monster == "" {
 			wizard.Living.Selector = selector
 			return &wizard.Living, nil
 		}
