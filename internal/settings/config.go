@@ -8,10 +8,11 @@ import (
 
 type Config struct {
 	Server struct {
-		HOST      string `yaml:"host"`
-		PROTOCOL  string `yaml:"protocol"`
-		PORT      string `yaml:"port"`
-		CACHE_URI string `yaml:"cache_uri"`
+		HOST        string `yaml:"host"`
+		PROTOCOL    string `yaml:"protocol"`
+		PORT        string `yaml:"port"`
+		CACHE_URI   string `yaml:"cache_uri"`
+		WS_PROTOCOL string `yaml:"ws_protocol"`
 	} `yaml:"server"`
 	Bot struct {
 		SAMPLE_NAME   string `yaml:"sample_name"`
