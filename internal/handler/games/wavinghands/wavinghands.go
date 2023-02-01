@@ -107,9 +107,9 @@ func GetHelpSpell(chSp string) string {
 
 	var response string
 	if spell.Name == "" {
-		response = fmt.Sprintf("/echo %s wasn't a spell.\n", chSp)
+		response = fmt.Sprintf("%s wasn't a spell.\n", chSp)
 	} else {
-		response = fmt.Sprintf("/echo %s is defined as follows:\n```\n", spell.Name)
+		response = fmt.Sprintf("%s is defined as follows:\n```\n", spell.Name)
 		response += fmt.Sprintf("Description: %s\n", spell.Description)
 		response += fmt.Sprintf("Usage: %s\n", spell.Usage)
 		response += "```\n"

@@ -190,7 +190,11 @@ func handleGameWithDirective(event BotGame, err error) (error, bool) {
 	directive := parts[0]
 	switch directive {
 	case "help":
-		response.Message = wavinghands.GetHelpSpell(parts[1])
+		if len(parts) > 1 {
+			response.Message = wavinghands.GetHelpSpell(parts[1])
+		} else {
+			response.Message = "What spell would you like help with?"
+		}
 		response.Type = "dm"
 		event.ResponseChannel <- response
 		return nil, true
