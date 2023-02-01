@@ -49,7 +49,7 @@ func (h *MessageHandler) SendMessage(r *Response) {
 
 	dmchannel, _, _ := h.Mm.Client.CreateDirectChannel(h.Mm.BotUser.Id, r.UserId)
 	if r.Type != "shutdown" {
-		if r.ReplyChannelId == dmchannel.Id {
+		if dmchannel != nil && r.ReplyChannelId == dmchannel.Id {
 			r.Type = "dm"
 		}
 	}
