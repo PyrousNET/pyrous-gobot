@@ -47,11 +47,21 @@ func (h *MessageHandler) SendMessage(r *Response) {
 		}
 	}
 
+	dmchannel, _, _ := h.Mm.Client.CreateDirectChannel(h.Mm.BotUser.Id, r.UserId)
 	if r.Type != "shutdown" {
-		dmchannel, _, _ := h.Mm.Client.CreateDirectChannel(r.UserId, h.Mm.BotUser.Id)
-		if r.ReplyChannelId == dmchannel.Id {
+		if dmchannel != nil && r.ReplyChannelId == dmchannel.Id {
 			r.Type = "dm"
 		}
+	}
+
+	if r.Type == "dm" {
+		if strings.HasPrefix(checkMsg[0], "/") {
+			commandParts := strings.Split(r.Message, "\"")
+			if len(commandParts) > 1 && commandParts[1] != "" {
+				post.Message = commandParts[1]
+			}
+		}
+
 	}
 
 	if r.Message != "" {
@@ -61,13 +71,19 @@ func (h *MessageHandler) SendMessage(r *Response) {
 		case "command":
 			err = h.Mm.SendCmdToChannel(r.Message, r.ReplyChannelId, post)
 		case "dm":
-			c, _, err := h.Mm.Client.CreateDirectChannel(r.UserId, h.Mm.BotUser.Id)
 			if err != nil {
 				panic(err)
 			}
 
-			post.ChannelId = c.Id
-			_, _, err = h.Mm.Client.CreatePost(post)
+			post.ChannelId = dmchannel.Id
+			if post.Message[0] == '/' {
+				_, _, err := h.Mm.Client.ExecuteCommandWithTeam(post.ChannelId, h.Mm.BotTeam.Id, post.Message)
+				if err != nil {
+					panic(err)
+				}
+			} else {
+				_, _, err = h.Mm.Client.CreatePost(post)
+			}
 		case "shutdown":
 			c, _, err := h.Mm.Client.CreateDirectChannel(r.UserId, h.Mm.BotUser.Id)
 			if err != nil {
