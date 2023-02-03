@@ -273,7 +273,7 @@ func handleGameWithDirective(event BotGame, err error) (error, bool) {
 			if rGesture == "nothing" {
 				rGesture = "0"
 			}
-			if rGesture == "stab" {
+			if rGesture == "nothing" {
 				lGesture = "0"
 			}
 			rightGestures := append(p.Right.Get(), rGesture[0])
@@ -334,6 +334,17 @@ func handleGameWithDirective(event BotGame, err error) (error, bool) {
 				mResult, err := m.Cast(&g.gData.Players[i], t)
 				if err == nil && mResult != "" {
 					response.Message = mResult
+					event.ResponseChannel <- response
+				} else if err != nil {
+					return err, true
+				}
+				s, sErr := spells.GetStabSpell(wavinghands.GetSpell("Stab"))
+				if sErr != nil {
+					return sErr, true
+				}
+				sResult, err := s.Cast(&g.gData.Players[i], t)
+				if err == nil && sResult != "" {
+					response.Message = sResult
 					event.ResponseChannel <- response
 				} else if err != nil {
 					return err, true

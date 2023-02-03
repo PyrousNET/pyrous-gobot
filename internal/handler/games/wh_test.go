@@ -77,7 +77,7 @@ func Test_handleEmptyBody(t *testing.T) {
 			go func() {
 				got, got1 := handleEmptyBody(tt.args.event)
 				if got != tt.want {
-					t.Errorf("handleEmptyBody() got = %v, want %v", got1, tt.want1)
+					t.Errorf("handleEmptyBody() got = %v, want %v", got, tt.want1)
 				}
 
 				if got1 != tt.want1 {
