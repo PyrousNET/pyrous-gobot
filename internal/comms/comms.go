@@ -72,14 +72,14 @@ func (h *MessageHandler) SendMessage(r *Response) {
 			err = h.Mm.SendCmdToChannel(r.Message, r.ReplyChannelId, post)
 		case "dm":
 			if err != nil {
-				panic(err)
+				log.Error(err)
 			}
 
 			post.ChannelId = dmchannel.Id
 			if post.Message[0] == '/' {
 				_, _, err := h.Mm.Client.ExecuteCommandWithTeam(post.ChannelId, h.Mm.BotTeam.Id, post.Message)
 				if err != nil {
-					panic(err)
+					log.Error(err)
 				}
 			} else {
 				_, _, err = h.Mm.Client.CreatePost(post)
@@ -87,7 +87,7 @@ func (h *MessageHandler) SendMessage(r *Response) {
 		case "shutdown":
 			c, _, err := h.Mm.Client.CreateDirectChannel(r.UserId, h.Mm.BotUser.Id)
 			if err != nil {
-				panic(err)
+				log.Error(err)
 			}
 			replyPost := &model.Post{}
 			replyPost.ChannelId = c.Id
