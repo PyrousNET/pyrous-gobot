@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/pyrousnet/pyrous-gobot/internal/comms"
+	"github.com/pyrousnet/pyrous-gobot/internal/pubsub"
 	"log"
 	"regexp"
 	"strings"
@@ -18,12 +19,13 @@ import (
 
 type Handler struct {
 	Cache           cache.Cache
+	Pubsub          pubsub.Pubsub
 	Settings        *settings.Settings
 	Mm              *mmclient.MMClient
 	ResponseChannel chan comms.Response
 }
 
-func NewHandler(mm *mmclient.MMClient, botCache cache.Cache) (*Handler, error) {
+func NewHandler(mm *mmclient.MMClient, botCache cache.Cache, botPubSub pubsub.Pubsub) (*Handler, error) {
 	settings, err := settings.NewSettings(mm.SettingsUrl)
 	users.SetupUsers(mm, botCache)
 
@@ -61,6 +63,7 @@ func NewHandler(mm *mmclient.MMClient, botCache cache.Cache) (*Handler, error) {
 		Settings:        settings,
 		Mm:              mm,
 		Cache:           botCache,
+		Pubsub:          botPubSub,
 		ResponseChannel: mRH.ResponseCh,
 	}
 

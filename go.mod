@@ -7,6 +7,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/mattermost/mattermost-server/v6 v6.7.2
 	github.com/mitchellh/mapstructure v1.4.2
+	github.com/olebedev/when v0.0.0-20221205223600-4d190b02b8d8
 	github.com/opentracing/opentracing-go v1.2.0
 	github.com/quibbble/go-boardgame v1.0.2
 	github.com/tkanos/gonfig v0.0.0-20210106201359-53e13348de2f
@@ -14,6 +15,7 @@ require (
 )
 
 require (
+	github.com/AlekSi/pointer v1.0.0 // indirect
 	github.com/blang/semver v3.5.1+incompatible // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect

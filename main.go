@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"github.com/pyrousnet/pyrous-gobot/internal/handler/commands"
+	"github.com/pyrousnet/pyrous-gobot/internal/pubsub"
 	"log"
 	"os"
 	"os/signal"
@@ -42,8 +44,9 @@ func main() {
 	}()
 
 	botCache := cache.GetCachingMechanism(cfg.Server.CACHE_URI)
+	botPubsub := pubsub.GetPubsub(cfg.Server.CACHE_URI)
 
-	handler, err := handler.NewHandler(mmClient, botCache)
+	handler, err := handler.NewHandler(mmClient, botCache, botPubsub)
 	if err != nil {
 		log.Fatalln(err.Error())
 	}
@@ -80,6 +83,12 @@ func run(mmClient *mmclient.MMClient, handler *handler.Handler) {
 			}
 		}
 	}()
+
+	bc := commands.BotCommand{}
+	bc.SetPubsub(handler.Pubsub)
+	bc.SetCache(handler.Cache)
+	bc.ResponseChannel = handler.ResponseChannel
+	go commands.Scheduler(bc)
 
 	<-quit
 	log.Print("Shutting down...")
