@@ -11,6 +11,8 @@ type (
 	Pubsub interface {
 		Publish(channel string, payload []byte) error
 		Subscribe(channel string) *redis.PubSub
+		Get(key string) *redis.StringCmd
+		Del(key string) *redis.IntCmd
 		Close() error
 	}
 
@@ -58,4 +60,12 @@ func (rp *RedisPubsub) Subscribe(channel string) *redis.PubSub {
 
 func (rp *RedisPubsub) Close() error {
 	return rp.conn.Close()
+}
+
+func (rp *RedisPubsub) Get(key string) *redis.StringCmd {
+	return rp.conn.Get(rp.ctx, key)
+}
+
+func (rp *RedisPubsub) Del(key string) *redis.IntCmd {
+	return rp.conn.Del(rp.ctx, key)
 }
