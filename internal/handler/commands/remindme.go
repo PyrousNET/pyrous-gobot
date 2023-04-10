@@ -116,6 +116,8 @@ func Scheduler(bc BotCommand) error {
 				fmt.Println("Error deleting reminder:", err)
 				continue
 			}
+		} else {
+			bc.pubsub.Publish("reminders", strconv.FormatInt(timestamp, 10))
 		}
 
 		// Add a delay before the next iteration
