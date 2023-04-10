@@ -8,14 +8,14 @@ import (
 	"github.com/pyrousnet/pyrous-gobot/internal/comms"
 	"github.com/pyrousnet/pyrous-gobot/internal/users"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
 
 type Reminder struct {
-	When time.Time `json:"when"`
-	Who  string    `json:"who"`
-	What string    `json:"what"`
+	Who  string `json:"who"`
+	What string `json:"what"`
 }
 
 func (h BotCommandHelp) Remindme(request BotCommand) (response HelpResponse) {
@@ -27,9 +27,9 @@ func (h BotCommandHelp) Remindme(request BotCommand) (response HelpResponse) {
 
 func (bc BotCommand) Remindme(event BotCommand) error {
 	u, _, _ := users.GetUser(strings.TrimLeft(event.sender, "@"), event.cache)
-	pr := parseReminder(event.body)
+	pr, when := parseReminder(event.body)
 	pr.Who = u.Name
-	fmt.Println(pr.Who + " said to remind of " + pr.What + " at " + pr.When.String())
+	fmt.Println(pr.Who + " said to remind of " + pr.What + " at " + when.String())
 	fmt.Println(pr)
 
 	rmdr, err := json.Marshal(pr)
@@ -37,12 +37,14 @@ func (bc BotCommand) Remindme(event BotCommand) error {
 		return err
 	}
 
-	bc.pubsub.Publish("reminders", rmdr)
+	timestamp := when.Unix()
+	bc.pubsub.Set(strconv.FormatInt(timestamp, 10), rmdr)
+	bc.pubsub.Publish("reminders", strconv.FormatInt(timestamp, 10))
 
 	return nil
 }
 
-func parseReminder(input string) Reminder {
+func parseReminder(input string) (Reminder, time.Time) {
 	re := regexp.MustCompile(`(.+?)\s+(to|about)\s+(.+)`)
 	matches := re.FindStringSubmatch(input)
 	whenStr := matches[1]
@@ -58,9 +60,8 @@ func parseReminder(input string) Reminder {
 	when := whenDate.Time
 
 	return Reminder{
-		When: when,
 		What: what,
-	}
+	}, when
 }
 
 func Scheduler(bc BotCommand) error {
@@ -75,17 +76,34 @@ func Scheduler(bc BotCommand) error {
 	for {
 		var reminder Reminder
 		// Wait for a message on the channel
-		msg := <-channel
+		msg, ok := <-channel
+		if !ok {
+			fmt.Println("Message channel closed")
+			break
+		}
 
-		// Unmarshal reminder from payload
-		err := json.Unmarshal([]byte(msg.Payload), &reminder)
+		// Convert the message payload to a timestamp
+		timestamp, err := strconv.ParseInt(msg.Payload, 10, 64)
 		if err != nil {
-			fmt.Println("Error parsing reminder:", err)
+			fmt.Println("Error parsing timestamp:", err)
 			continue
 		}
 
 		// Check if the reminder is due
-		if time.Now().Unix() >= reminder.When.Unix() {
+		if time.Now().Unix() >= timestamp {
+			r, err := bc.pubsub.Get(msg.Payload).Result()
+			if err != nil {
+				fmt.Println("Error fetching reminder:", err)
+				continue
+			}
+
+			// Unmarshal reminder from payload
+			err = json.Unmarshal([]byte(r), &reminder)
+			if err != nil {
+				fmt.Println("Error parsing reminder:", err)
+				continue
+			}
+
 			// Send the reminder
 			err = sendReminder(reminder, bc)
 			if err != nil {
@@ -103,6 +121,7 @@ func Scheduler(bc BotCommand) error {
 		// Add a delay before the next iteration
 		time.Sleep(1 * time.Second)
 	}
+	return nil
 }
 
 func sendReminder(reminder Reminder, bc BotCommand) error {

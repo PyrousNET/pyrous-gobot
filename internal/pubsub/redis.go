@@ -9,10 +9,11 @@ import (
 
 type (
 	Pubsub interface {
-		Publish(channel string, payload []byte) error
+		Publish(channel string, payload string) error
 		Subscribe(channel string) *redis.PubSub
 		Get(key string) *redis.StringCmd
 		Del(key string) *redis.IntCmd
+		Set(key string, value []byte) *redis.StatusCmd
 		Close() error
 	}
 
@@ -50,7 +51,7 @@ func GetRedisPubsub(connStr string) *RedisPubsub {
 	return rps
 }
 
-func (rp *RedisPubsub) Publish(channel string, payload []byte) error {
+func (rp *RedisPubsub) Publish(channel string, payload string) error {
 	return rp.conn.Publish(rp.ctx, channel, payload).Err()
 }
 
@@ -68,4 +69,8 @@ func (rp *RedisPubsub) Get(key string) *redis.StringCmd {
 
 func (rp *RedisPubsub) Del(key string) *redis.IntCmd {
 	return rp.conn.Del(rp.ctx, key)
+}
+
+func (rp *RedisPubsub) Set(key string, value []byte) *redis.StatusCmd {
+	return rp.conn.Set(rp.ctx, key, value, 0)
 }
