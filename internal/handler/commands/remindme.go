@@ -7,7 +7,6 @@ import (
 	"github.com/olebedev/when/rules/en"
 	"github.com/pyrousnet/pyrous-gobot/internal/users"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -73,25 +72,26 @@ func Scheduler(bc BotCommand) error {
 
 	// Loop forever to process reminders
 	for {
+		var reminder Reminder
 		// Wait for a message on the channel
 		msg := <-channel
 
-		// Convert the message payload to a timestamp
-		timestamp, err := strconv.ParseInt(msg.Payload, 10, 64)
+		// Fetch the reminder from Redis
+		r, err := bc.pubsub.Get(msg.Payload).Result()
 		if err != nil {
-			fmt.Println("Error parsing timestamp:", err)
+			fmt.Println("Error fetching reminder:", err)
+			continue
+		}
+
+		// Unmarshal reminder from payload
+		err = json.Unmarshal([]byte(r), reminder)
+		if err != nil {
+			fmt.Println("Error parsing reminder:", err)
 			continue
 		}
 
 		// Check if the reminder is due
-		if time.Now().Unix() >= timestamp {
-			// Fetch the reminder from Redis
-			reminder, err := bc.pubsub.Get(msg.Payload).Result()
-			if err != nil {
-				fmt.Println("Error fetching reminder:", err)
-				continue
-			}
-
+		if time.Now().Unix() >= reminder.When.Unix() {
 			// Send the reminder
 			sendReminder(reminder)
 
@@ -108,6 +108,6 @@ func Scheduler(bc BotCommand) error {
 	}
 }
 
-func sendReminder(result string) {
+func sendReminder(reminder Reminder) {
 	// TODO
 }
