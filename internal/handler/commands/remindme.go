@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/olebedev/when"
 	"github.com/olebedev/when/rules/en"
@@ -12,9 +13,9 @@ import (
 )
 
 type Reminder struct {
-	When time.Time
-	Who  string
-	What string
+	When time.Time `json:"when"`
+	Who  string    `json:"who"`
+	What string    `json:"what"`
 }
 
 func (h BotCommandHelp) Remindme(request BotCommand) (response HelpResponse) {
@@ -30,6 +31,13 @@ func (bc BotCommand) Remindme(event BotCommand) error {
 	pr.Who = u.Name
 	fmt.Println(pr.Who + " said to remind of " + pr.What + " at " + pr.When.String())
 	fmt.Println(pr)
+
+	rmdr, err := json.Marshal(pr)
+	if err != nil {
+		return err
+	}
+
+	bc.pubsub.Publish("reminders", rmdr)
 
 	return nil
 }
