@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"github.com/pyrousnet/pyrous-gobot/internal/comms"
+	"github.com/pyrousnet/pyrous-gobot/internal/pubsub"
 	"log"
 	"reflect"
 	"strings"
@@ -22,6 +23,7 @@ type (
 		Mm               *mmclient.MMClient
 		Settings         *settings.Settings
 		Cache            cache.Cache
+		Pubsub           pubsub.Pubsub
 	}
 
 	Method struct {
@@ -39,6 +41,7 @@ type (
 		ResponseChannel chan comms.Response
 		method          Method
 		cache           cache.Cache
+		pubsub          pubsub.Pubsub
 		Quit            chan bool
 	}
 
@@ -51,11 +54,12 @@ type (
 	}
 )
 
-func NewCommands(settings *settings.Settings, mm *mmclient.MMClient, cache cache.Cache) *Commands {
+func NewCommands(settings *settings.Settings, mm *mmclient.MMClient, cache cache.Cache, pubsub pubsub.Pubsub) *Commands {
 	commands := Commands{
 		Settings: settings,
 		Mm:       mm,
 		Cache:    cache,
+		Pubsub:   pubsub,
 	}
 
 	c := BotCommand{}
@@ -115,6 +119,7 @@ func (c *Commands) NewBotCommand(post string, sender string) (BotCommand, error)
 		ReplyChannel: replyChannel,
 		sender:       sender,
 		cache:        c.Cache,
+		pubsub:       c.Pubsub,
 	}, nil
 }
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/pyrousnet/pyrous-gobot/internal/pubsub"
 	"log"
 	"os"
 	"os/signal"
@@ -42,8 +43,9 @@ func main() {
 	}()
 
 	botCache := cache.GetCachingMechanism(cfg.Server.CACHE_URI)
+	botPubsub := pubsub.GetPubsub(cfg.Server.CACHE_URI)
 
-	handler, err := handler.NewHandler(mmClient, botCache)
+	handler, err := handler.NewHandler(mmClient, botCache, botPubsub)
 	if err != nil {
 		log.Fatalln(err.Error())
 	}
