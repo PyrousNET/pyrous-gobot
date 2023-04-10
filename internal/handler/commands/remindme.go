@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/olebedev/when"
 	"github.com/olebedev/when/rules/en"
+	"github.com/pyrousnet/pyrous-gobot/internal/comms"
 	"github.com/pyrousnet/pyrous-gobot/internal/users"
 	"regexp"
 	"strings"
@@ -93,7 +94,10 @@ func Scheduler(bc BotCommand) error {
 		// Check if the reminder is due
 		if time.Now().Unix() >= reminder.When.Unix() {
 			// Send the reminder
-			sendReminder(reminder)
+			err = sendReminder(reminder, bc)
+			if err != nil {
+				return err
+			}
 
 			// Delete the reminder from Redis
 			_, err = bc.pubsub.Del(msg.Payload).Result()
@@ -108,6 +112,25 @@ func Scheduler(bc BotCommand) error {
 	}
 }
 
-func sendReminder(reminder Reminder) {
-	// TODO
+func sendReminder(reminder Reminder, bc BotCommand) error {
+	u, ok, err := users.GetUser(reminder.Who, bc.cache)
+	if err != nil {
+		return err
+	}
+
+	if ok {
+		r := comms.Response{
+			ReplyChannelId: "",
+			Message:        reminder.What,
+			Type:           "dm",
+			UserId:         u.Id,
+			Quit:           nil,
+		}
+
+		bc.ResponseChannel <- r
+	} else {
+		return fmt.Errorf("scheduler was unable to send %s reminder of %s", reminder.Who, reminder.What)
+	}
+
+	return nil
 }
