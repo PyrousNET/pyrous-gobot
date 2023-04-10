@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/pyrousnet/pyrous-gobot/internal/handler/commands"
 	"github.com/pyrousnet/pyrous-gobot/internal/pubsub"
 	"log"
 	"os"
@@ -82,6 +83,11 @@ func run(mmClient *mmclient.MMClient, handler *handler.Handler) {
 			}
 		}
 	}()
+
+	bc := commands.BotCommand{}
+	bc.SetPubsub(handler.Pubsub)
+	bc.SetCache(handler.Cache)
+	go commands.Scheduler(bc)
 
 	<-quit
 	log.Print("Shutting down...")

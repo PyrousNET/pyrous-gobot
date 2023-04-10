@@ -62,7 +62,10 @@ func NewCommands(settings *settings.Settings, mm *mmclient.MMClient, cache cache
 		Pubsub:   pubsub,
 	}
 
-	c := BotCommand{}
+	c := BotCommand{
+		cache:  cache,
+		pubsub: pubsub,
+	}
 	t := reflect.TypeOf(&c)
 	v := reflect.ValueOf(&c)
 	for i := 0; i < t.NumMethod(); i++ {
@@ -154,4 +157,12 @@ func (c *Commands) getMethod(methodName string) (Method, error) {
 	}
 
 	return Method{}, fmt.Errorf("no such command: %s", methodName)
+}
+
+func (bc *BotCommand) SetCache(c cache.Cache) {
+	bc.cache = c
+}
+
+func (bc *BotCommand) SetPubsub(ps pubsub.Pubsub) {
+	bc.pubsub = ps
 }

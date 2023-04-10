@@ -77,15 +77,8 @@ func Scheduler(bc BotCommand) error {
 		// Wait for a message on the channel
 		msg := <-channel
 
-		// Fetch the reminder from Redis
-		r, err := bc.pubsub.Get(msg.Payload).Result()
-		if err != nil {
-			fmt.Println("Error fetching reminder:", err)
-			continue
-		}
-
 		// Unmarshal reminder from payload
-		err = json.Unmarshal([]byte(r), reminder)
+		err := json.Unmarshal([]byte(msg.Payload), &reminder)
 		if err != nil {
 			fmt.Println("Error parsing reminder:", err)
 			continue
