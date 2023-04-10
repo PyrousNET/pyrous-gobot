@@ -87,6 +87,7 @@ func run(mmClient *mmclient.MMClient, handler *handler.Handler) {
 	bc := commands.BotCommand{}
 	bc.SetPubsub(handler.Pubsub)
 	bc.SetCache(handler.Cache)
+	bc.ResponseChannel = handler.ResponseChannel
 	go commands.Scheduler(bc)
 
 	<-quit
