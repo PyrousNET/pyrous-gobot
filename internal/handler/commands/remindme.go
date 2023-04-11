@@ -38,7 +38,7 @@ func (bc BotCommand) Remindme(event BotCommand) error {
 	}
 
 	timestamp := when.Unix()
-	key := "reminders_" + strconv.FormatInt(timestamp, 10)
+	key := "reminders-" + strconv.FormatInt(timestamp, 10)
 	bc.pubsub.Set(key, rmdr)
 	bc.pubsub.Publish("reminders", key)
 
@@ -86,7 +86,7 @@ func Scheduler(bc BotCommand) error {
 		}
 
 		// Convert the message payload to a timestamp
-		parts := strings.Split(msg.Payload, "_")
+		parts := strings.Split(msg.Payload, "-")
 		if len(parts) < 2 {
 			return fmt.Errorf("parts of payload were inccorect for pubsub")
 		}
@@ -124,7 +124,7 @@ func Scheduler(bc BotCommand) error {
 				continue
 			}
 		} else {
-			key := "reminders_" + strconv.FormatInt(timestamp, 10)
+			key := "reminders-" + strconv.FormatInt(timestamp, 10)
 			bc.pubsub.Publish("reminders", key)
 		}
 
@@ -136,7 +136,7 @@ func Scheduler(bc BotCommand) error {
 
 func (bc *BotCommand) ReloadReminders() error {
 	// Load all existing jobs from Redis
-	keys, err := bc.cache.GetKeys("reminders_")
+	keys, err := bc.cache.GetKeys("reminders-")
 	if err != nil {
 		return err
 	}
