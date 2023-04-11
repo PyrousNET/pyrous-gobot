@@ -38,8 +38,9 @@ func (bc BotCommand) Remindme(event BotCommand) error {
 	}
 
 	timestamp := when.Unix()
-	bc.pubsub.Set(strconv.FormatInt(timestamp, 10), rmdr)
-	bc.pubsub.Publish("reminders", strconv.FormatInt(timestamp, 10))
+	key := "reminders_" + strconv.FormatInt(timestamp, 10)
+	bc.pubsub.Set(key, rmdr)
+	bc.pubsub.Publish("reminders", key)
 
 	return nil
 }
@@ -69,6 +70,8 @@ func Scheduler(bc BotCommand) error {
 	pubsub := bc.pubsub.Subscribe("reminders")
 	defer pubsub.Close()
 
+	bc.ReloadReminders()
+
 	// Create a channel to receive subscription messages
 	channel := pubsub.Channel()
 
@@ -83,7 +86,11 @@ func Scheduler(bc BotCommand) error {
 		}
 
 		// Convert the message payload to a timestamp
-		timestamp, err := strconv.ParseInt(msg.Payload, 10, 64)
+		parts := strings.Split(msg.Payload, "_")
+		if len(parts) < 2 {
+			return fmt.Errorf("parts of payload were inccorect for pubsub")
+		}
+		timestamp, err := strconv.ParseInt(parts[1], 10, 64)
 		if err != nil {
 			fmt.Println("Error parsing timestamp:", err)
 			continue
@@ -117,11 +124,31 @@ func Scheduler(bc BotCommand) error {
 				continue
 			}
 		} else {
-			bc.pubsub.Publish("reminders", strconv.FormatInt(timestamp, 10))
+			key := "reminders_" + strconv.FormatInt(timestamp, 10)
+			bc.pubsub.Publish("reminders", key)
 		}
 
 		// Add a delay before the next iteration
 		time.Sleep(1 * time.Second)
+	}
+	return nil
+}
+
+func (bc *BotCommand) ReloadReminders() error {
+	// Load all existing jobs from Redis
+	keys, err := bc.cache.GetKeys("reminders_")
+	if err != nil {
+		return err
+	}
+	jobs := bc.cache.GetAll(keys)
+	if err != nil {
+		return err
+	}
+
+	for j, _ := range jobs {
+		// Process the items retrieved
+		fmt.Println("Processing reminder:", j)
+		bc.pubsub.Publish("reminders", j)
 	}
 	return nil
 }
