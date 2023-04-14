@@ -7,7 +7,6 @@ import (
 	"github.com/olebedev/when/rules/en"
 	"github.com/pyrousnet/pyrous-gobot/internal/comms"
 	"github.com/pyrousnet/pyrous-gobot/internal/users"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -42,14 +41,38 @@ func (bc BotCommand) Remindme(event BotCommand) error {
 	bc.pubsub.Set(key, rmdr)
 	bc.pubsub.Publish("reminders", key)
 
+	whenStr := when.Format("Mon Jan 2 2006 3:04 PM")
+
+	notify := "Ok. I'll remind you of %s at %s"
+	r := comms.Response{
+		ReplyChannelId: "",
+		Message:        fmt.Sprintf(notify, pr.What, whenStr),
+		Type:           "dm",
+		UserId:         u.Id,
+		Quit:           nil,
+	}
+	event.ResponseChannel <- r
 	return nil
 }
 
 func parseReminder(input string) (Reminder, time.Time) {
-	re := regexp.MustCompile(`(.+?)\s+(to|about)\s+(.+)`)
-	matches := re.FindStringSubmatch(input)
-	whenStr := matches[1]
-	what := matches[3]
+	var whenStr, what string
+	sep := []string{" to ", " about "}
+	index := -1
+	sepIndex := -1
+	for sI, s := range sep {
+		sepIndex = sI
+		i := strings.Index(input, s)
+		if i != -1 {
+			index = i
+			break
+		}
+	}
+
+	if index != -1 {
+		whenStr = input[:index]
+		what = strings.TrimSpace(input[index+len(sep[sepIndex]):])
+	}
 	w := when.New(nil)
 	w.Add(en.All...)
 
