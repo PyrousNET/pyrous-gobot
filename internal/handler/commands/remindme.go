@@ -6,6 +6,7 @@ import (
 	"github.com/olebedev/when"
 	"github.com/olebedev/when/rules/en"
 	"github.com/pyrousnet/pyrous-gobot/internal/comms"
+	"github.com/pyrousnet/pyrous-gobot/internal/handler/commands/utils"
 	"github.com/pyrousnet/pyrous-gobot/internal/users"
 	"strconv"
 	"strings"
@@ -109,11 +110,7 @@ func Scheduler(bc BotCommand) error {
 		}
 
 		// Convert the message payload to a timestamp
-		parts := strings.Split(msg.Payload, "-")
-		if len(parts) < 2 {
-			return fmt.Errorf("parts of payload were inccorect for pubsub")
-		}
-		timestamp, err := strconv.ParseInt(parts[1], 10, 64)
+		timestamp, err := utils.ConvertTimestamp(msg.Payload)
 		if err != nil {
 			fmt.Println("Error parsing timestamp:", err)
 			continue
@@ -121,14 +118,8 @@ func Scheduler(bc BotCommand) error {
 
 		// Check if the reminder is due
 		if time.Now().Unix() >= timestamp {
-			r, err := bc.pubsub.Get(msg.Payload).Result()
-			if err != nil {
-				fmt.Println("Error fetching reminder:", err)
-				continue
-			}
-
 			// Unmarshal reminder from payload
-			err = json.Unmarshal([]byte(r), &reminder)
+			reminder, err = bc.GetReminder(msg.Payload)
 			if err != nil {
 				fmt.Println("Error parsing reminder:", err)
 				continue
@@ -197,4 +188,22 @@ func sendReminder(reminder Reminder, bc BotCommand) error {
 	}
 
 	return nil
+}
+
+func (bc BotCommand) GetReminder(in string) (Reminder, error) {
+	var reminder Reminder
+	r, err := bc.pubsub.Get(in).Result()
+	if err != nil {
+		fmt.Println("Error fetching reminder:", err)
+		return Reminder{}, err
+	}
+
+	// Unmarshal reminder from payload
+	err = json.Unmarshal([]byte(r), &reminder)
+	if err != nil {
+		fmt.Println("Error parsing reminder:", err)
+		return Reminder{}, err
+	}
+
+	return reminder, nil
 }
