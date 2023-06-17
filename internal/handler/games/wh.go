@@ -41,7 +41,7 @@ func NewWavingHands(event BotGame) (Game, error) {
 			Left:  wavinghands.Hand{},
 			Name:  name,
 			Living: wavinghands.Living{
-				HitPoints: 15,
+				HitPoints: wavinghands.MaxWhHp,
 			},
 			Curses:      "",
 			Protections: "",
@@ -63,7 +63,7 @@ func NewWavingHands(event BotGame) (Game, error) {
 					Left:  wavinghands.Hand{},
 					Name:  name,
 					Living: wavinghands.Living{
-						HitPoints: 15,
+						HitPoints: wavinghands.MaxWhHp,
 					},
 					Curses:      "",
 					Protections: "",
@@ -288,84 +288,10 @@ func handleGameWithDirective(event BotGame, err error) (error, bool) {
 		// Check All Players for gestures
 		hasAllMoves := CheckAllPlayers(g)
 		if hasAllMoves {
-			for i := range g.gData.Players {
-				p := g.gData.Players[i]
-				rG := p.Right.GetAt(len(p.Right.Sequence) - 1)
-				lG := p.Left.GetAt(len(p.Left.Sequence) - 1)
-				if p.GetTarget() != "" {
-					t, err = FindTarget(g, p.GetTarget())
-					if err != nil {
-						return err, true
-					}
-					t.Selector = p.GetTarget()
-				}
-				announceGestures(&p, event.ResponseChannel, response, string(rG), string(lG), p.GetTarget())
-				sr, err := spells.GetSurrenderSpell(wavinghands.GetSpell("Surrender"))
-				if err != nil {
-					return err, true
-				}
-				surrenderString, err := sr.Cast(&g.gData.Players[i], t)
-				if err == nil && surrenderString != "" {
-					response.Message = surrenderString
-					time.Sleep(time.Second)
-					event.ResponseChannel <- response
-				} else if err != nil {
-					return err, true
-				}
-				// Run Protection Spells
-
-				cHW, err := spells.GetCureHeavyWoundsSpell(wavinghands.GetSpell("Cure Heavy Wounds"))
-				if err != nil {
-					return err, true
-				}
-				chwResult, err := cHW.Cast(&g.gData.Players[i], t)
-				if err == nil && chwResult != "" {
-					response.Message = chwResult
-					event.ResponseChannel <- response
-				} else if err != nil {
-					return err, true
-				}
-
-				// Run Damage Spells
-				m, mErr := spells.GetMissileSpell(wavinghands.GetSpell("Missile"))
-				if mErr != nil {
-					return mErr, true
-				}
-				mResult, err := m.Cast(&g.gData.Players[i], t)
-				if err == nil && mResult != "" {
-					response.Message = mResult
-					event.ResponseChannel <- response
-				} else if err != nil {
-					return err, true
-				}
-				s, sErr := spells.GetStabSpell(wavinghands.GetSpell("Stab"))
-				if sErr != nil {
-					return sErr, true
-				}
-				sResult, err := s.Cast(&g.gData.Players[i], t)
-				if err == nil && sResult != "" {
-					response.Message = sResult
-					event.ResponseChannel <- response
-				} else if err != nil {
-					return err, true
-				}
-				CHW, err := spells.GetCauseHeavyWoundsSpell(wavinghands.GetSpell("Cause Heavy Wounds"))
-				if err != nil {
-					return err, true
-				}
-				chwResult, err = CHW.Cast(&g.gData.Players[i], t)
-				if err == nil && chwResult != "" {
-					response.Message = chwResult
-					event.ResponseChannel <- response
-				} else if err != nil {
-					return err, true
-				}
-
-				cHW.Clear(&p.Living)
+			err, b, done := executeRound(event, &g, t, err, response)
+			if done {
+				return err, b
 			}
-
-			// Run Summon Spells
-			g.gData.Round += 1
 		}
 
 		winner, err := getWHWinner(g)
@@ -380,6 +306,88 @@ func handleGameWithDirective(event BotGame, err error) (error, bool) {
 		}
 	}
 	return nil, true
+}
+
+func executeRound(event BotGame, g *Game, t *wavinghands.Living, err error, response comms.Response) (error, bool, bool) {
+	for i := range g.gData.Players {
+		p := g.gData.Players[i]
+		rG := p.Right.GetAt(len(p.Right.Sequence) - 1)
+		lG := p.Left.GetAt(len(p.Left.Sequence) - 1)
+		if p.GetTarget() != "" {
+			t, err = FindTarget(g, p.GetTarget())
+			if err != nil {
+				return err, true, true
+			}
+			t.Selector = p.GetTarget()
+		}
+		announceGestures(&p, event.ResponseChannel, response, string(rG), string(lG), p.GetTarget())
+		sr, err := spells.GetSurrenderSpell(wavinghands.GetSpell("Surrender"))
+		if err != nil {
+			return err, true, true
+		}
+		surrenderString, err := sr.Cast(&g.gData.Players[i], t)
+		if err == nil && surrenderString != "" {
+			response.Message = surrenderString
+			time.Sleep(time.Second)
+			event.ResponseChannel <- response
+		} else if err != nil {
+			return err, true, true
+		}
+		// Run Protection Spells
+
+		cHW, err := spells.GetCureHeavyWoundsSpell(wavinghands.GetSpell("Cure Heavy Wounds"))
+		if err != nil {
+			return err, true, true
+		}
+		chwResult, err := cHW.Cast(&g.gData.Players[i], t)
+		if err == nil && chwResult != "" {
+			response.Message = chwResult
+			event.ResponseChannel <- response
+		} else if err != nil {
+			return err, true, true
+		}
+
+		// Run Damage Spells
+		m, mErr := spells.GetMissileSpell(wavinghands.GetSpell("Missile"))
+		if mErr != nil {
+			return mErr, true, true
+		}
+		mResult, err := m.Cast(&g.gData.Players[i], t)
+		if err == nil && mResult != "" {
+			response.Message = mResult
+			event.ResponseChannel <- response
+		} else if err != nil {
+			return err, true, true
+		}
+		s, sErr := spells.GetStabSpell(wavinghands.GetSpell("Stab"))
+		if sErr != nil {
+			return sErr, true, true
+		}
+		sResult, err := s.Cast(&g.gData.Players[i], t)
+		if err == nil && sResult != "" {
+			response.Message = sResult
+			event.ResponseChannel <- response
+		} else if err != nil {
+			return err, true, true
+		}
+		CHW, err := spells.GetCauseHeavyWoundsSpell(wavinghands.GetSpell("Cause Heavy Wounds"))
+		if err != nil {
+			return err, true, true
+		}
+		chwResult, err = CHW.Cast(&g.gData.Players[i], t)
+		if err == nil && chwResult != "" {
+			response.Message = chwResult
+			event.ResponseChannel <- response
+		} else if err != nil {
+			return err, true, true
+		}
+
+		cHW.Clear(&p.Living)
+	}
+
+	// Run Summon Spells
+	g.gData.Round += 1
+	return err, false, false
 }
 
 func announceGestures(
@@ -474,7 +482,7 @@ func getWHWinner(g Game) (wavinghands.Wizard, error) {
 	}
 }
 
-func FindTarget(g Game, selector string) (*wavinghands.Living, error) {
+func FindTarget(g *Game, selector string) (*wavinghands.Living, error) {
 	var name, monster string
 	var wizard *wavinghands.Wizard
 	parts := strings.Split(selector, ":")

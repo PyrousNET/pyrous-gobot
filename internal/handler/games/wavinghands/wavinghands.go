@@ -12,6 +12,7 @@ const (
 	minTeams = 2
 	maxTeams = 6
 	PREFIX   = "wh-"
+	MaxWhHp  = 15
 )
 
 type (
@@ -62,11 +63,14 @@ func (h *Hand) Set(s string) {
 	h.Sequence = s
 }
 
-func (h Hand) Get() []byte {
+func (h *Hand) Get() []byte {
 	return []byte(h.Sequence)
 }
 
-func (h Hand) GetAt(index int) byte {
+func (h *Hand) GetAt(index int) byte {
+	if index < 0 {
+		return ' '
+	}
 	return h.Sequence[index]
 }
 

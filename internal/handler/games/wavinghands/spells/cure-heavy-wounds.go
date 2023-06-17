@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+const HealingPoints = 2
+
 type CureHeavyWounds struct {
 	Name        string `json:"name"`
 	Sequence    string `json:"sequence"`
@@ -35,6 +37,10 @@ func (cHW CureHeavyWounds) Cast(wizard *wavinghands.Wizard, target *wavinghands.
 		wards = append(wards, "cureHeavyWounds") // Lasts one round
 		target.Wards = strings.Join(wards, ",")
 
+		target.HitPoints += HealingPoints
+		if target.HitPoints > wavinghands.MaxWhHp {
+			target.HitPoints = wavinghands.MaxWhHp
+		}
 		returnString += fmt.Sprintf("%s has cast Cure Heavy Wounds on %s", wizard.Name, target.Selector)
 	}
 
