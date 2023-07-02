@@ -8,7 +8,7 @@ import (
 )
 
 func (h *Handler) HandleCommand(quit chan bool, event *model.WebSocketEvent) error {
-	cmds := commands.NewCommands(h.Settings, h.Mm, h.Cache)
+	cmds := commands.NewCommands(h.Settings, h.Mm, h.Cache, h.Pubsub)
 	channelId := event.GetBroadcast().ChannelId
 	post := h.Mm.PostFromJson(strings.NewReader(event.GetData()["post"].(string)))
 	sender := event.GetData()["sender_name"].(string)

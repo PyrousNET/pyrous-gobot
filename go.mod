@@ -7,6 +7,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/mattermost/mattermost-server/v6 v6.7.2
 	github.com/mitchellh/mapstructure v1.4.2
+	github.com/olebedev/when v0.0.0-20221205223600-4d190b02b8d8
 	github.com/opentracing/opentracing-go v1.2.0
 	github.com/quibbble/go-boardgame v1.0.2
 	github.com/tkanos/gonfig v0.0.0-20210106201359-53e13348de2f
@@ -14,6 +15,7 @@ require (
 )
 
 require (
+	github.com/AlekSi/pointer v1.0.0 // indirect
 	github.com/blang/semver v3.5.1+incompatible // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
@@ -48,9 +50,9 @@ require (
 	github.com/wiggin77/merror v1.0.3 // indirect
 	github.com/wiggin77/srslog v1.0.1 // indirect
 	golang.org/x/crypto v0.0.0-20220331220935-ae2d96664a29 // indirect
-	golang.org/x/net v0.0.0-20220403103023-749bd193bc2b // indirect
-	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect
-	golang.org/x/text v0.3.7 // indirect
+	golang.org/x/net v0.7.0 // indirect
+	golang.org/x/sys v0.5.0 // indirect
+	golang.org/x/text v0.7.0 // indirect
 	gopkg.in/ini.v1 v1.66.4 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
