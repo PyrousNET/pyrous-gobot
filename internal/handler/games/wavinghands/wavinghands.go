@@ -10,8 +10,9 @@ import (
 
 const (
 	minTeams = 2
-	maxTeams = 6
+	maxTeams = 2
 	PREFIX   = "wh-"
+	MaxWhHp  = 15
 )
 
 type (
@@ -62,11 +63,14 @@ func (h *Hand) Set(s string) {
 	h.Sequence = s
 }
 
-func (h Hand) Get() []byte {
+func (h *Hand) Get() []byte {
 	return []byte(h.Sequence)
 }
 
-func (h Hand) GetAt(index int) byte {
+func (h *Hand) GetAt(index int) byte {
+	if index < 0 {
+		return ' '
+	}
 	return h.Sequence[index]
 }
 
@@ -107,9 +111,9 @@ func GetHelpSpell(chSp string) string {
 
 	var response string
 	if spell.Name == "" {
-		response = fmt.Sprintf("/echo %s wasn't a spell.\n", chSp)
+		response = fmt.Sprintf("%s wasn't a spell.\n", chSp)
 	} else {
-		response = fmt.Sprintf("/echo %s is defined as follows:\n```\n", spell.Name)
+		response = fmt.Sprintf("%s is defined as follows:\n```\n", spell.Name)
 		response += fmt.Sprintf("Description: %s\n", spell.Description)
 		response += fmt.Sprintf("Usage: %s\n", spell.Usage)
 		response += "```\n"

@@ -44,14 +44,16 @@ func SetupUsers(mm *mmclient.MMClient, c cache.Cache) error {
 
 func HandlePost(post *model.Post, mm *mmclient.MMClient, c cache.Cache) error {
 	user, _, err := mm.Client.GetUser(post.UserId, "")
-	key := KeyPrefix + user.Username
-	persisted, ok, _ := GetUser(user.Username, c)
+	if err == nil {
+		key := KeyPrefix + user.Username
+		persisted, ok, _ := GetUser(user.Username, c)
 
-	if ok {
-		persisted.Message = post.Message
+		if ok {
+			persisted.Message = post.Message
 
-		ub, _ := json.Marshal(persisted)
-		c.Put(key, ub)
+			ub, _ := json.Marshal(persisted)
+			c.Put(key, ub)
+		}
 	}
 
 	return err

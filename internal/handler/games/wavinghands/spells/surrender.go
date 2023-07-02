@@ -13,11 +13,11 @@ type Surrender struct {
 	Description string `json:"description"`
 	Usage       string `json:"usage"`
 	Damage      int    `json:"damage"`
-	Resistences string `json:"resistences"`
+	Resistances string `json:"resistances"`
 	Protections string `json:"protections"`
 }
 
-func (s Surrender) Cast(wizard *wavinghands.Wizard, target *wavinghands.Living) (string, error) {
+func (s *Surrender) Cast(wizard *wavinghands.Wizard, target *wavinghands.Living) (string, error) {
 	if strings.HasSuffix(wizard.Right.Sequence, s.Sequence) && strings.HasSuffix(wizard.Left.Sequence, s.ShSequence) {
 		wizard.Living.HitPoints = 0
 
@@ -38,7 +38,7 @@ func GetSurrenderSpell(s *wavinghands.Spell, e error) (*Surrender, error) {
 		Description: s.Description,
 		Usage:       s.Usage,
 		Damage:      s.Damage,
-		Resistences: s.Resistances,
+		Resistances: s.Resistances,
 		Protections: s.Protections,
 	}, nil
 }
