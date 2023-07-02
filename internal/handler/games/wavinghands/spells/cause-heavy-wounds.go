@@ -13,11 +13,11 @@ type CauseHeavyWounds struct {
 	Description string `json:"description"`
 	Usage       string `json:"usage"`
 	Damage      int    `json:"damage"`
-	Resistences string `json:"resistences"`
+	Resistances string `json:"resistances"`
 	Protections string `json:"protections"`
 }
 
-func (cHW CauseHeavyWounds) Cast(wizard *wavinghands.Wizard, target *wavinghands.Living) (string, error) {
+func (cHW *CauseHeavyWounds) Cast(wizard *wavinghands.Wizard, target *wavinghands.Living) (string, error) {
 	var returnString string = ""
 	if strings.HasSuffix(wizard.Right.Sequence, cHW.Sequence) {
 
@@ -56,7 +56,7 @@ func GetCauseHeavyWoundsSpell(s *wavinghands.Spell, e error) (*CauseHeavyWounds,
 		Description: s.Description,
 		Usage:       s.Usage,
 		Damage:      s.Damage,
-		Resistences: s.Resistances,
+		Resistances: s.Resistances,
 		Protections: s.Protections,
 	}, nil
 }

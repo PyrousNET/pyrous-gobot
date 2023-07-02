@@ -10,7 +10,7 @@ import (
 
 const (
 	minTeams = 2
-	maxTeams = 6
+	maxTeams = 2
 	PREFIX   = "wh-"
 	MaxWhHp  = 15
 )

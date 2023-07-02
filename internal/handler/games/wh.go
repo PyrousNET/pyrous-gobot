@@ -334,6 +334,17 @@ func executeRound(event BotGame, g *Game, t *wavinghands.Living, err error, resp
 			return err, true, true
 		}
 		// Run Protection Spells
+		shld, err := spells.GetShieldSpell(wavinghands.GetSpell("Shield"))
+		if err != nil {
+			return err, true, true
+		}
+		shldResult, err := shld.Cast(&g.gData.Players[i], t)
+		if err == nil && shldResult != "" {
+			response.Message = shldResult
+			event.ResponseChannel <- response
+		} else if err != nil {
+			return err, true, true
+		}
 
 		cHW, err := spells.GetCureHeavyWoundsSpell(wavinghands.GetSpell("Cure Heavy Wounds"))
 		if err != nil {
@@ -383,6 +394,7 @@ func executeRound(event BotGame, g *Game, t *wavinghands.Living, err error, resp
 		}
 
 		cHW.Clear(&p.Living)
+		shld.Clear(t)
 	}
 
 	// Run Summon Spells
