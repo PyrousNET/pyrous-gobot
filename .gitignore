@@ -37,3 +37,6 @@ tags
 # Config files
 *_config.yml
 .idea/
+
+#VS Code files
+.vscode/

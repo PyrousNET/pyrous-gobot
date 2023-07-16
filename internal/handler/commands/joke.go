@@ -2,14 +2,15 @@ package commands
 
 import (
 	"encoding/json"
-	"github.com/pyrousnet/pyrous-gobot/internal/comms"
-	"github.com/pyrousnet/pyrous-gobot/internal/users"
 	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/pyrousnet/pyrous-gobot/internal/comms"
+	"github.com/pyrousnet/pyrous-gobot/internal/users"
 )
 
 type (
@@ -28,6 +29,13 @@ type (
 		Selftext     string                   `json:"selftext,omitempty"`
 		IsVideo      bool                     `json:"is_video,omitempty"`
 		AllAwardings []map[string]interface{} `json:"all_awardings,omitempty"`
+	}
+
+	authToken struct {
+		AccessToken string `json:"access_token"`
+		TokenType   string `json:"token_type"`
+		Expires     int32  `json:"expires_in"`
+		Scope       string `json:"scope"`
 	}
 )
 
@@ -49,9 +57,49 @@ func (bc BotCommand) Joke(event BotCommand) error {
 		Type:           "command",
 		UserId:         u.Id,
 	}
-	uri := "https://www.teddit.net/r/dadjokes/?api&target=reddit"
+	token_uri := "https://www.reddit.com/api/v1/access_token"
+	uri := "https://oauth.reddit.com/r/dadjokes"
 	hc := &http.Client{Timeout: 10 * time.Second}
-	r, err := hc.Get(uri)
+
+	//Get Reddit Access Token
+	req, err := http.NewRequest("POST", token_uri, strings.NewReader("grant_type=client_credentials"))
+	req.SetBasicAuth("aIuZxRUiUiPIFD-fVb--jg", "UpGXB262RUsADk1RNU3vaMqLFCKxmQ")
+	r, err := hc.Do(req)
+	if err != nil {
+		response.Type = "dm"
+		response.Message = "Failed to get reddit access token: " + err.Error()
+		event.ResponseChannel <- response
+		return err
+	}
+	defer r.Body.Close()
+
+	b, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		response.Type = "dm"
+		response.Message = err.Error()
+		event.ResponseChannel <- response
+		return err
+	}
+
+	var auth authToken
+	err = json.Unmarshal(b, &auth)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	bearer := "Bearer " + auth.AccessToken
+
+	// Get Jokes List
+	req, err = http.NewRequest("GET", uri, nil)
+	if err != nil {
+		response.Type = "dm"
+		response.Message = err.Error()
+		event.ResponseChannel <- response
+		return err
+	}
+	req.Header.Add("Authorization", bearer)
+
+	r, err = hc.Do(req)
 	if err != nil {
 		response.Type = "dm"
 		response.Message = err.Error()
@@ -60,7 +108,7 @@ func (bc BotCommand) Joke(event BotCommand) error {
 	}
 	defer r.Body.Close()
 
-	b, err := ioutil.ReadAll(r.Body)
+	b, err = ioutil.ReadAll(r.Body)
 	if err != nil {
 		response.Type = "dm"
 		response.Message = err.Error()
