@@ -12,6 +12,7 @@ import (
 	"golang.org/x/exp/slices"
 	"reflect"
 	"strings"
+	"time"
 )
 
 type (
@@ -40,7 +41,7 @@ func NewWavingHands(event BotGame) (Game, error) {
 			Left:  wavinghands.Hand{},
 			Name:  name,
 			Living: wavinghands.Living{
-				HitPoints: 15,
+				HitPoints: wavinghands.MaxWhHp,
 			},
 			Curses:      "",
 			Protections: "",
@@ -62,7 +63,7 @@ func NewWavingHands(event BotGame) (Game, error) {
 					Left:  wavinghands.Hand{},
 					Name:  name,
 					Living: wavinghands.Living{
-						HitPoints: 15,
+						HitPoints: wavinghands.MaxWhHp,
 					},
 					Curses:      "",
 					Protections: "",
@@ -100,7 +101,7 @@ func StartWavingHands(event BotGame) (Game, error) {
 		if !inGame {
 			return Game{}, fmt.Errorf("player not active in game, cannot start")
 		}
-		if len(g.gData.Players) > wavinghands.GetMinTeams() && len(g.gData.Players) <= wavinghands.GetMaxTeams() {
+		if len(g.gData.Players) >= wavinghands.GetMinTeams() && len(g.gData.Players) <= wavinghands.GetMaxTeams() {
 			g.gData.State = "playing"
 		} else if len(g.gData.Players) < wavinghands.GetMinTeams() {
 			return Game{}, fmt.Errorf("not enough players to start the game")
@@ -189,7 +190,11 @@ func handleGameWithDirective(event BotGame, err error) (error, bool) {
 	directive := parts[0]
 	switch directive {
 	case "help":
-		response.Message = wavinghands.GetHelpSpell(parts[1])
+		if len(parts) > 1 {
+			response.Message = wavinghands.GetHelpSpell(parts[1])
+		} else {
+			response.Message = "What spell would you like help with?"
+		}
 		response.Type = "dm"
 		event.ResponseChannel <- response
 		return nil, true
@@ -235,6 +240,12 @@ func handleGameWithDirective(event BotGame, err error) (error, bool) {
 			return err, true
 		}
 		fmt.Sscanf(event.body, "%s %s %s %s", &channelName, &rGesture, &lGesture, &target)
+		if target == "" {
+			response.Type = "dm"
+			response.Message = "missing target"
+			event.ResponseChannel <- response
+			return fmt.Errorf("missing target for waving hands"), true
+		}
 		if channelName != "" {
 			c, err := event.mm.GetChannelByName(channelName)
 			if err != nil {
@@ -248,11 +259,7 @@ func handleGameWithDirective(event BotGame, err error) (error, bool) {
 		}
 
 		g := Game{gData: wHGameData, Channel: channel}
-		p, err := GetCurrentPlayer(g, name)
-
-		if target != "" {
-			t, err = FindTarget(g, target)
-		}
+		p, err := GetCurrentPlayer(&g, name)
 
 		if err != nil {
 			return err, true
@@ -266,7 +273,7 @@ func handleGameWithDirective(event BotGame, err error) (error, bool) {
 			if rGesture == "nothing" {
 				rGesture = "0"
 			}
-			if rGesture == "stab" {
+			if rGesture == "nothing" {
 				lGesture = "0"
 			}
 			rightGestures := append(p.Right.Get(), rGesture[0])
@@ -281,56 +288,15 @@ func handleGameWithDirective(event BotGame, err error) (error, bool) {
 		// Check All Players for gestures
 		hasAllMoves := CheckAllPlayers(g)
 		if hasAllMoves {
-			for i, p := range g.gData.Players {
-				rG := p.Right.GetAt(len(p.Right.Sequence) - 1)
-				lG := p.Left.GetAt(len(p.Left.Sequence) - 1)
-				announceGestures(&p, event.ResponseChannel, response, string(rG), string(lG), p.GetTarget())
-				sr, err := spells.GetSurrenderSpell(wavinghands.GetSpell("Surrender"))
-				if err != nil {
-					return err, true
-				}
-				t = &p.Living
-				surrenderString, err := sr.Cast(&g.gData.Players[i], t)
-				if err == nil && surrenderString != "" {
-					response.Message = surrenderString
-					event.ResponseChannel <- response
-				} else if err != nil {
-					return err, true
-				}
-				// Run Protection Spells
-
-				cHW, err := spells.GetCureHeavyWoundsSpell(wavinghands.GetSpell("Cure Heavy Wounds"))
-				if err != nil {
-					return err, true
-				}
-				chwResult, err := cHW.Cast(&g.gData.Players[i], t)
-				if err == nil && chwResult != "" {
-					response.Message = chwResult
-					event.ResponseChannel <- response
-				} else if err != nil {
-					return err, true
-				}
-
-				// Run Damage Spells
-				CHW, err := spells.GetCauseHeavyWoundsSpell(wavinghands.GetSpell("Cause Heavy Wounds"))
-				if err != nil {
-					return err, true
-				}
-				chwResult, err = CHW.Cast(&g.gData.Players[i], t)
-				if err == nil && chwResult != "" {
-					response.Message = chwResult
-					event.ResponseChannel <- response
-				} else if err != nil {
-					return err, true
-				}
+			err, b, done := executeRound(event, &g, t, err, response)
+			if done {
+				return err, b
 			}
-
-			// Run Summon Spells
-			g.gData.Round += 1
 		}
 
 		winner, err := getWHWinner(g)
 		if err == nil {
+			time.Sleep(time.Second)
 			response.Message = fmt.Sprintf("%s has won the game of waving hands.", winner.Name)
 			event.ResponseChannel <- response
 
@@ -340,6 +306,100 @@ func handleGameWithDirective(event BotGame, err error) (error, bool) {
 		}
 	}
 	return nil, true
+}
+
+func executeRound(event BotGame, g *Game, t *wavinghands.Living, err error, response comms.Response) (error, bool, bool) {
+	for i := range g.gData.Players {
+		p := g.gData.Players[i]
+		rG := p.Right.GetAt(len(p.Right.Sequence) - 1)
+		lG := p.Left.GetAt(len(p.Left.Sequence) - 1)
+		if p.GetTarget() != "" {
+			t, err = FindTarget(g, p.GetTarget())
+			if err != nil {
+				return err, true, true
+			}
+			t.Selector = p.GetTarget()
+		}
+		announceGestures(&p, event.ResponseChannel, response, string(rG), string(lG), p.GetTarget())
+		sr, err := spells.GetSurrenderSpell(wavinghands.GetSpell("Surrender"))
+		if err != nil {
+			return err, true, true
+		}
+		surrenderString, err := sr.Cast(&g.gData.Players[i], t)
+		if err == nil && surrenderString != "" {
+			response.Message = surrenderString
+			time.Sleep(time.Second)
+			event.ResponseChannel <- response
+		} else if err != nil {
+			return err, true, true
+		}
+		// Run Protection Spells
+		shld, err := spells.GetShieldSpell(wavinghands.GetSpell("Shield"))
+		if err != nil {
+			return err, true, true
+		}
+		shldResult, err := shld.Cast(&g.gData.Players[i], t)
+		if err == nil && shldResult != "" {
+			response.Message = shldResult
+			event.ResponseChannel <- response
+		} else if err != nil {
+			return err, true, true
+		}
+
+		cHW, err := spells.GetCureHeavyWoundsSpell(wavinghands.GetSpell("Cure Heavy Wounds"))
+		if err != nil {
+			return err, true, true
+		}
+		chwResult, err := cHW.Cast(&g.gData.Players[i], t)
+		if err == nil && chwResult != "" {
+			response.Message = chwResult
+			event.ResponseChannel <- response
+		} else if err != nil {
+			return err, true, true
+		}
+
+		// Run Damage Spells
+		m, mErr := spells.GetMissileSpell(wavinghands.GetSpell("Missile"))
+		if mErr != nil {
+			return mErr, true, true
+		}
+		mResult, err := m.Cast(&g.gData.Players[i], t)
+		if err == nil && mResult != "" {
+			response.Message = mResult
+			event.ResponseChannel <- response
+		} else if err != nil {
+			return err, true, true
+		}
+		s, sErr := spells.GetStabSpell(wavinghands.GetSpell("Stab"))
+		if sErr != nil {
+			return sErr, true, true
+		}
+		sResult, err := s.Cast(&g.gData.Players[i], t)
+		if err == nil && sResult != "" {
+			response.Message = sResult
+			event.ResponseChannel <- response
+		} else if err != nil {
+			return err, true, true
+		}
+		CHW, err := spells.GetCauseHeavyWoundsSpell(wavinghands.GetSpell("Cause Heavy Wounds"))
+		if err != nil {
+			return err, true, true
+		}
+		chwResult, err = CHW.Cast(&g.gData.Players[i], t)
+		if err == nil && chwResult != "" {
+			response.Message = chwResult
+			event.ResponseChannel <- response
+		} else if err != nil {
+			return err, true, true
+		}
+
+		cHW.Clear(&p.Living)
+		shld.Clear(t)
+	}
+
+	// Run Summon Spells
+	g.gData.Round += 1
+	return err, false, false
 }
 
 func announceGestures(
@@ -434,7 +494,7 @@ func getWHWinner(g Game) (wavinghands.Wizard, error) {
 	}
 }
 
-func FindTarget(g Game, selector string) (*wavinghands.Living, error) {
+func FindTarget(g *Game, selector string) (*wavinghands.Living, error) {
 	var name, monster string
 	var wizard *wavinghands.Wizard
 	parts := strings.Split(selector, ":")
@@ -447,9 +507,11 @@ func FindTarget(g Game, selector string) (*wavinghands.Living, error) {
 	for i, w := range g.gData.Players {
 		if w.Name == name {
 			wizard = &g.gData.Players[i]
+		} else {
+			continue
 		}
 
-		if monster == "" {
+		if wizard != nil && monster == "" {
 			wizard.Living.Selector = selector
 			return &wizard.Living, nil
 		}
@@ -467,7 +529,7 @@ func FindTarget(g Game, selector string) (*wavinghands.Living, error) {
 	return &wavinghands.Living{}, fmt.Errorf("not found")
 }
 
-func GetCurrentPlayer(g Game, name string) (*wavinghands.Wizard, error) {
+func GetCurrentPlayer(g *Game, name string) (*wavinghands.Wizard, error) {
 	for i, w := range g.gData.Players {
 		if w.Name == name {
 			return &g.gData.Players[i], nil

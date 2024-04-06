@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+const HealingPoints = 2
+
 type CureHeavyWounds struct {
 	Name        string `json:"name"`
 	Sequence    string `json:"sequence"`
@@ -14,21 +16,35 @@ type CureHeavyWounds struct {
 	Description string `json:"description"`
 	Usage       string `json:"usage"`
 	Damage      int    `json:"damage"`
-	Resistences string `json:"resistences"`
+	Resistances string `json:"resistances"`
 	Protections string `json:"protections"`
 }
 
-func (cHW CureHeavyWounds) Cast(wizard *wavinghands.Wizard, target *wavinghands.Living) (string, error) {
-	if (len(wizard.Right.Sequence) >= len(cHW.Sequence) && strings.HasSuffix(wizard.Right.Sequence, cHW.Sequence)) ||
-		(len(wizard.Left.Sequence) >= len(cHW.Sequence) && strings.HasSuffix(wizard.Left.Sequence, cHW.ShSequence)) {
+func (cHW *CureHeavyWounds) Cast(wizard *wavinghands.Wizard, target *wavinghands.Living) (string, error) {
+	var returnString string = ""
+	if strings.HasSuffix(wizard.Right.Sequence, cHW.Sequence) {
 		wards := strings.Split(target.Wards, ",")
 		wards = append(wards, "cureHeavyWounds") // Lasts one round
 		target.Wards = strings.Join(wards, ",")
 
-		return fmt.Sprintf("%s has cast Cure Heavy Wounds on %s", wizard.Name, target.Selector), nil
+		returnString += fmt.Sprintf("%s has cast Cure Heavy Wounds on %s", wizard.Name, target.Selector)
+	}
+	if strings.HasSuffix(wizard.Left.Sequence, cHW.Sequence) {
+		if returnString != "" {
+			returnString += "\n"
+		}
+		wards := strings.Split(target.Wards, ",")
+		wards = append(wards, "cureHeavyWounds") // Lasts one round
+		target.Wards = strings.Join(wards, ",")
+
+		target.HitPoints += HealingPoints
+		if target.HitPoints > wavinghands.MaxWhHp {
+			target.HitPoints = wavinghands.MaxWhHp
+		}
+		returnString += fmt.Sprintf("%s has cast Cure Heavy Wounds on %s", wizard.Name, target.Selector)
 	}
 
-	return "", nil
+	return returnString, nil
 }
 
 func GetCureHeavyWoundsSpell(s *wavinghands.Spell, e error) (*CureHeavyWounds, error) {
@@ -43,15 +59,21 @@ func GetCureHeavyWoundsSpell(s *wavinghands.Spell, e error) (*CureHeavyWounds, e
 		Description: s.Description,
 		Usage:       s.Usage,
 		Damage:      s.Damage,
-		Resistences: s.Resistances,
+		Resistances: s.Resistances,
 		Protections: s.Protections,
 	}, nil
 }
 
-func (cHW CureHeavyWounds) clear(target *wavinghands.Living) error {
+func (cHW CureHeavyWounds) Clear(target *wavinghands.Living) error {
 	wards := strings.Split(target.Wards, ",")
 	idx := slices.Index(wards, "cureHeavyWounds")
-	wavinghands.Remove(wards, idx)
-	target.Wards = strings.Join(wards, ",")
+	if idx >= 0 {
+		wavinghands.Remove(wards, idx)
+	}
+	if len(wards) > 0 {
+		target.Wards = strings.Join(wards, ",")
+	} else {
+		target.Wards = ""
+	}
 	return nil
 }
