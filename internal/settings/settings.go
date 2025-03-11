@@ -40,6 +40,13 @@ func NewSettings(settingsUrl string) (*Settings, error) {
 	return sc, err
 }
 
+func SetupMockSettings(mu sync.RWMutex, settings CommandSettings) *Settings {
+	c := &Settings{}
+	c.mu = mu
+	c.settings = settings
+	return c
+}
+
 func (c *Settings) LoadSettings() error {
 	var s CommandSettings
 	hc := &http.Client{Timeout: 10 * time.Second}
