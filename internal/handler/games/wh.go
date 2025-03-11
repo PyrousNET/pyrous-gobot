@@ -396,6 +396,11 @@ func handleEmptyBody(event *BotGame) bool {
 		UserId:         player.Id,
 		Quit:           nil,
 	}
+	if player.Name == "" {
+		response.Message = "/echo You must have a name to play Waving Hands.\n"
+		event.ResponseChannel <- response
+		return true
+	}
 	g, err := NewWavingHands(event)
 	if err != nil {
 		response.Type = "dm"

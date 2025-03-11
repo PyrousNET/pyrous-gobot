@@ -40,6 +40,24 @@ func Test_handleEmptyBody(t *testing.T) {
 			wantMessage: "/echo @tester would like to play a game of Waving Hands.\n",
 			want:        false,
 		},
+		{
+			name: "player is missing name",
+			args: args{
+				event: BotGame{
+					body:            "",
+					sender:          "test",
+					target:          "",
+					mm:              nil,
+					settings:        nil,
+					ReplyChannel:    &model.Channel{Id: "test"},
+					ResponseChannel: channel,
+					method:          Method{},
+					Cache:           &cache.MockCache{},
+				},
+			},
+			wantMessage: "/echo You must have a name to play Waving Hands.\n",
+			want:        true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
