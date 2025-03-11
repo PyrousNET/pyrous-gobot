@@ -26,7 +26,7 @@ type (
 	}
 )
 
-func NewWavingHands(event BotGame) (Game, error) {
+func NewWavingHands(event *BotGame) (Game, error) {
 	wHGameData, err := GetChannelGame(event.ReplyChannel.Id, event.Cache)
 	name := strings.TrimLeft(event.sender, "@")
 	if name == "" {
@@ -84,7 +84,7 @@ func NewWavingHands(event BotGame) (Game, error) {
 	return Game{}, fmt.Errorf("game not implemented")
 }
 
-func StartWavingHands(event BotGame) (Game, error) {
+func StartWavingHands(event *BotGame) (Game, error) {
 	wHGameData, err := GetChannelGame(event.ReplyChannel.Id, event.Cache)
 	g := Game{gData: wHGameData, Channel: event.ReplyChannel}
 	name := strings.TrimLeft(event.sender, "@")
@@ -152,7 +152,7 @@ func GetChannelGame(channelId string, c cache.Cache) (WHGameData, error) {
 	return WHGameData{}, fmt.Errorf("not found")
 }
 
-func (bg BotGame) Wh(event BotGame) error {
+func (bg BotGame) Wh(event *BotGame) error {
 	player, _, err := users.GetUser(strings.TrimLeft(event.sender, "@"), event.Cache)
 	response := comms.Response{
 		ReplyChannelId: event.ReplyChannel.Id,
@@ -162,8 +162,8 @@ func (bg BotGame) Wh(event BotGame) error {
 	}
 
 	if event.body == "" {
-		err, done := handleEmptyBody(event)
-		if done {
+		hasErr := handleEmptyBody(event)
+		if hasErr {
 			event.ResponseChannel <- response
 			return err
 		}
@@ -177,7 +177,7 @@ func (bg BotGame) Wh(event BotGame) error {
 	return nil
 }
 
-func handleGameWithDirective(event BotGame, err error) (error, bool) {
+func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 	player, _, err := users.GetUser(strings.TrimLeft(event.sender, "@"), event.Cache)
 	response := comms.Response{
 		ReplyChannelId: event.ReplyChannel.Id,
@@ -388,7 +388,7 @@ func convertGesture(gesture string) string {
 	return ""
 }
 
-func handleEmptyBody(event BotGame) (error, bool) {
+func handleEmptyBody(event *BotGame) bool {
 	player, _, err := users.GetUser(strings.TrimLeft(event.sender, "@"), event.Cache)
 	response := comms.Response{
 		ReplyChannelId: event.ReplyChannel.Id,
@@ -401,7 +401,7 @@ func handleEmptyBody(event BotGame) (error, bool) {
 		response.Type = "dm"
 		response.Message = err.Error()
 		event.ResponseChannel <- response
-		return nil, true
+		return true
 	}
 
 	if len(g.gData.Players) >= wavinghands.GetMinTeams() && len(g.gData.Players) <= wavinghands.GetMaxTeams() {
@@ -412,7 +412,7 @@ func handleEmptyBody(event BotGame) (error, bool) {
 		response.Message = fmt.Sprintf("/echo %s would like to play a game of Waving Hands.\n", event.sender)
 	}
 	event.ResponseChannel <- response
-	return nil, false
+	return false
 }
 
 func getWHWinner(g Game) (wavinghands.Wizard, error) {
