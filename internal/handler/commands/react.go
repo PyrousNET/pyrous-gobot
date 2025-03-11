@@ -31,7 +31,7 @@ func (bc BotCommand) React(event BotCommand) error {
 	reactions := event.settings.GetReactions()
 	if r, ok := reactions[event.body]; ok {
 		response.Type = "command"
-		response.Message = fmt.Sprintf(`/echo "%s" 1`, r.Url)
+		response.Message = fmt.Sprintf(`/echo "![%s](%s)" 1`, r.Description, r.Url)
 	} else {
 		response.Type = "post"
 		err := fmt.Errorf("Response key '%s' not found.", event.body)
