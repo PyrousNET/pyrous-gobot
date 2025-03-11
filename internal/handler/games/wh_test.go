@@ -1,13 +1,57 @@
 package games
 
 import (
+	"encoding/json"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/pyrousnet/pyrous-gobot/internal/cache"
 	"github.com/pyrousnet/pyrous-gobot/internal/comms"
+	"github.com/pyrousnet/pyrous-gobot/internal/users"
 	"reflect"
 	"testing"
 	"time"
 )
+
+type MCache cache.MockCache
+
+func (m *MCache) Put(key string, value interface{}) {
+	return
+}
+
+func (m *MCache) PutAll(m2 map[string]interface{}) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m *MCache) Get(key string) (interface{}, bool, error) {
+	if key == "user-tester" {
+		u, err := json.Marshal(users.User{Name: "tester"})
+		if err != nil {
+			return nil, false, err
+		}
+		return u, true, nil
+	}
+	return nil, false, nil
+}
+
+func (m *MCache) GetAll(keys []string) map[string]interface{} {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m *MCache) Clean(key string) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m *MCache) GetKeys(prefix string) ([]string, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m *MCache) CleanAll() {
+	//TODO implement me
+	panic("implement me")
+}
 
 func Test_handleEmptyBody(t *testing.T) {
 	type args struct {
@@ -34,7 +78,7 @@ func Test_handleEmptyBody(t *testing.T) {
 					ReplyChannel:    &model.Channel{Id: "test"},
 					ResponseChannel: channel,
 					method:          Method{},
-					Cache:           &cache.MockCache{},
+					Cache:           &MCache{},
 				},
 			},
 			wantMessage: "/echo @tester would like to play a game of Waving Hands.\n",
@@ -52,7 +96,7 @@ func Test_handleEmptyBody(t *testing.T) {
 					ReplyChannel:    &model.Channel{Id: "test"},
 					ResponseChannel: channel,
 					method:          Method{},
-					Cache:           &cache.MockCache{},
+					Cache:           &MCache{},
 				},
 			},
 			wantMessage: "/echo You must have a name to play Waving Hands.\n",
