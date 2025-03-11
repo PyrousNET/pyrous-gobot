@@ -1,75 +1,132 @@
 package games
 
 import (
+	"encoding/json"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/pyrousnet/pyrous-gobot/internal/cache"
+	"github.com/pyrousnet/pyrous-gobot/internal/comms"
+	"github.com/pyrousnet/pyrous-gobot/internal/users"
 	"reflect"
 	"testing"
+	"time"
 )
+
+type MCache cache.MockCache
+
+func (m *MCache) Put(key string, value interface{}) {
+	return
+}
+
+func (m *MCache) PutAll(m2 map[string]interface{}) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m *MCache) Get(key string) (interface{}, bool, error) {
+	if key == "user-tester" {
+		u, err := json.Marshal(users.User{Name: "tester"})
+		if err != nil {
+			return nil, false, err
+		}
+		return u, true, nil
+	}
+	return nil, false, nil
+}
+
+func (m *MCache) GetAll(keys []string) map[string]interface{} {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m *MCache) Clean(key string) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m *MCache) GetKeys(prefix string) ([]string, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m *MCache) CleanAll() {
+	//TODO implement me
+	panic("implement me")
+}
 
 func Test_handleEmptyBody(t *testing.T) {
 	type args struct {
 		event    BotGame
 		response Response
 	}
+	var channel = make(chan comms.Response)
 	tests := []struct {
-		name  string
-		args  args
-		want  Response
-		want1 error
-		want2 bool
+		name        string
+		args        args
+		wantMessage string
+		want        bool
+		wantErr     error
 	}{
 		{
 			name: "empty input",
 			args: args{
 				event: BotGame{
-					body:         "",
-					sender:       "",
-					target:       "",
-					mm:           nil,
-					settings:     nil,
-					ReplyChannel: &model.Channel{Id: "test"},
-					method:       Method{},
-					cache:        &cache.MockCache{},
+					body:            "",
+					sender:          "@tester",
+					target:          "",
+					mm:              nil,
+					settings:        nil,
+					ReplyChannel:    &model.Channel{Id: "test"},
+					ResponseChannel: channel,
+					method:          Method{},
+					Cache:           &MCache{},
 				},
 			},
-			want: Response{
-				Message: "player is missing a name",
-				Type:    "dm",
-			},
-			want1: nil,
-			want2: true,
+			wantMessage: "/echo @tester would like to play a game of Waving Hands.\n",
+			want:        false,
 		},
 		{
-			name: "",
+			name: "player is missing name",
 			args: args{
 				event: BotGame{
-					body:         "",
-					sender:       "test",
-					target:       "",
-					mm:           nil,
-					settings:     nil,
-					ReplyChannel: &model.Channel{Id: "test"},
-					method:       Method{},
-					cache:        &cache.MockCache{},
+					body:            "",
+					sender:          "test",
+					target:          "",
+					mm:              nil,
+					settings:        nil,
+					ReplyChannel:    &model.Channel{Id: "test"},
+					ResponseChannel: channel,
+					method:          Method{},
+					Cache:           &MCache{},
 				},
 			},
-			want: Response{
-				Message: "/echo test would like to play a game of Waving Hands.\n",
-			},
+			wantMessage: "/echo You must have a name to play Waving Hands.\n",
+			want:        true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1, got2 := handleEmptyBody(tt.args.event, tt.args.response)
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("handleEmptyBody() got = %v, want %v", got, tt.want)
+			var gotMessage comms.Response
+			go func() {
+				for {
+					// read from the response channel
+					gotMessage = <-tt.args.event.ResponseChannel
+					if gotMessage != (comms.Response{}) {
+						return
+					}
+				}
+			}()
+			time.Sleep(1 * time.Second)
+
+			hasErr := handleEmptyBody(&tt.args.event)
+			if !reflect.DeepEqual(hasErr, tt.want) {
+				t.Errorf("handleEmptyBody() got = %v, want %v", hasErr, tt.want)
 			}
-			if !reflect.DeepEqual(got1, tt.want1) {
-				t.Errorf("handleEmptyBody() got1 = %v, want %v", got1, tt.want1)
+			for gotMessage == (comms.Response{}) {
+				time.Sleep(1 * time.Second)
 			}
-			if got2 != tt.want2 {
-				t.Errorf("handleEmptyBody() got2 = %v, want %v", got2, tt.want2)
+			// read from the response channel
+			if gotMessage.Message != tt.wantMessage {
+				t.Errorf("handleEmptyBody() gotMessage = %v, want %v", gotMessage.Message, tt.wantMessage)
 			}
 		})
 	}
