@@ -11,9 +11,7 @@ import (
 
 func main() {
 	cmdDir := os.Getenv("COMMAND_DIR")
-	if cmdDir == "" {
-		cmdDir = "../"
-	}
+	cmdDir = "../"
 
 	for {
 		cmd := exec.Command("git", "pull")
