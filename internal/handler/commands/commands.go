@@ -14,7 +14,7 @@ import (
 	"github.com/pyrousnet/pyrous-gobot/internal/mmclient"
 	"github.com/pyrousnet/pyrous-gobot/internal/settings"
 
-	"github.com/mattermost/mattermost-server/v6/model"
+	"github.com/mattermost/mattermost/server/public/model"
 )
 
 type (

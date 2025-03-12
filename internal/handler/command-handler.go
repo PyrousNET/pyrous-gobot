@@ -1,7 +1,8 @@
 package handler
 
 import (
-	"github.com/mattermost/mattermost-server/v6/model"
+	"context"
+	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/pyrousnet/pyrous-gobot/internal/handler/commands"
 	"log"
 	"strings"
@@ -16,7 +17,7 @@ func (h *Handler) HandleCommand(quit chan bool, event *model.WebSocketEvent) err
 	bc, err := cmds.NewBotCommand(post.Message, sender)
 	bc.ResponseChannel = h.ResponseChannel
 	if bc.ReplyChannel == nil || bc.ReplyChannel.Id == "" {
-		bc.ReplyChannel, _, err = h.Mm.Client.GetChannel(channelId, "")
+		bc.ReplyChannel, _, err = h.Mm.Client.GetChannel(context.Background(), channelId, "")
 	}
 	bc.Quit = quit
 	if err != nil {

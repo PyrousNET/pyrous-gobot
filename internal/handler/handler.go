@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/pyrousnet/pyrous-gobot/internal/comms"
@@ -14,7 +15,7 @@ import (
 	"github.com/pyrousnet/pyrous-gobot/internal/settings"
 	"github.com/pyrousnet/pyrous-gobot/internal/users"
 
-	"github.com/mattermost/mattermost-server/v6/model"
+	"github.com/mattermost/mattermost/server/public/model"
 )
 
 type Handler struct {
@@ -38,7 +39,7 @@ func NewHandler(mm *mmclient.MMClient, botCache cache.Cache, botPubSub pubsub.Pu
 
 		mm.SendMsgToChannel("I'm back, baby!", rm["channel"], replyPost)
 
-		c, _, err := mm.Client.CreateDirectChannel(rm["user"], mm.BotUser.Id)
+		c, _, err := mm.Client.CreateDirectChannel(context.Background(), rm["user"], mm.BotUser.Id)
 		if err != nil {
 			log.Print(err)
 		}
@@ -46,7 +47,7 @@ func NewHandler(mm *mmclient.MMClient, botCache cache.Cache, botPubSub pubsub.Pu
 		replyPost.ChannelId = c.Id
 		replyPost.Message = "See?  😉"
 
-		_, _, err = mm.Client.CreatePost(replyPost)
+		_, _, err = mm.Client.CreatePost(context.Background(), replyPost)
 		if err != nil {
 			log.Print(err)
 		}
@@ -164,12 +165,12 @@ func (h *Handler) HandleMsgFromDebuggingChannel(event *model.WebSocketEvent) {
 }
 
 func (h *Handler) SendErrorResponse(post *model.Post, message string) error {
-	c, _, _ := h.Mm.Client.CreateDirectChannel(post.UserId, h.Mm.BotUser.Id)
+	c, _, _ := h.Mm.Client.CreateDirectChannel(context.Background(), post.UserId, h.Mm.BotUser.Id)
 	replyPost := &model.Post{}
 	replyPost.ChannelId = c.Id
 	replyPost.Message = message
 
-	_, _, err := h.Mm.Client.CreatePost(replyPost)
+	_, _, err := h.Mm.Client.CreatePost(context.Background(), replyPost)
 
 	return err
 }
