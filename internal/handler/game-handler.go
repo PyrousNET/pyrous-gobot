@@ -4,7 +4,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/mattermost/mattermost-server/v6/model"
+	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/pyrousnet/pyrous-gobot/internal/handler/games"
 )
 

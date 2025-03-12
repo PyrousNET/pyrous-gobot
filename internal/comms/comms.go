@@ -2,7 +2,7 @@ package comms
 
 import (
 	"encoding/json"
-	"github.com/mattermost/mattermost-server/v6/model"
+	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/opentracing/opentracing-go/log"
 	"github.com/pyrousnet/pyrous-gobot/internal/cache"
 	"github.com/pyrousnet/pyrous-gobot/internal/mmclient"

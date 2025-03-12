@@ -14,7 +14,7 @@ import (
 	"github.com/pyrousnet/pyrous-gobot/internal/settings"
 	"github.com/pyrousnet/pyrous-gobot/internal/users"
 
-	"github.com/mattermost/mattermost-server/v6/model"
+	"github.com/mattermost/mattermost/server/public/model"
 )
 
 type Handler struct {

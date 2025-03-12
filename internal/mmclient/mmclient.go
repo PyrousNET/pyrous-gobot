@@ -8,7 +8,7 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/mattermost/mattermost-server/v6/model"
+	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/pyrousnet/pyrous-gobot/internal/settings"
 )
 
