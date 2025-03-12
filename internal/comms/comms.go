@@ -1,6 +1,7 @@
 package comms
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/opentracing/opentracing-go/log"
@@ -21,9 +22,11 @@ type MessageHandler struct {
 	ResponseCh chan Response
 	Mm         *mmclient.MMClient
 	Cache      cache.Cache
+	ctx        context.Context
 }
 
 func (h *MessageHandler) StartMessageHandler() {
+	h.ctx = context.Background()
 	go func() {
 		for {
 			r := <-h.ResponseCh
@@ -47,7 +50,7 @@ func (h *MessageHandler) SendMessage(r *Response) {
 		}
 	}
 
-	dmchannel, _, _ := h.Mm.Client.CreateDirectChannel(h.Mm.BotUser.Id, r.UserId)
+	dmchannel, _, _ := h.Mm.Client.CreateDirectChannel(h.ctx, h.Mm.BotUser.Id, r.UserId)
 	if r.Type != "shutdown" {
 		if dmchannel != nil && r.ReplyChannelId == dmchannel.Id {
 			r.Type = "dm"
@@ -77,15 +80,15 @@ func (h *MessageHandler) SendMessage(r *Response) {
 
 			post.ChannelId = dmchannel.Id
 			if post.Message[0] == '/' {
-				_, _, err := h.Mm.Client.ExecuteCommandWithTeam(post.ChannelId, h.Mm.BotTeam.Id, post.Message)
+				_, _, err := h.Mm.Client.ExecuteCommandWithTeam(h.ctx, post.ChannelId, h.Mm.BotTeam.Id, post.Message)
 				if err != nil {
 					log.Error(err)
 				}
 			} else {
-				_, _, err = h.Mm.Client.CreatePost(post)
+				_, _, err = h.Mm.Client.CreatePost(h.ctx, post)
 			}
 		case "shutdown":
-			c, _, err := h.Mm.Client.CreateDirectChannel(r.UserId, h.Mm.BotUser.Id)
+			c, _, err := h.Mm.Client.CreateDirectChannel(h.ctx, r.UserId, h.Mm.BotUser.Id)
 			if err != nil {
 				log.Error(err)
 			}
@@ -93,7 +96,7 @@ func (h *MessageHandler) SendMessage(r *Response) {
 			replyPost.ChannelId = c.Id
 			replyPost.Message = r.Message
 
-			_, _, err = h.Mm.Client.CreatePost(replyPost)
+			_, _, err = h.Mm.Client.CreatePost(h.ctx, replyPost)
 
 			err = h.Mm.SendMsgToChannel("Awe, Crap!", r.ReplyChannelId, post)
 			if err != nil {

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"log"
 	"strings"
 
@@ -20,7 +21,7 @@ func (h *Handler) HandleGame(quit chan bool, event *model.WebSocketEvent) error 
 	if err != nil {
 		return h.SendErrorResponse(post, err.Error())
 	}
-	bg.ReplyChannel, _, e = h.Mm.Client.GetChannel(channelId, "")
+	bg.ReplyChannel, _, e = h.Mm.Client.GetChannel(context.Background(), channelId, "")
 	if e != nil {
 		return h.SendErrorResponse(post, e.Error())
 	}

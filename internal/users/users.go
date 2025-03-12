@@ -1,6 +1,7 @@
 package users
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -23,10 +24,10 @@ type (
 )
 
 func SetupUsers(mm *mmclient.MMClient, c cache.Cache) error {
-	userIds, r, err := mm.Client.GetKnownUsers()
+	userIds, r, err := mm.Client.GetKnownUsers(context.Background())
 	if r.StatusCode == 200 {
 		for _, u := range userIds {
-			user, _, _ := mm.Client.GetUser(u, "")
+			user, _, _ := mm.Client.GetUser(context.Background(), u, "")
 			key := KeyPrefix + user.Username
 			newUser := User{
 				Id:        u,
@@ -43,7 +44,7 @@ func SetupUsers(mm *mmclient.MMClient, c cache.Cache) error {
 }
 
 func HandlePost(post *model.Post, mm *mmclient.MMClient, c cache.Cache) error {
-	user, _, err := mm.Client.GetUser(post.UserId, "")
+	user, _, err := mm.Client.GetUser(context.Background(), post.UserId, "")
 	key := KeyPrefix + user.Username
 	persisted, ok, _ := GetUser(user.Username, c)
 

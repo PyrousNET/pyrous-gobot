@@ -1,6 +1,7 @@
 package mmclient
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -21,6 +22,7 @@ type MMClient struct {
 	Server           Server
 	SettingsUrl      string
 	cfg              *settings.Config
+	ctx              context.Context
 }
 
 type Server struct {
@@ -34,7 +36,9 @@ type Server struct {
 // Documentation for the Go driver can be found
 // at https://godoc.org/github.com/mattermost/platform/model#Client
 func NewMMClient(cfg *settings.Config) (client *MMClient, err error) {
-	client = &MMClient{}
+	client = &MMClient{
+		ctx: context.Background(),
+	}
 
 	client.cfg = cfg
 	client.Server = client.cfg.Server
@@ -110,7 +114,7 @@ func (c *MMClient) SendMsgToDebuggingChannel(msg string, replyToId string) error
 
 	post.RootId = replyToId
 
-	if _, _, err := c.Client.CreatePost(post); err != nil {
+	if _, _, err := c.Client.CreatePost(c.ctx, post); err != nil {
 		return fmt.Errorf("We failed to send a message to the logging channel: %+v", err)
 	}
 
@@ -118,7 +122,7 @@ func (c *MMClient) SendMsgToDebuggingChannel(msg string, replyToId string) error
 }
 
 func (c *MMClient) PingServer() {
-	if props, _, err := c.Client.GetOldClientConfig(""); err != nil {
+	if props, _, err := c.Client.GetOldClientConfig(c.ctx, ""); err != nil {
 		e := fmt.Errorf("There was a problem pinging the Mattermost server.  Are you sure it's running? Error: %+v", err)
 		log.Fatalln(e.Error())
 	} else {
@@ -130,6 +134,7 @@ func (c *MMClient) LoginAsUser() (*model.User, error) {
 	var err error
 
 	user, _, err := c.Client.Login(
+		c.ctx,
 		c.cfg.Bot.USER_EMAIL,
 		c.cfg.Bot.USER_PASSWORD)
 
@@ -146,7 +151,7 @@ func (c *MMClient) UpdateUserIfNeeded() error {
 		c.BotUser.LastName = c.cfg.Bot.USER_LAST
 		c.BotUser.Username = c.cfg.Bot.USERNAME
 
-		user, _, err := c.Client.UpdateUser(c.BotUser)
+		user, _, err := c.Client.UpdateUser(c.ctx, c.BotUser)
 		if err != nil {
 			return fmt.Errorf("Failed to update bot user. Error: %+v", err)
 		}
@@ -160,7 +165,7 @@ func (c *MMClient) UpdateUserIfNeeded() error {
 func (c *MMClient) GetTeam() (*model.Team, error) {
 	var err error
 
-	team, _, err := c.Client.GetTeamByName(c.cfg.Bot.TEAM_NAME, "")
+	team, _, err := c.Client.GetTeamByName(c.ctx, c.cfg.Bot.TEAM_NAME, "")
 	if err != nil {
 		err = fmt.Errorf("Failed to find team. Error: %+v", err)
 	}
@@ -171,7 +176,7 @@ func (c *MMClient) GetTeam() (*model.Team, error) {
 func (c *MMClient) CreateDebuggingChannelIfNeeded() error {
 	log.Println("Attempting to open channel " + c.cfg.Bot.LOG_NAME)
 
-	rchannel, _, err := c.Client.GetChannelByName(c.cfg.Bot.LOG_NAME, c.BotTeam.Id, "")
+	rchannel, _, err := c.Client.GetChannelByName(c.ctx, c.cfg.Bot.LOG_NAME, c.BotTeam.Id, "")
 	if err == nil {
 		c.DebuggingChannel = rchannel
 		return nil
@@ -185,7 +190,7 @@ func (c *MMClient) CreateDebuggingChannelIfNeeded() error {
 	channel.Type = model.ChannelTypeOpen
 	channel.TeamId = c.BotTeam.Id
 
-	rchannel, _, err = c.Client.CreateChannel(channel)
+	rchannel, _, err = c.Client.CreateChannel(c.ctx, channel)
 	if err != nil {
 		return fmt.Errorf("Failed to create debug channel. Error: %+v", err)
 	}
@@ -197,13 +202,13 @@ func (c *MMClient) CreateDebuggingChannelIfNeeded() error {
 
 // This function came from the original sample code. It sucks. Use GetChannelByName instead.
 func (c *MMClient) GetChannel(name string) (*model.Channel, error) {
-	channel, _, err := c.Client.GetChannelByName(name, c.BotTeam.Id, "")
+	channel, _, err := c.Client.GetChannelByName(c.ctx, name, c.BotTeam.Id, "")
 	return channel, err
 }
 
 // This function returns a proper error so you can know what the heck is going on
 func (c *MMClient) GetChannelByName(name string) (*model.Channel, error) {
-	ch, _, err := c.Client.GetChannelByName(name, c.BotTeam.Id, "")
+	ch, _, err := c.Client.GetChannelByName(c.ctx, name, c.BotTeam.Id, "")
 	if err != nil {
 		return nil, err
 	}
@@ -212,7 +217,7 @@ func (c *MMClient) GetChannelByName(name string) (*model.Channel, error) {
 }
 
 func (c *MMClient) SendCmdToChannel(cmd string, channelId string, prePost *model.Post) error {
-	_, _, err := c.Client.ExecuteCommand(channelId, cmd)
+	_, _, err := c.Client.ExecuteCommand(c.ctx, channelId, cmd)
 	if err != nil {
 		return fmt.Errorf("Failed to send a message to %s. Error: %+v", channelId, err)
 	}
@@ -231,7 +236,7 @@ func (c *MMClient) SendMsgToChannel(msg string, channelId string, prePost *model
 		post.RootId = prePost.RootId
 	}
 
-	_, _, err := c.Client.CreatePost(post)
+	_, _, err := c.Client.CreatePost(c.ctx, post)
 	if err != nil {
 		return fmt.Errorf("Failed to send a message to %s. Error: %+v", channelId, err)
 	}
@@ -252,13 +257,13 @@ func (c *MMClient) NewWebSocketClient() (*model.WebSocketClient, error) {
 }
 
 func (b *MMClient) KeepBotActive() error {
-	status, _, err := b.Client.GetUserStatus(b.BotUser.Id, "")
+	status, _, err := b.Client.GetUserStatus(b.ctx, b.BotUser.Id, "")
 	if err != nil {
 		return err
 	}
 	status.Status = "online"
 
-	_, _, err = b.Client.UpdateUserStatus(b.BotUser.Id, status)
+	_, _, err = b.Client.UpdateUserStatus(b.ctx, b.BotUser.Id, status)
 
 	return err
 }
