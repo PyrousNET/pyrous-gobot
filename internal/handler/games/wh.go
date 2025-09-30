@@ -198,6 +198,33 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 		response.Type = "dm"
 		event.ResponseChannel <- response
 		return nil, true
+	case "rules":
+		response.Message = "/echo Waving Hands is a turn-based wizard dueling game. See the WAVING_HANDS_RULES.md file for complete rules, or use 'wh help-spells' to see available spells."
+		response.Type = "dm"
+		event.ResponseChannel <- response
+		return nil, true
+	case "status":
+		g, err := GetChannelGame(event.ReplyChannel.Id, event.Cache)
+		if err != nil {
+			response.Type = "dm"
+			response.Message = "No active game in this channel."
+			event.ResponseChannel <- response
+			return nil, true
+		}
+		
+		statusMsg := fmt.Sprintf("/echo **Waving Hands Game Status - Round %d**\n", g.Round)
+		for _, player := range g.Players {
+			statusMsg += fmt.Sprintf("**%s**: %d HP", player.Name, player.Living.HitPoints)
+			if player.Living.Wards != "" {
+				statusMsg += fmt.Sprintf(" (Protected: %s)", player.Living.Wards)
+			}
+			statusMsg += "\n"
+		}
+		
+		response.Message = statusMsg
+		response.Type = "command"
+		event.ResponseChannel <- response
+		return nil, true
 	case "start":
 		g, err := StartWavingHands(event)
 		if err != nil {
@@ -305,7 +332,34 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 					return err, true
 				}
 				// Run Protection Spells
+				
+				// Shield
+				shield, err := spells.GetShieldSpell(wavinghands.GetSpell("Shield"))
+				if err != nil {
+					return err, true
+				}
+				shieldResult, err := shield.Cast(&g.gData.Players[i], spellTarget)
+				if err == nil && shieldResult != "" {
+					response.Message = shieldResult
+					event.ResponseChannel <- response
+				} else if err != nil {
+					return err, true
+				}
 
+				// Counter Spell
+				counterSpell, err := spells.GetCounterSpellSpell(wavinghands.GetSpell("Counter Spell"))
+				if err != nil {
+					return err, true
+				}
+				counterResult, err := counterSpell.Cast(&g.gData.Players[i], spellTarget)
+				if err == nil && counterResult != "" {
+					response.Message = counterResult
+					event.ResponseChannel <- response
+				} else if err != nil {
+					return err, true
+				}
+
+				// Cure Heavy Wounds
 				cHW, err := spells.GetCureHeavyWoundsSpell(wavinghands.GetSpell("Cure Heavy Wounds"))
 				if err != nil {
 					return err, true
@@ -318,7 +372,63 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 					return err, true
 				}
 
+				// Cure Light Wounds
+				cLW, err := spells.GetCureLightWoundsSpell(wavinghands.GetSpell("Cure Light Wounds"))
+				if err != nil {
+					return err, true
+				}
+				clwResult, err := cLW.Cast(&g.gData.Players[i], spellTarget)
+				if err == nil && clwResult != "" {
+					response.Message = clwResult
+					event.ResponseChannel <- response
+				} else if err != nil {
+					return err, true
+				}
+
+				// Run Mental Effects Spells
+
+				// Anti-Spell
+				antiSpell, err := spells.GetAntiSpellSpell(wavinghands.GetSpell("Anti-Spell"))
+				if err != nil {
+					return err, true
+				}
+				antiResult, err := antiSpell.Cast(&g.gData.Players[i], spellTarget)
+				if err == nil && antiResult != "" {
+					response.Message = antiResult
+					event.ResponseChannel <- response
+				} else if err != nil {
+					return err, true
+				}
+
+				// Amnesia
+				amnesia, err := spells.GetAmnesiaSpell(wavinghands.GetSpell("Amnesia"))
+				if err != nil {
+					return err, true
+				}
+				amnesiaResult, err := amnesia.Cast(&g.gData.Players[i], spellTarget)
+				if err == nil && amnesiaResult != "" {
+					response.Message = amnesiaResult
+					event.ResponseChannel <- response
+				} else if err != nil {
+					return err, true
+				}
+
 				// Run Damage Spells
+
+				// Finger of Death - should go first as it's instant kill
+				fod, err := spells.GetFingerOfDeathSpell(wavinghands.GetSpell("Finger of Death"))
+				if err != nil {
+					return err, true
+				}
+				fodResult, err := fod.Cast(&g.gData.Players[i], spellTarget)
+				if err == nil && fodResult != "" {
+					response.Message = fodResult
+					event.ResponseChannel <- response
+				} else if err != nil {
+					return err, true
+				}
+
+				// Cause Heavy Wounds
 				CHW, err := spells.GetCauseHeavyWoundsSpell(wavinghands.GetSpell("Cause Heavy Wounds"))
 				if err != nil {
 					return err, true
@@ -330,9 +440,65 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 				} else if err != nil {
 					return err, true
 				}
+
+				// Cause Light Wounds
+				CLW, err := spells.GetCauseLightWoundsSpell(wavinghands.GetSpell("Cause Light Wounds"))
+				if err != nil {
+					return err, true
+				}
+				clwResult, err = CLW.Cast(&g.gData.Players[i], spellTarget)
+				if err == nil && clwResult != "" {
+					response.Message = clwResult
+					event.ResponseChannel <- response
+				} else if err != nil {
+					return err, true
+				}
+
+				// Missile
+				missile, err := spells.GetMissileSpell(wavinghands.GetSpell("Missile"))
+				if err != nil {
+					return err, true
+				}
+				missileResult, err := missile.Cast(&g.gData.Players[i], spellTarget)
+				if err == nil && missileResult != "" {
+					response.Message = missileResult
+					event.ResponseChannel <- response
+				} else if err != nil {
+					return err, true
+				}
+
+				// Stab
+				stab, err := spells.GetStabSpell(wavinghands.GetSpell("Stab"))
+				if err != nil {
+					return err, true
+				}
+				stabResult, err := stab.Cast(&g.gData.Players[i], spellTarget)
+				if err == nil && stabResult != "" {
+					response.Message = stabResult
+					event.ResponseChannel <- response
+				} else if err != nil {
+					return err, true
+				}
+
+				// Run Summon Spells
+				
+				// Elemental
+				elemental, err := spells.GetElementalSpell(wavinghands.GetSpell("Elemental"))
+				if err != nil {
+					return err, true
+				}
+				elementalResult, err := elemental.Cast(&g.gData.Players[i], spellTarget)
+				if err == nil && elementalResult != "" {
+					response.Message = elementalResult
+					event.ResponseChannel <- response
+				} else if err != nil {
+					return err, true
+				}
 			}
 
-			// Run Summon Spells
+			// Clean up expired wards at end of round
+			wavinghands.CleanupAllWards(g.gData.Players)
+			
 			g.gData.Round += 1
 		}
 
