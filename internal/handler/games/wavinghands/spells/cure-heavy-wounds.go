@@ -19,8 +19,10 @@ type CureHeavyWounds struct {
 }
 
 func (cHW CureHeavyWounds) Cast(wizard *wavinghands.Wizard, target *wavinghands.Living) (string, error) {
-	if (len(wizard.Right.Sequence) >= len(cHW.Sequence) && strings.HasSuffix(wizard.Right.Sequence, cHW.Sequence)) ||
-		(len(wizard.Left.Sequence) >= len(cHW.Sequence) && strings.HasSuffix(wizard.Left.Sequence, cHW.ShSequence)) {
+	rightHandMatch := len(wizard.Right.Sequence) >= len(cHW.Sequence) && strings.HasSuffix(wizard.Right.Sequence, cHW.Sequence)
+	leftHandMatch := cHW.ShSequence != "" && len(wizard.Left.Sequence) >= len(cHW.ShSequence) && strings.HasSuffix(wizard.Left.Sequence, cHW.ShSequence)
+	
+	if rightHandMatch || leftHandMatch {
 		wards := strings.Split(target.Wards, ",")
 		wards = append(wards, "cureHeavyWounds") // Lasts one round
 		target.Wards = strings.Join(wards, ",")

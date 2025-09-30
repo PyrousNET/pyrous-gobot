@@ -18,9 +18,10 @@ type CauseHeavyWounds struct {
 }
 
 func (cHW CauseHeavyWounds) Cast(wizard *wavinghands.Wizard, target *wavinghands.Living) (string, error) {
-	if (len(wizard.Right.Sequence) >= len(cHW.Sequence) && strings.HasSuffix(wizard.Right.Sequence, cHW.Sequence)) ||
-		(len(wizard.Left.Sequence) >= len(cHW.Sequence) && strings.HasSuffix(wizard.Left.Sequence, cHW.ShSequence)) {
-
+	rightHandMatch := len(wizard.Right.Sequence) >= len(cHW.Sequence) && strings.HasSuffix(wizard.Right.Sequence, cHW.Sequence)
+	leftHandMatch := cHW.ShSequence != "" && len(wizard.Left.Sequence) >= len(cHW.ShSequence) && strings.HasSuffix(wizard.Left.Sequence, cHW.ShSequence)
+	
+	if rightHandMatch || leftHandMatch {
 		if strings.Contains(target.Wards, "cureHeavyWounds") {
 			target.HitPoints -= 1
 			return fmt.Sprintf("%s caused heavy wounds on %s but they were protected and only sustained minimal damage", wizard.Name, target.Selector), nil

@@ -100,7 +100,7 @@ func StartWavingHands(event *BotGame) (Game, error) {
 		if !inGame {
 			return Game{}, fmt.Errorf("player not active in game, cannot start")
 		}
-		if len(g.gData.Players) > wavinghands.GetMinTeams() && len(g.gData.Players) <= wavinghands.GetMaxTeams() {
+		if len(g.gData.Players) >= wavinghands.GetMinTeams() && len(g.gData.Players) <= wavinghands.GetMaxTeams() {
 			g.gData.State = "playing"
 		} else if len(g.gData.Players) < wavinghands.GetMinTeams() {
 			return Game{}, fmt.Errorf("not enough players to start the game")
@@ -256,7 +256,6 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 		var channelName, rGesture, lGesture, target string
 		var channel *model.Channel
 		var wHGameData WHGameData
-		var t *wavinghands.Living
 		name := strings.TrimLeft(event.sender, "@")
 		if err != nil {
 			return err, true
@@ -276,10 +275,6 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 
 		g := Game{gData: wHGameData, Channel: channel}
 		p, err := GetCurrentPlayer(g, name)
-
-		if target != "" {
-			t, err = FindTarget(g, target)
-		}
 
 		if err != nil {
 			return err, true
@@ -312,12 +307,24 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 				rG := p.Right.GetAt(len(p.Right.Sequence) - 1)
 				lG := p.Left.GetAt(len(p.Left.Sequence) - 1)
 				announceGestures(&p, event.ResponseChannel, response, string(rG), string(lG), p.GetTarget())
+				
+				// Find the target for this player's spells
+				var spellTarget *wavinghands.Living
+				if p.GetTarget() != "" {
+					spellTarget, err = FindTarget(g, p.GetTarget())
+					if err != nil {
+						return err, true
+					}
+				} else {
+					// Default to self if no target specified
+					spellTarget = &p.Living
+				}
+				
 				sr, err := spells.GetSurrenderSpell(wavinghands.GetSpell("Surrender"))
 				if err != nil {
 					return err, true
 				}
-				t = &p.Living
-				surrenderString, err := sr.Cast(&g.gData.Players[i], t)
+				surrenderString, err := sr.Cast(&g.gData.Players[i], &p.Living) // Surrender always targets self
 				if err == nil && surrenderString != "" {
 					response.Message = surrenderString
 					event.ResponseChannel <- response
@@ -357,7 +364,7 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 				if err != nil {
 					return err, true
 				}
-				chwResult, err := cHW.Cast(&g.gData.Players[i], t)
+				chwResult, err := cHW.Cast(&g.gData.Players[i], spellTarget)
 				if err == nil && chwResult != "" {
 					response.Message = chwResult
 					event.ResponseChannel <- response
@@ -426,7 +433,7 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 				if err != nil {
 					return err, true
 				}
-				chwResult, err = CHW.Cast(&g.gData.Players[i], t)
+				chwResult, err = CHW.Cast(&g.gData.Players[i], spellTarget)
 				if err == nil && chwResult != "" {
 					response.Message = chwResult
 					event.ResponseChannel <- response
@@ -615,27 +622,33 @@ func FindTarget(g Game, selector string) (*wavinghands.Living, error) {
 	} else {
 		name = selector
 	}
+	
+	// Find the wizard by name
 	for i, w := range g.gData.Players {
 		if w.Name == name {
 			wizard = &g.gData.Players[i]
-		}
-
-		if monster == "" {
-			wizard.Living.Selector = selector
-			return &wizard.Living, nil
+			break
 		}
 	}
+	
+	if wizard == nil {
+		return &wavinghands.Living{}, fmt.Errorf("wizard %s not found", name)
+	}
 
-	if monster != "" {
+	if monster == "" {
+		// Target the wizard directly
+		wizard.Living.Selector = selector
+		return &wizard.Living, nil
+	} else {
+		// Target a specific monster belonging to the wizard
 		for i, m := range wizard.Monsters {
 			if m.Type == monster {
-				wizard.Living.Selector = selector
+				wizard.Monsters[i].Living.Selector = selector
 				return &wizard.Monsters[i].Living, nil
 			}
 		}
+		return &wavinghands.Living{}, fmt.Errorf("monster %s not found for wizard %s", monster, name)
 	}
-
-	return &wavinghands.Living{}, fmt.Errorf("not found")
 }
 
 func GetCurrentPlayer(g Game, name string) (*wavinghands.Wizard, error) {
