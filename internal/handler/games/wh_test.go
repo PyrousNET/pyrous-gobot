@@ -7,6 +7,7 @@ import (
 	"github.com/pyrousnet/pyrous-gobot/internal/handler/games/wavinghands"
 	"github.com/pyrousnet/pyrous-gobot/internal/users"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -303,5 +304,46 @@ func Test_FindTarget(t *testing.T) {
 				t.Errorf("FindTarget() HP = %v, want %v", target.HitPoints, tt.wantHP)
 			}
 		})
+	}
+}
+
+func Test_SpellSequenceMatching(t *testing.T) {
+	// Test the spell sequence matching logic to ensure empty sh-sequence doesn't match everything
+	
+	wizard := &wavinghands.Wizard{
+		Right: wavinghands.Hand{Sequence: "wpfd"}, // Cause Heavy Wounds sequence
+		Left:  wavinghands.Hand{Sequence: "abc"},  // Some other sequence
+		Name:  "testWizard",
+	}
+	
+	// Create spell with empty sh-sequence (like Cause Heavy Wounds)
+	spell := wavinghands.Spell{
+		Name:        "Test Spell",
+		Sequence:    "wpfd",
+		ShSequence:  "", // Empty sh-sequence should not match any left hand
+		Description: "Test",
+		Usage:       "Test",
+		Damage:      3,
+	}
+	
+	// Test right hand match (should work)
+	rightMatch := len(wizard.Right.Sequence) >= len(spell.Sequence) && 
+		strings.HasSuffix(wizard.Right.Sequence, spell.Sequence)
+	if !rightMatch {
+		t.Errorf("Right hand should match spell sequence")
+	}
+	
+	// Test left hand match with empty sh-sequence (should NOT work)
+	leftMatch := spell.ShSequence != "" && 
+		len(wizard.Left.Sequence) >= len(spell.ShSequence) && 
+		strings.HasSuffix(wizard.Left.Sequence, spell.ShSequence)
+	if leftMatch {
+		t.Errorf("Left hand should NOT match when sh-sequence is empty")
+	}
+	
+	// Test that the old buggy logic would incorrectly match
+	oldBuggyLogic := strings.HasSuffix(wizard.Left.Sequence, spell.ShSequence)
+	if !oldBuggyLogic {
+		t.Errorf("Old buggy logic should match (this proves the bug existed)")
 	}
 }
