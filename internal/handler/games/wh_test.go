@@ -248,3 +248,60 @@ func Test_GestureMapping(t *testing.T) {
 		})
 	}
 }
+
+func Test_FindTarget(t *testing.T) {
+	// Set up a game with multiple players
+	players := []wavinghands.Wizard{
+		{
+			Name: "player1", 
+			Living: wavinghands.Living{HitPoints: 15},
+			Monsters: []wavinghands.Monster{
+				{Type: "goblin", Living: wavinghands.Living{HitPoints: 3}},
+			},
+		},
+		{Name: "player2", Living: wavinghands.Living{HitPoints: 15}},
+	}
+	gameData := WHGameData{State: "playing", Players: players, Round: 0}
+	game := Game{gData: gameData}
+	
+	tests := []struct {
+		name     string
+		selector string
+		wantErr  bool
+		wantHP   int
+	}{
+		{
+			name:     "target player by name",
+			selector: "player2",
+			wantErr:  false,
+			wantHP:   15,
+		},
+		{
+			name:     "target monster",
+			selector: "player1:goblin",
+			wantErr:  false,
+			wantHP:   3,
+		},
+		{
+			name:     "target non-existent player",
+			selector: "nonexistent",
+			wantErr:  true,
+		},
+	}
+	
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			target, err := FindTarget(game, tt.selector)
+			
+			if tt.wantErr && err == nil {
+				t.Errorf("FindTarget() expected error but got none")
+			}
+			if !tt.wantErr && err != nil {
+				t.Errorf("FindTarget() unexpected error: %v", err)
+			}
+			if !tt.wantErr && target.HitPoints != tt.wantHP {
+				t.Errorf("FindTarget() HP = %v, want %v", target.HitPoints, tt.wantHP)
+			}
+		})
+	}
+}
