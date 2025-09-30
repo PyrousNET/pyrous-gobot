@@ -100,7 +100,7 @@ func StartWavingHands(event *BotGame) (Game, error) {
 		if !inGame {
 			return Game{}, fmt.Errorf("player not active in game, cannot start")
 		}
-		if len(g.gData.Players) > wavinghands.GetMinTeams() && len(g.gData.Players) <= wavinghands.GetMaxTeams() {
+		if len(g.gData.Players) >= wavinghands.GetMinTeams() && len(g.gData.Players) <= wavinghands.GetMaxTeams() {
 			g.gData.State = "playing"
 		} else if len(g.gData.Players) < wavinghands.GetMinTeams() {
 			return Game{}, fmt.Errorf("not enough players to start the game")
@@ -266,7 +266,7 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 			if rGesture == "nothing" {
 				rGesture = "0"
 			}
-			if rGesture == "stab" {
+			if lGesture == "nothing" {
 				lGesture = "0"
 			}
 			rightGestures := append(p.Right.Get(), rGesture[0])
