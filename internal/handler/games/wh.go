@@ -338,7 +338,7 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 				if err != nil {
 					return err, true
 				}
-				shieldResult, err := shield.Cast(&g.gData.Players[i], t)
+				shieldResult, err := shield.Cast(&g.gData.Players[i], spellTarget)
 				if err == nil && shieldResult != "" {
 					response.Message = shieldResult
 					event.ResponseChannel <- response
@@ -351,7 +351,7 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 				if err != nil {
 					return err, true
 				}
-				counterResult, err := counterSpell.Cast(&g.gData.Players[i], t)
+				counterResult, err := counterSpell.Cast(&g.gData.Players[i], spellTarget)
 				if err == nil && counterResult != "" {
 					response.Message = counterResult
 					event.ResponseChannel <- response
@@ -377,7 +377,7 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 				if err != nil {
 					return err, true
 				}
-				clwResult, err := cLW.Cast(&g.gData.Players[i], t)
+				clwResult, err := cLW.Cast(&g.gData.Players[i], spellTarget)
 				if err == nil && clwResult != "" {
 					response.Message = clwResult
 					event.ResponseChannel <- response
@@ -392,7 +392,7 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 				if err != nil {
 					return err, true
 				}
-				antiResult, err := antiSpell.Cast(&g.gData.Players[i], t)
+				antiResult, err := antiSpell.Cast(&g.gData.Players[i], spellTarget)
 				if err == nil && antiResult != "" {
 					response.Message = antiResult
 					event.ResponseChannel <- response
@@ -405,7 +405,7 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 				if err != nil {
 					return err, true
 				}
-				amnesiaResult, err := amnesia.Cast(&g.gData.Players[i], t)
+				amnesiaResult, err := amnesia.Cast(&g.gData.Players[i], spellTarget)
 				if err == nil && amnesiaResult != "" {
 					response.Message = amnesiaResult
 					event.ResponseChannel <- response
@@ -420,7 +420,7 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 				if err != nil {
 					return err, true
 				}
-				fodResult, err := fod.Cast(&g.gData.Players[i], t)
+				fodResult, err := fod.Cast(&g.gData.Players[i], spellTarget)
 				if err == nil && fodResult != "" {
 					response.Message = fodResult
 					event.ResponseChannel <- response
@@ -446,7 +446,7 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 				if err != nil {
 					return err, true
 				}
-				clwResult, err = CLW.Cast(&g.gData.Players[i], t)
+				clwResult, err = CLW.Cast(&g.gData.Players[i], spellTarget)
 				if err == nil && clwResult != "" {
 					response.Message = clwResult
 					event.ResponseChannel <- response
@@ -459,7 +459,7 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 				if err != nil {
 					return err, true
 				}
-				missileResult, err := missile.Cast(&g.gData.Players[i], t)
+				missileResult, err := missile.Cast(&g.gData.Players[i], spellTarget)
 				if err == nil && missileResult != "" {
 					response.Message = missileResult
 					event.ResponseChannel <- response
@@ -472,7 +472,7 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 				if err != nil {
 					return err, true
 				}
-				stabResult, err := stab.Cast(&g.gData.Players[i], t)
+				stabResult, err := stab.Cast(&g.gData.Players[i], spellTarget)
 				if err == nil && stabResult != "" {
 					response.Message = stabResult
 					event.ResponseChannel <- response
@@ -487,7 +487,7 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 				if err != nil {
 					return err, true
 				}
-				elementalResult, err := elemental.Cast(&g.gData.Players[i], t)
+				elementalResult, err := elemental.Cast(&g.gData.Players[i], spellTarget)
 				if err == nil && elementalResult != "" {
 					response.Message = elementalResult
 					event.ResponseChannel <- response
