@@ -266,7 +266,7 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 			if rGesture == "nothing" {
 				rGesture = "0"
 			}
-			if rGesture == "stab" {
+			if lGesture == "nothing" {
 				lGesture = "0"
 			}
 			rightGestures := append(p.Right.Get(), rGesture[0])
@@ -298,7 +298,34 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 					return err, true
 				}
 				// Run Protection Spells
+				
+				// Shield
+				shield, err := spells.GetShieldSpell(wavinghands.GetSpell("Shield"))
+				if err != nil {
+					return err, true
+				}
+				shieldResult, err := shield.Cast(&g.gData.Players[i], t)
+				if err == nil && shieldResult != "" {
+					response.Message = shieldResult
+					event.ResponseChannel <- response
+				} else if err != nil {
+					return err, true
+				}
 
+				// Counter Spell
+				counterSpell, err := spells.GetCounterSpellSpell(wavinghands.GetSpell("Counter Spell"))
+				if err != nil {
+					return err, true
+				}
+				counterResult, err := counterSpell.Cast(&g.gData.Players[i], t)
+				if err == nil && counterResult != "" {
+					response.Message = counterResult
+					event.ResponseChannel <- response
+				} else if err != nil {
+					return err, true
+				}
+
+				// Cure Heavy Wounds
 				cHW, err := spells.GetCureHeavyWoundsSpell(wavinghands.GetSpell("Cure Heavy Wounds"))
 				if err != nil {
 					return err, true
@@ -311,7 +338,63 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 					return err, true
 				}
 
+				// Cure Light Wounds
+				cLW, err := spells.GetCureLightWoundsSpell(wavinghands.GetSpell("Cure Light Wounds"))
+				if err != nil {
+					return err, true
+				}
+				clwResult, err := cLW.Cast(&g.gData.Players[i], t)
+				if err == nil && clwResult != "" {
+					response.Message = clwResult
+					event.ResponseChannel <- response
+				} else if err != nil {
+					return err, true
+				}
+
+				// Run Mental Effects Spells
+
+				// Anti-Spell
+				antiSpell, err := spells.GetAntiSpellSpell(wavinghands.GetSpell("Anti-Spell"))
+				if err != nil {
+					return err, true
+				}
+				antiResult, err := antiSpell.Cast(&g.gData.Players[i], t)
+				if err == nil && antiResult != "" {
+					response.Message = antiResult
+					event.ResponseChannel <- response
+				} else if err != nil {
+					return err, true
+				}
+
+				// Amnesia
+				amnesia, err := spells.GetAmnesiaSpell(wavinghands.GetSpell("Amnesia"))
+				if err != nil {
+					return err, true
+				}
+				amnesiaResult, err := amnesia.Cast(&g.gData.Players[i], t)
+				if err == nil && amnesiaResult != "" {
+					response.Message = amnesiaResult
+					event.ResponseChannel <- response
+				} else if err != nil {
+					return err, true
+				}
+
 				// Run Damage Spells
+
+				// Finger of Death - should go first as it's instant kill
+				fod, err := spells.GetFingerOfDeathSpell(wavinghands.GetSpell("Finger of Death"))
+				if err != nil {
+					return err, true
+				}
+				fodResult, err := fod.Cast(&g.gData.Players[i], t)
+				if err == nil && fodResult != "" {
+					response.Message = fodResult
+					event.ResponseChannel <- response
+				} else if err != nil {
+					return err, true
+				}
+
+				// Cause Heavy Wounds
 				CHW, err := spells.GetCauseHeavyWoundsSpell(wavinghands.GetSpell("Cause Heavy Wounds"))
 				if err != nil {
 					return err, true
@@ -323,9 +406,62 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 				} else if err != nil {
 					return err, true
 				}
+
+				// Cause Light Wounds
+				CLW, err := spells.GetCauseLightWoundsSpell(wavinghands.GetSpell("Cause Light Wounds"))
+				if err != nil {
+					return err, true
+				}
+				clwResult, err = CLW.Cast(&g.gData.Players[i], t)
+				if err == nil && clwResult != "" {
+					response.Message = clwResult
+					event.ResponseChannel <- response
+				} else if err != nil {
+					return err, true
+				}
+
+				// Missile
+				missile, err := spells.GetMissileSpell(wavinghands.GetSpell("Missile"))
+				if err != nil {
+					return err, true
+				}
+				missileResult, err := missile.Cast(&g.gData.Players[i], t)
+				if err == nil && missileResult != "" {
+					response.Message = missileResult
+					event.ResponseChannel <- response
+				} else if err != nil {
+					return err, true
+				}
+
+				// Stab
+				stab, err := spells.GetStabSpell(wavinghands.GetSpell("Stab"))
+				if err != nil {
+					return err, true
+				}
+				stabResult, err := stab.Cast(&g.gData.Players[i], t)
+				if err == nil && stabResult != "" {
+					response.Message = stabResult
+					event.ResponseChannel <- response
+				} else if err != nil {
+					return err, true
+				}
+
+				// Run Summon Spells
+				
+				// Elemental
+				elemental, err := spells.GetElementalSpell(wavinghands.GetSpell("Elemental"))
+				if err != nil {
+					return err, true
+				}
+				elementalResult, err := elemental.Cast(&g.gData.Players[i], t)
+				if err == nil && elementalResult != "" {
+					response.Message = elementalResult
+					event.ResponseChannel <- response
+				} else if err != nil {
+					return err, true
+				}
 			}
 
-			// Run Summon Spells
 			g.gData.Round += 1
 		}
 
