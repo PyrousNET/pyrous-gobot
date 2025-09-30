@@ -89,6 +89,54 @@ You can verify the Bot is running when
 
 3 - Post a message in the channel such as `are you running?` to see if the Bot responds. You should see a response similar to `Yes I'm running` if the Bot is running.
 
+## Waving Hands Game
+
+The bot includes a complete implementation of the **Waving Hands** turn-based wizard dueling game. This is a strategic game where wizards cast spells using hand gestures.
+
+### Getting Started with Waving Hands
+
+1. **Join a game**: Type `wh` in any channel to join a game
+2. **Start the game**: Type `wh start` when you have 2-6 players
+3. **Get help**: Use `wh help-spells` to see all available spells
+4. **View rules**: Use `wh rules` for basic rules or see `WAVING_HANDS_RULES.md` for complete documentation
+5. **Check status**: Use `wh status` to see current player health and protections
+
+### Available Commands
+
+- `wh` - Join the current game in this channel
+- `wh start` - Start the game (requires 2-6 players)
+- `wh help-spells` - List all available spells with usage
+- `wh help <spell-name>` - Get detailed help for a specific spell
+- `wh rules` - Show basic game rules
+- `wh status` - Show current game status and player health
+- `wh <channel> <right-gesture> <left-gesture> [target]` - Make your turn
+
+### Game Features
+
+- **13 Spells Implemented**: Including Missile, Shield, Cause/Cure Wounds, Finger of Death, Elemental summoning, and more
+- **Complete Rule Set**: Ward system, spell interactions, targeting, and win conditions
+- **Real-time Status**: Track health, active protections, and game state
+- **Comprehensive Help**: Built-in documentation for all spells and rules
+- **Strategic Gameplay**: Plan multi-turn spell sequences, counter opponent strategies
+
+### Example Gameplay
+
+```
+# Join a game
+wh
+
+# Start when ready
+wh start
+
+# Make your move (cast Shield on yourself)
+wh town-square p p myself
+
+# Cast Missile at opponent
+wh town-square s d opponent-name
+```
+
+See `WAVING_HANDS_RULES.md` for complete rules and strategy guide!
+
 ## Stop the Bot
 
 1 - In the terminal window, press `CTRL+C` to stop the bot. You should see `Mattermost Bot Sample has stopped running` posted in the `Debugging For Sample Bot` channel.

@@ -198,6 +198,33 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 		response.Type = "dm"
 		event.ResponseChannel <- response
 		return nil, true
+	case "rules":
+		response.Message = "/echo Waving Hands is a turn-based wizard dueling game. See the WAVING_HANDS_RULES.md file for complete rules, or use 'wh help-spells' to see available spells."
+		response.Type = "dm"
+		event.ResponseChannel <- response
+		return nil, true
+	case "status":
+		g, err := GetChannelGame(event.ReplyChannel.Id, event.Cache)
+		if err != nil {
+			response.Type = "dm"
+			response.Message = "No active game in this channel."
+			event.ResponseChannel <- response
+			return nil, true
+		}
+		
+		statusMsg := fmt.Sprintf("/echo **Waving Hands Game Status - Round %d**\n", g.Round)
+		for _, player := range g.Players {
+			statusMsg += fmt.Sprintf("**%s**: %d HP", player.Name, player.Living.HitPoints)
+			if player.Living.Wards != "" {
+				statusMsg += fmt.Sprintf(" (Protected: %s)", player.Living.Wards)
+			}
+			statusMsg += "\n"
+		}
+		
+		response.Message = statusMsg
+		response.Type = "command"
+		event.ResponseChannel <- response
+		return nil, true
 	case "start":
 		g, err := StartWavingHands(event)
 		if err != nil {
@@ -462,6 +489,9 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 				}
 			}
 
+			// Clean up expired wards at end of round
+			wavinghands.CleanupAllWards(g.gData.Players)
+			
 			g.gData.Round += 1
 		}
 

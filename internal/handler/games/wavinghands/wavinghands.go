@@ -146,3 +146,25 @@ func GetSpell(name string) (*Spell, error) {
 
 	return &Spell{}, fmt.Errorf("not found")
 }
+
+// CleanupWards removes expired ward effects from a Living entity
+func CleanupWards(living *Living) {
+	if living.Wards == "" {
+		return
+	}
+	
+	// For now, clear all wards at end of round since they last 1 round
+	// In a more sophisticated implementation, we could track ward durations
+	living.Wards = ""
+}
+
+// CleanupAllWards removes expired ward effects from all players
+func CleanupAllWards(players []Wizard) {
+	for i := range players {
+		CleanupWards(&players[i].Living)
+		// Also cleanup monster wards if needed
+		for j := range players[i].Monsters {
+			CleanupWards(&players[i].Monsters[j].Living)
+		}
+	}
+}
