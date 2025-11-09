@@ -150,9 +150,11 @@ func backoffDelay(attempt int) time.Duration {
 	)
 
 	power := math.Pow(2, float64(attempt))
-	delay := time.Duration(power) * base
-	if delay > max {
+	var delay time.Duration
+	if power >= float64(max/base) {
 		delay = max
+	} else {
+		delay = time.Duration(power) * base
 	}
 
 	jitter := time.Duration(rand.Int63n(int64(base)))
