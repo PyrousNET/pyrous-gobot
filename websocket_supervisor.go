@@ -15,10 +15,6 @@ import (
 	"github.com/pyrousnet/pyrous-gobot/internal/mmclient"
 )
 
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
-
 type wsSessionState struct {
 	connectionID string
 	lastSequence int64
@@ -140,7 +136,7 @@ func drainWebSocketResponses(ctx context.Context, ws *model.WebSocketClient) {
 			if !ok {
 				return
 			}
-			if resp != nil && resp.Status != model.STATUS_OK {
+			if resp != nil && resp.Status != model.StatusOk {
 				log.Printf("websocket response status=%s error=%s", resp.Status, resp.Error)
 			}
 		}
