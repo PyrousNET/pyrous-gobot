@@ -18,8 +18,12 @@ type RemoveEnchantment struct {
 }
 
 func (re RemoveEnchantment) Cast(wizard *wavinghands.Wizard, target *wavinghands.Living) (string, error) {
-	if (len(wizard.Right.Sequence) >= len(re.Sequence) && strings.HasSuffix(wizard.Right.Sequence, re.Sequence)) ||
-		(len(wizard.Left.Sequence) >= len(re.Sequence) && strings.HasSuffix(wizard.Left.Sequence, re.ShSequence)) {
+	rightMatch := len(wizard.Right.Sequence) >= len(re.Sequence) &&
+		strings.HasSuffix(wizard.Right.Sequence, re.Sequence)
+	leftMatch := len(wizard.Left.Sequence) >= len(re.Sequence) &&
+		strings.HasSuffix(wizard.Left.Sequence, re.Sequence)
+
+	if rightMatch || leftMatch {
 		target.Wards = ""
 		return fmt.Sprintf("%s has removed all enchantments from %s", wizard.Name, target.Selector), nil
 	}

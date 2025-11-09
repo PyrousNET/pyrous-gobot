@@ -18,8 +18,12 @@ type ResistCold struct {
 }
 
 func (rc ResistCold) Cast(wizard *wavinghands.Wizard, target *wavinghands.Living) (string, error) {
-	if (len(wizard.Right.Sequence) >= len(rc.Sequence) && strings.HasSuffix(wizard.Right.Sequence, rc.Sequence)) ||
-		(len(wizard.Left.Sequence) >= len(rc.Sequence) && strings.HasSuffix(wizard.Left.Sequence, rc.ShSequence)) {
+	rightMatch := len(wizard.Right.Sequence) >= len(rc.Sequence) &&
+		strings.HasSuffix(wizard.Right.Sequence, rc.Sequence)
+	leftMatch := len(wizard.Left.Sequence) >= len(rc.Sequence) &&
+		strings.HasSuffix(wizard.Left.Sequence, rc.Sequence)
+
+	if rightMatch || leftMatch {
 		wavinghands.AddWard(target, "resist-cold")
 		return fmt.Sprintf("%s is now resistant to cold", target.Selector), nil
 	}

@@ -56,7 +56,7 @@
 
 | Category        | Spell (gestures)                                  | Notes                                                                            |
 |-----------------|---------------------------------------------------|----------------------------------------------------------------------------------|
-| Protection      | Shield (`p`), Counter‑Spell (`wws` or `wpp`), Remove Enchantment (`pdwp`) | Counter‑Spell blocks hostile spells; Remove Enchantment clears every ward on the subject. |
+| Protection      | Shield (`p`), Counter‑Spell (`wws` or `wpp`), Remove Enchantment (`pdwp`), Magic Mirror (`c(w`), Dispel Magic (`cdpw`) | Magic Mirror reflects single-target spells for a turn; Dispel wipes all wards/monsters and blocks every spell that turn. |
 | Resistances     | Resist Heat (`wwfp`), Resist Cold (`ssfp`)         | Adds permanent wards that flag the target as heat/cold immune for future effects.|
 | Healing         | Cure Light (`dfp`), Cure Heavy (`dfpw`)            | Adds short‑lived wards that blunt incoming Cause Wounds of the same weight.      |
 | Mental          | Anti‑Spell (`spf`), Amnesia (`ddp`)                | Anti‑Spell forces the target to restart sequences next turn; Amnesia repeats gestures. |
@@ -70,13 +70,12 @@
 The original rules describe additional mechanics that are **not** in the
 bot yet:
 
-- Remaining protection spells (Magic Mirror, Dispel Magic,
-  Protection from Evil).
+- Remaining protection spells (Protection from Evil).
 - Offensive area spells (Fireball, Lightning Bolt, Fire/Ice Storm),
   delayed spells, and poison/disease timers.
 - Enchantments such as Charm Person/Monster, Confusion, Fear, Paralysis,
   Blindness, Haste, Time Stop, Delayed Effect, Permanency.
-- Visibility tricks (Invisibility) and reflection logic (Magic Mirror).
+- Visibility tricks (Invisibility).
 
 Until those features land, play within the spell list above for
 consistent behavior.
@@ -96,9 +95,16 @@ consistent behavior.
   round when they submit their next turn. The bot enforces this
   automatically and informs affected players.
 - **Wards**: The bot tracks protections on each living creature. Wards
-  expire automatically unless otherwise noted. Resist Heat/Cold persist
-  until a Remove Enchantment clears them. You can see active wards via
+  expire automatically unless otherwise noted. Protection from Evil
+  lingers for four turns, Resist Heat/Cold persist until a Remove
+  Enchantment or Dispel Magic clears them. You can see active wards via
   `wh status`.
+- **Magic Mirror**: Reflects single-target spells back at the caster
+  unless the spell was self-targeted or an area effect. Counter-Spell
+  or Dispel Magic on the same turn cancels the mirror.
+- **Dispel Magic**: When it resolves, no other spells work that round,
+  every ward is cleared, and all monsters are banished after their
+  current attack. It also grants the caster a shield for that turn.
 
 ## Strategy Reminders
 

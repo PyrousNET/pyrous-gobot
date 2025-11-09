@@ -18,8 +18,16 @@ type Shield struct {
 }
 
 func (s Shield) Cast(wizard *wavinghands.Wizard, target *wavinghands.Living) (string, error) {
-	if (len(wizard.Right.Sequence) >= len(s.Sequence) && strings.HasSuffix(wizard.Right.Sequence, s.Sequence)) ||
-		(len(wizard.Left.Sequence) >= len(s.Sequence) && strings.HasSuffix(wizard.Left.Sequence, s.ShSequence)) {
+	rightMatch := len(wizard.Right.Sequence) >= len(s.Sequence) &&
+		strings.HasSuffix(wizard.Right.Sequence, s.Sequence)
+	leftPattern := s.Sequence
+	if s.ShSequence != "" {
+		leftPattern = s.ShSequence
+	}
+	leftMatch := len(wizard.Left.Sequence) >= len(leftPattern) &&
+		strings.HasSuffix(wizard.Left.Sequence, leftPattern)
+
+	if rightMatch || leftMatch {
 
 		wavinghands.AddWard(target, "shield")
 

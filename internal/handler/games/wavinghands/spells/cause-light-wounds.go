@@ -22,8 +22,16 @@ func (cLW CauseLightWounds) Cast(wizard *wavinghands.Wizard, target *wavinghands
 		return msg, nil
 	}
 
-	if (len(wizard.Right.Sequence) >= len(cLW.Sequence) && strings.HasSuffix(wizard.Right.Sequence, cLW.Sequence)) ||
-		(len(wizard.Left.Sequence) >= len(cLW.Sequence) && strings.HasSuffix(wizard.Left.Sequence, cLW.ShSequence)) {
+	rightMatch := len(wizard.Right.Sequence) >= len(cLW.Sequence) &&
+		strings.HasSuffix(wizard.Right.Sequence, cLW.Sequence)
+	leftPattern := cLW.Sequence
+	if cLW.ShSequence != "" {
+		leftPattern = cLW.ShSequence
+	}
+	leftMatch := len(wizard.Left.Sequence) >= len(leftPattern) &&
+		strings.HasSuffix(wizard.Left.Sequence, leftPattern)
+
+	if rightMatch || leftMatch {
 
 		if wavinghands.HasWard(target, "cureLightWounds") {
 			wavinghands.RemoveWard(target, "cureLightWounds")

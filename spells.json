@@ -36,7 +36,7 @@
     "description": "Reflects any spell cast at the subject back to the caster for that turn.",
     "usage": "Does not reflect self-targeted spells or area effects.",
     "damage": 0,
-    "implemented": false,
+    "implemented": true,
     "notes": "Cancelled if Counter-spell or Dispel Magic also lands."
   },
   {
@@ -70,7 +70,7 @@
     "description": "Universal counter: nullifies every spell in the turn (except another Dispel), removes all enchantments, destroys all monsters, and shields the caster.",
     "usage": "Cannot stop stabs or surrenders.",
     "damage": 0,
-    "implemented": false,
+    "implemented": true,
     "notes": "Acts globally rather than per subject."
   },
   {
@@ -437,7 +437,7 @@
     "description": "Provides shield-level protection for this and the next three turns.",
     "usage": "Hands remain free while the effect lasts.",
     "damage": 0,
-    "implemented": false,
+    "implemented": true,
     "notes": "Multiple casts overlap without stacking."
   },
   {

@@ -19,8 +19,12 @@ type SummonMonster struct {
 }
 
 func (sm SummonMonster) Cast(wizard *wavinghands.Wizard, target *wavinghands.Living) (string, error) {
-	if (len(wizard.Right.Sequence) >= len(sm.Sequence) && strings.HasSuffix(wizard.Right.Sequence, sm.Sequence)) ||
-		(len(wizard.Left.Sequence) >= len(sm.Sequence) && strings.HasSuffix(wizard.Left.Sequence, sm.ShSequence)) {
+	rightMatch := len(wizard.Right.Sequence) >= len(sm.Sequence) &&
+		strings.HasSuffix(wizard.Right.Sequence, sm.Sequence)
+	leftMatch := len(wizard.Left.Sequence) >= len(sm.Sequence) &&
+		strings.HasSuffix(wizard.Left.Sequence, sm.Sequence)
+
+	if rightMatch || leftMatch {
 		monster, err := wavinghands.AddMonster(wizard, sm.MonsterType)
 		if err != nil {
 			return "", err

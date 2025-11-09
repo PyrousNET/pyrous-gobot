@@ -22,8 +22,16 @@ func (as AntiSpell) Cast(wizard *wavinghands.Wizard, target *wavinghands.Living)
 		return msg, nil
 	}
 
-	if (len(wizard.Right.Sequence) >= len(as.Sequence) && strings.HasSuffix(wizard.Right.Sequence, as.Sequence)) ||
-		(len(wizard.Left.Sequence) >= len(as.Sequence) && strings.HasSuffix(wizard.Left.Sequence, as.ShSequence)) {
+	rightMatch := len(wizard.Right.Sequence) >= len(as.Sequence) &&
+		strings.HasSuffix(wizard.Right.Sequence, as.Sequence)
+	leftPattern := as.Sequence
+	if as.ShSequence != "" {
+		leftPattern = as.ShSequence
+	}
+	leftMatch := len(wizard.Left.Sequence) >= len(leftPattern) &&
+		strings.HasSuffix(wizard.Left.Sequence, leftPattern)
+
+	if rightMatch || leftMatch {
 
 		wavinghands.AddWard(target, "anti-spell")
 

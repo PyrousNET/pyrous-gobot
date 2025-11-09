@@ -18,8 +18,16 @@ type FingerOfDeath struct {
 }
 
 func (fod FingerOfDeath) Cast(wizard *wavinghands.Wizard, target *wavinghands.Living) (string, error) {
-	if (len(wizard.Right.Sequence) >= len(fod.Sequence) && strings.HasSuffix(wizard.Right.Sequence, fod.Sequence)) ||
-		(len(wizard.Left.Sequence) >= len(fod.Sequence) && strings.HasSuffix(wizard.Left.Sequence, fod.ShSequence)) {
+	rightMatch := len(wizard.Right.Sequence) >= len(fod.Sequence) &&
+		strings.HasSuffix(wizard.Right.Sequence, fod.Sequence)
+	leftPattern := fod.Sequence
+	if fod.ShSequence != "" {
+		leftPattern = fod.ShSequence
+	}
+	leftMatch := len(wizard.Left.Sequence) >= len(leftPattern) &&
+		strings.HasSuffix(wizard.Left.Sequence, leftPattern)
+
+	if rightMatch || leftMatch {
 
 		// Finger of Death is unaffected by counter-spell but can be stopped by dispel magic
 		// For simplicity, we'll implement it as instant death

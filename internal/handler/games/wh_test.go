@@ -516,6 +516,76 @@ func TestMonsterAttackBlockedByShield(t *testing.T) {
 		t.Fatalf("expected shield to block monster damage")
 	}
 }
+
+func TestMagicMirrorReflectsTarget(t *testing.T) {
+	g := Game{
+		gData: WHGameData{
+			Players: []wavinghands.Wizard{
+				{Name: "caster", Living: wavinghands.Living{Selector: "caster"}},
+				{Name: "target", Living: wavinghands.Living{Selector: "target"}},
+			},
+		},
+		Channel: &model.Channel{Id: "chan"},
+	}
+	wavinghands.AddWard(&g.gData.Players[1].Living, "magic-mirror")
+	ctx := spellContext{
+		caster:      &g.gData.Players[0],
+		target:      &g.gData.Players[1].Living,
+		casterIndex: 0,
+	}
+	event := &BotGame{
+		ResponseChannel: make(chan comms.Response, 4),
+		ReplyChannel:    g.Channel,
+	}
+	response := comms.Response{ReplyChannelId: g.Channel.Id}
+
+	reflected := spellTargetWithMirror("Missile", ctx, ctx.target, response, event)
+	if reflected != &g.gData.Players[0].Living {
+		t.Fatalf("expected mirror to reflect onto caster")
+	}
+}
+
+func TestDispelMagicClearsWards(t *testing.T) {
+	g := Game{
+		gData: WHGameData{
+			Players: []wavinghands.Wizard{
+				{
+					Name:   "caster",
+					Living: wavinghands.Living{Selector: "caster"},
+				},
+				{
+					Name:   "ally",
+					Living: wavinghands.Living{Selector: "ally", Wards: "shield"},
+				},
+			},
+		},
+		Channel: &model.Channel{Id: "chan"},
+	}
+	g.gData.Players[0].Right.Set("cdpw")
+	contexts := []spellContext{
+		{caster: &g.gData.Players[0], target: &g.gData.Players[0].Living, casterIndex: 0},
+		{caster: &g.gData.Players[1], target: &g.gData.Players[1].Living, casterIndex: 1},
+	}
+	event := &BotGame{
+		ResponseChannel: make(chan comms.Response, 4),
+		ReplyChannel:    g.Channel,
+	}
+	response := comms.Response{ReplyChannelId: g.Channel.Id}
+
+	triggered := resolveDispelMagic(&g, contexts, event, response)
+	if !triggered {
+		t.Fatalf("expected dispel magic to trigger")
+	}
+	for _, player := range g.gData.Players {
+		if player.Name == "caster" {
+			if player.Living.Wards != "shield" {
+				t.Fatalf("expected caster to retain shield, got %s", player.Living.Wards)
+			}
+		} else if player.Living.Wards != "" {
+			t.Fatalf("expected wards cleared, got %s", player.Living.Wards)
+		}
+	}
+}
 func storeTestUser(cache *MCache, username string) {
 	user := users.User{
 		Id:   fmt.Sprintf("%s-id", username),

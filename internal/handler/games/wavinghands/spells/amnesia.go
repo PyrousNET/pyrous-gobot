@@ -22,8 +22,16 @@ func (a Amnesia) Cast(wizard *wavinghands.Wizard, target *wavinghands.Living) (s
 		return msg, nil
 	}
 
-	if (len(wizard.Right.Sequence) >= len(a.Sequence) && strings.HasSuffix(wizard.Right.Sequence, a.Sequence)) ||
-		(len(wizard.Left.Sequence) >= len(a.Sequence) && strings.HasSuffix(wizard.Left.Sequence, a.ShSequence)) {
+	rightMatch := len(wizard.Right.Sequence) >= len(a.Sequence) &&
+		strings.HasSuffix(wizard.Right.Sequence, a.Sequence)
+	leftPattern := a.Sequence
+	if a.ShSequence != "" {
+		leftPattern = a.ShSequence
+	}
+	leftMatch := len(wizard.Left.Sequence) >= len(leftPattern) &&
+		strings.HasSuffix(wizard.Left.Sequence, leftPattern)
+
+	if rightMatch || leftMatch {
 
 		// Check if target has conflicting enchantments (confusion, charm person, charm monster, paralysis, fear)
 		conflictingSpells := []string{"confusion", "charm-person", "charm-monster", "paralysis", "fear"}

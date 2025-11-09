@@ -22,8 +22,16 @@ func (m Missile) Cast(wizard *wavinghands.Wizard, target *wavinghands.Living) (s
 		return msg, nil
 	}
 
-	if (len(wizard.Right.Sequence) >= len(m.Sequence) && strings.HasSuffix(wizard.Right.Sequence, m.Sequence)) ||
-		(len(wizard.Left.Sequence) >= len(m.Sequence) && strings.HasSuffix(wizard.Left.Sequence, m.ShSequence)) {
+	rightMatch := len(wizard.Right.Sequence) >= len(m.Sequence) &&
+		strings.HasSuffix(wizard.Right.Sequence, m.Sequence)
+	leftPattern := m.Sequence
+	if m.ShSequence != "" {
+		leftPattern = m.ShSequence
+	}
+	leftMatch := len(wizard.Left.Sequence) >= len(leftPattern) &&
+		strings.HasSuffix(wizard.Left.Sequence, leftPattern)
+
+	if rightMatch || leftMatch {
 
 		// Missile is blocked by shield
 		if wavinghands.HasShield(target) {

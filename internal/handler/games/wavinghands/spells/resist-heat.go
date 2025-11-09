@@ -18,8 +18,12 @@ type ResistHeat struct {
 }
 
 func (rh ResistHeat) Cast(wizard *wavinghands.Wizard, target *wavinghands.Living) (string, error) {
-	if (len(wizard.Right.Sequence) >= len(rh.Sequence) && strings.HasSuffix(wizard.Right.Sequence, rh.Sequence)) ||
-		(len(wizard.Left.Sequence) >= len(rh.Sequence) && strings.HasSuffix(wizard.Left.Sequence, rh.ShSequence)) {
+	rightMatch := len(wizard.Right.Sequence) >= len(rh.Sequence) &&
+		strings.HasSuffix(wizard.Right.Sequence, rh.Sequence)
+	leftMatch := len(wizard.Left.Sequence) >= len(rh.Sequence) &&
+		strings.HasSuffix(wizard.Left.Sequence, rh.Sequence)
+
+	if rightMatch || leftMatch {
 		wavinghands.AddWard(target, "resist-heat")
 		return fmt.Sprintf("%s is now resistant to heat", target.Selector), nil
 	}

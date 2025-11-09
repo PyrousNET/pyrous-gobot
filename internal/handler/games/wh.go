@@ -343,244 +343,59 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 		// Check All Players for gestures
 		hasAllMoves := CheckAllPlayers(g)
 		if hasAllMoves {
-			for i, p := range g.gData.Players {
-				rG := p.Right.GetAt(len(p.Right.Sequence) - 1)
-				lG := p.Left.GetAt(len(p.Left.Sequence) - 1)
-				announceGestures(&p, event.ResponseChannel, response, string(rG), string(lG), p.GetTarget())
+			contexts := make([]spellContext, len(g.gData.Players))
+			for i := range g.gData.Players {
+				player := g.gData.Players[i]
+				rG := player.Right.GetAt(len(player.Right.Sequence) - 1)
+				lG := player.Left.GetAt(len(player.Left.Sequence) - 1)
+				announceGestures(&player, event.ResponseChannel, response, string(rG), string(lG), player.GetTarget())
 
-				// Find the target for this player's spells
 				var spellTarget *wavinghands.Living
-				if p.GetTarget() != "" {
-					spellTarget, err = FindTarget(g, p.GetTarget())
+				if player.GetTarget() != "" {
+					spellTarget, err = FindTarget(g, player.GetTarget())
 					if err != nil {
 						return err, true
 					}
 				} else {
-					// Default to self if no target specified
-					spellTarget = &p.Living
+					spellTarget = &g.gData.Players[i].Living
+				}
+
+				contexts[i] = spellContext{
+					caster:      &g.gData.Players[i],
+					target:      spellTarget,
+					casterIndex: i,
 				}
 
 				sr, err := spells.GetSurrenderSpell(wavinghands.GetSpell("Surrender"))
 				if err != nil {
 					return err, true
 				}
-				surrenderString, err := sr.Cast(&g.gData.Players[i], &p.Living) // Surrender always targets self
+				surrenderString, err := sr.Cast(&g.gData.Players[i], &g.gData.Players[i].Living)
 				if err == nil && surrenderString != "" {
 					response.Message = surrenderString
 					event.ResponseChannel <- response
 				} else if err != nil {
 					return err, true
 				}
-				// Run Protection Spells
+			}
 
-				// Shield
-				shield, err := spells.GetShieldSpell(wavinghands.GetSpell("Shield"))
-				if err != nil {
-					return err, true
-				}
-				shieldResult, err := shield.Cast(&g.gData.Players[i], spellTarget)
-				if err == nil && shieldResult != "" {
-					response.Message = shieldResult
-					event.ResponseChannel <- response
-				} else if err != nil {
-					return err, true
-				}
-
-				// Counter Spell
-				counterSpell, err := spells.GetCounterSpellSpell(wavinghands.GetSpell("Counter Spell"))
-				if err != nil {
-					return err, true
-				}
-				counterResult, err := counterSpell.Cast(&g.gData.Players[i], spellTarget)
-				if err == nil && counterResult != "" {
-					response.Message = counterResult
-					event.ResponseChannel <- response
-				} else if err != nil {
-					return err, true
-				}
-
-				// Cure Heavy Wounds
-				cHW, err := spells.GetCureHeavyWoundsSpell(wavinghands.GetSpell("Cure Heavy Wounds"))
-				if err != nil {
-					return err, true
-				}
-				chwResult, err := cHW.Cast(&g.gData.Players[i], spellTarget)
-				if err == nil && chwResult != "" {
-					response.Message = chwResult
-					event.ResponseChannel <- response
-				} else if err != nil {
-					return err, true
-				}
-
-				// Cure Light Wounds
-				cLW, err := spells.GetCureLightWoundsSpell(wavinghands.GetSpell("Cure Light Wounds"))
-				if err != nil {
-					return err, true
-				}
-				clwResult, err := cLW.Cast(&g.gData.Players[i], spellTarget)
-				if err == nil && clwResult != "" {
-					response.Message = clwResult
-					event.ResponseChannel <- response
-				} else if err != nil {
-					return err, true
-				}
-
-				// Remove Enchantment
-				removeEnchant, err := spells.GetRemoveEnchantmentSpell(wavinghands.GetSpell("Remove Enchantment"))
-				if err != nil {
-					return err, true
-				}
-				removeResult, err := removeEnchant.Cast(&g.gData.Players[i], spellTarget)
-				if err == nil && removeResult != "" {
-					response.Message = removeResult
-					event.ResponseChannel <- response
-				} else if err != nil {
-					return err, true
-				}
-
-				// Resist Heat
-				resistHeat, err := spells.GetResistHeatSpell(wavinghands.GetSpell("Resist Heat"))
-				if err != nil {
-					return err, true
-				}
-				resistHeatResult, err := resistHeat.Cast(&g.gData.Players[i], spellTarget)
-				if err == nil && resistHeatResult != "" {
-					response.Message = resistHeatResult
-					event.ResponseChannel <- response
-				} else if err != nil {
-					return err, true
-				}
-
-				// Resist Cold
-				resistCold, err := spells.GetResistColdSpell(wavinghands.GetSpell("Resist Cold"))
-				if err != nil {
-					return err, true
-				}
-				resistColdResult, err := resistCold.Cast(&g.gData.Players[i], spellTarget)
-				if err == nil && resistColdResult != "" {
-					response.Message = resistColdResult
-					event.ResponseChannel <- response
-				} else if err != nil {
-					return err, true
-				}
-
-				// Run Mental Effects Spells
-
-				// Anti-Spell
-				antiSpell, err := spells.GetAntiSpellSpell(wavinghands.GetSpell("Anti-Spell"))
-				if err != nil {
-					return err, true
-				}
-				antiResult, err := antiSpell.Cast(&g.gData.Players[i], spellTarget)
-				if err == nil && antiResult != "" {
-					response.Message = antiResult
-					event.ResponseChannel <- response
-				} else if err != nil {
-					return err, true
-				}
-
-				// Amnesia
-				amnesia, err := spells.GetAmnesiaSpell(wavinghands.GetSpell("Amnesia"))
-				if err != nil {
-					return err, true
-				}
-				amnesiaResult, err := amnesia.Cast(&g.gData.Players[i], spellTarget)
-				if err == nil && amnesiaResult != "" {
-					response.Message = amnesiaResult
-					event.ResponseChannel <- response
-				} else if err != nil {
-					return err, true
-				}
-
-				// Run Damage Spells
-
-				// Finger of Death - should go first as it's instant kill
-				fod, err := spells.GetFingerOfDeathSpell(wavinghands.GetSpell("Finger of Death"))
-				if err != nil {
-					return err, true
-				}
-				fodResult, err := fod.Cast(&g.gData.Players[i], spellTarget)
-				if err == nil && fodResult != "" {
-					response.Message = fodResult
-					event.ResponseChannel <- response
-				} else if err != nil {
-					return err, true
-				}
-
-				// Cause Heavy Wounds
-				CHW, err := spells.GetCauseHeavyWoundsSpell(wavinghands.GetSpell("Cause Heavy Wounds"))
-				if err != nil {
-					return err, true
-				}
-				chwResult, err = CHW.Cast(&g.gData.Players[i], spellTarget)
-				if err == nil && chwResult != "" {
-					response.Message = chwResult
-					event.ResponseChannel <- response
-				} else if err != nil {
-					return err, true
-				}
-
-				// Cause Light Wounds
-				CLW, err := spells.GetCauseLightWoundsSpell(wavinghands.GetSpell("Cause Light Wounds"))
-				if err != nil {
-					return err, true
-				}
-				clwResult, err = CLW.Cast(&g.gData.Players[i], spellTarget)
-				if err == nil && clwResult != "" {
-					response.Message = clwResult
-					event.ResponseChannel <- response
-				} else if err != nil {
-					return err, true
-				}
-
-				// Missile
-				missile, err := spells.GetMissileSpell(wavinghands.GetSpell("Missile"))
-				if err != nil {
-					return err, true
-				}
-				missileResult, err := missile.Cast(&g.gData.Players[i], spellTarget)
-				if err == nil && missileResult != "" {
-					response.Message = missileResult
-					event.ResponseChannel <- response
-				} else if err != nil {
-					return err, true
-				}
-
-				// Stab
-				stab, err := spells.GetStabSpell(wavinghands.GetSpell("Stab"))
-				if err != nil {
-					return err, true
-				}
-				stabResult, err := stab.Cast(&g.gData.Players[i], spellTarget)
-				if err == nil && stabResult != "" {
-					response.Message = stabResult
-					event.ResponseChannel <- response
-				} else if err != nil {
-					return err, true
-				}
-
-				// Run Summon Spells
-
-				// Elemental
-				elemental, err := spells.GetElementalSpell(wavinghands.GetSpell("Elemental"))
-				if err != nil {
-					return err, true
-				}
-				elementalResult, err := elemental.Cast(&g.gData.Players[i], spellTarget)
-				if err == nil && elementalResult != "" {
-					response.Message = elementalResult
-					event.ResponseChannel <- response
-				} else if err != nil {
-					return err, true
-				}
+			dispelTriggered := resolveDispelMagic(&g, contexts, event, response)
+			if !dispelTriggered {
+				resolveProtectionSpells(&g, contexts, event, response)
+				resolveMentalSpells(&g, contexts, event, response)
+				resolveDamageSpells(&g, contexts, event, response)
+				resolveSummonSpells(&g, contexts, event, response)
 			}
 
 			resolveMonsterAttacks(&g, event, response)
-			wavinghands.CleanupDeadMonsters(g.gData.Players)
-			// Clean up expired wards at end of round
-			wavinghands.CleanupAllWards(g.gData.Players)
+			if dispelTriggered {
+				for i := range g.gData.Players {
+					g.gData.Players[i].Monsters = nil
+				}
+			}
 
-			g.gData.Round += 1
+			wavinghands.CleanupAllWards(g.gData.Players)
+			g.gData.Round++
 		}
 
 		winner, err := getWHWinner(g)
@@ -850,4 +665,310 @@ func resolveMonsterAttacks(g *Game, event *BotGame, response comms.Response) {
 		}
 	}
 	wavinghands.CleanupDeadMonsters(g.gData.Players)
+}
+
+func resolveDispelMagic(
+	g *Game,
+	contexts []spellContext,
+	event *BotGame,
+	response comms.Response,
+) bool {
+	dispelSpell, err := spells.GetDispelMagicSpell(wavinghands.GetSpell("Dispel Magic"))
+	if err != nil {
+		return false
+	}
+
+	triggered := false
+	var casters []*wavinghands.Wizard
+
+	for _, ctx := range contexts {
+		ok, msg, err := dispelSpell.Cast(ctx.caster, ctx.target)
+		if err != nil {
+			return triggered
+		}
+		if ok {
+			triggered = true
+			response.Message = msg
+			event.ResponseChannel <- response
+			casters = append(casters, ctx.caster)
+		}
+	}
+
+	if triggered {
+		for i := range g.gData.Players {
+			g.gData.Players[i].Living.Wards = ""
+			for j := range g.gData.Players[i].Monsters {
+				g.gData.Players[i].Monsters[j].Living.Wards = ""
+			}
+		}
+		for _, caster := range casters {
+			wavinghands.AddWard(&caster.Living, "shield")
+		}
+	}
+
+	return triggered
+}
+
+func resolveProtectionSpells(
+	g *Game,
+	contexts []spellContext,
+	event *BotGame,
+	response comms.Response,
+) {
+	shieldSpell, _ := spells.GetShieldSpell(wavinghands.GetSpell("Shield"))
+	counterSpell, _ := spells.GetCounterSpellSpell(wavinghands.GetSpell("Counter Spell"))
+	cHW, _ := spells.GetCureHeavyWoundsSpell(wavinghands.GetSpell("Cure Heavy Wounds"))
+	cLW, _ := spells.GetCureLightWoundsSpell(wavinghands.GetSpell("Cure Light Wounds"))
+	removeEnchant, _ := spells.GetRemoveEnchantmentSpell(wavinghands.GetSpell("Remove Enchantment"))
+	resistHeat, _ := spells.GetResistHeatSpell(wavinghands.GetSpell("Resist Heat"))
+	resistCold, _ := spells.GetResistColdSpell(wavinghands.GetSpell("Resist Cold"))
+	protectionEvil, _ := spells.GetProtectionFromEvilSpell(wavinghands.GetSpell("Protection from Evil"))
+	mirrorSpell, _ := spells.GetMagicMirrorSpell(wavinghands.GetSpell("Magic Mirror"))
+
+	for _, ctx := range contexts {
+		target := spellTargetWithMirror("Shield", ctx, ctx.target, response, event)
+		if target == nil {
+			continue
+		}
+		if shieldSpell != nil {
+			if msg, err := shieldSpell.Cast(ctx.caster, target); err == nil && msg != "" {
+				response.Message = msg
+				event.ResponseChannel <- response
+			}
+		}
+
+		target = spellTargetWithMirror("Counter Spell", ctx, ctx.target, response, event)
+		if target == nil {
+			continue
+		}
+		if counterResult, err := counterSpell.Cast(ctx.caster, target); err == nil && counterResult != "" {
+			response.Message = counterResult
+			event.ResponseChannel <- response
+		}
+
+		target = spellTargetWithMirror("Magic Mirror", ctx, ctx.target, response, event)
+		if target == nil {
+			continue
+		}
+		if mirrorResult, err := mirrorSpell.Cast(ctx.caster, target); err == nil && mirrorResult != "" {
+			response.Message = mirrorResult
+			event.ResponseChannel <- response
+		}
+
+		target = spellTargetWithMirror("Cure Heavy Wounds", ctx, ctx.target, response, event)
+		if target == nil {
+			continue
+		}
+		if msg, err := cHW.Cast(ctx.caster, target); err == nil && msg != "" {
+			response.Message = msg
+			event.ResponseChannel <- response
+		}
+
+		target = spellTargetWithMirror("Cure Light Wounds", ctx, ctx.target, response, event)
+		if target == nil {
+			continue
+		}
+		if msg, err := cLW.Cast(ctx.caster, target); err == nil && msg != "" {
+			response.Message = msg
+			event.ResponseChannel <- response
+		}
+
+		target = spellTargetWithMirror("Remove Enchantment", ctx, ctx.target, response, event)
+		if target == nil {
+			continue
+		}
+		if msg, err := removeEnchant.Cast(ctx.caster, target); err == nil && msg != "" {
+			response.Message = msg
+			event.ResponseChannel <- response
+		}
+
+		target = spellTargetWithMirror("Resist Heat", ctx, ctx.target, response, event)
+		if target == nil {
+			continue
+		}
+		if msg, err := resistHeat.Cast(ctx.caster, target); err == nil && msg != "" {
+			response.Message = msg
+			event.ResponseChannel <- response
+		}
+
+		target = spellTargetWithMirror("Resist Cold", ctx, ctx.target, response, event)
+		if target == nil {
+			continue
+		}
+		if msg, err := resistCold.Cast(ctx.caster, target); err == nil && msg != "" {
+			response.Message = msg
+			event.ResponseChannel <- response
+		}
+
+		target = spellTargetWithMirror("Protection from Evil", ctx, ctx.target, response, event)
+		if target == nil {
+			continue
+		}
+		if protectionEvil != nil {
+			if msg, err := protectionEvil.Cast(ctx.caster, target); err == nil && msg != "" {
+				response.Message = msg
+				event.ResponseChannel <- response
+			}
+		}
+	}
+}
+
+func resolveMentalSpells(
+	g *Game,
+	contexts []spellContext,
+	event *BotGame,
+	response comms.Response,
+) {
+	antiSpell, _ := spells.GetAntiSpellSpell(wavinghands.GetSpell("Anti-Spell"))
+	amnesiaSpell, _ := spells.GetAmnesiaSpell(wavinghands.GetSpell("Amnesia"))
+
+	for _, ctx := range contexts {
+		target := spellTargetWithMirror("Anti-Spell", ctx, ctx.target, response, event)
+		if target == nil {
+			continue
+		}
+		if msg, err := antiSpell.Cast(ctx.caster, target); err == nil && msg != "" {
+			response.Message = msg
+			event.ResponseChannel <- response
+		}
+
+		target = spellTargetWithMirror("Amnesia", ctx, ctx.target, response, event)
+		if target == nil {
+			continue
+		}
+		if msg, err := amnesiaSpell.Cast(ctx.caster, target); err == nil && msg != "" {
+			response.Message = msg
+			event.ResponseChannel <- response
+		}
+	}
+}
+
+func resolveDamageSpells(
+	g *Game,
+	contexts []spellContext,
+	event *BotGame,
+	response comms.Response,
+) {
+	fod, _ := spells.GetFingerOfDeathSpell(wavinghands.GetSpell("Finger of Death"))
+	chw, _ := spells.GetCauseHeavyWoundsSpell(wavinghands.GetSpell("Cause Heavy Wounds"))
+	clw, _ := spells.GetCauseLightWoundsSpell(wavinghands.GetSpell("Cause Light Wounds"))
+	missile, _ := spells.GetMissileSpell(wavinghands.GetSpell("Missile"))
+	stab, _ := spells.GetStabSpell(wavinghands.GetSpell("Stab"))
+
+	for _, ctx := range contexts {
+		target := spellTargetWithMirror("Finger of Death", ctx, ctx.target, response, event)
+		if target == nil {
+			continue
+		}
+		if msg, err := fod.Cast(ctx.caster, target); err == nil && msg != "" {
+			response.Message = msg
+			event.ResponseChannel <- response
+		}
+
+		target = spellTargetWithMirror("Cause Heavy Wounds", ctx, ctx.target, response, event)
+		if target == nil {
+			continue
+		}
+		if msg, err := chw.Cast(ctx.caster, target); err == nil && msg != "" {
+			response.Message = msg
+			event.ResponseChannel <- response
+		}
+
+		target = spellTargetWithMirror("Cause Light Wounds", ctx, ctx.target, response, event)
+		if target == nil {
+			continue
+		}
+		if msg, err := clw.Cast(ctx.caster, target); err == nil && msg != "" {
+			response.Message = msg
+			event.ResponseChannel <- response
+		}
+
+		target = spellTargetWithMirror("Missile", ctx, ctx.target, response, event)
+		if target == nil {
+			continue
+		}
+		if msg, err := missile.Cast(ctx.caster, target); err == nil && msg != "" {
+			response.Message = msg
+			event.ResponseChannel <- response
+		}
+
+		target = spellTargetWithMirror("Stab", ctx, ctx.target, response, event)
+		if target == nil {
+			continue
+		}
+		if msg, err := stab.Cast(ctx.caster, target); err == nil && msg != "" {
+			response.Message = msg
+			event.ResponseChannel <- response
+		}
+	}
+}
+
+func resolveSummonSpells(
+	g *Game,
+	contexts []spellContext,
+	event *BotGame,
+	response comms.Response,
+) {
+	elemental, _ := spells.GetElementalSpell(wavinghands.GetSpell("Elemental"))
+	summonGoblin, _ := spells.GetSummonGoblinSpell(wavinghands.GetSpell("Summon Goblin"))
+	summonOgre, _ := spells.GetSummonOgreSpell(wavinghands.GetSpell("Summon Ogre"))
+	summonTroll, _ := spells.GetSummonTrollSpell(wavinghands.GetSpell("Summon Troll"))
+	summonGiant, _ := spells.GetSummonGiantSpell(wavinghands.GetSpell("Summon Giant"))
+
+	for _, ctx := range contexts {
+		if summonGoblin != nil {
+			if msg, err := summonGoblin.Cast(ctx.caster, &ctx.caster.Living); err == nil && msg != "" {
+				response.Message = msg
+				event.ResponseChannel <- response
+			}
+		}
+		if summonOgre != nil {
+			if msg, err := summonOgre.Cast(ctx.caster, &ctx.caster.Living); err == nil && msg != "" {
+				response.Message = msg
+				event.ResponseChannel <- response
+			}
+		}
+		if summonTroll != nil {
+			if msg, err := summonTroll.Cast(ctx.caster, &ctx.caster.Living); err == nil && msg != "" {
+				response.Message = msg
+				event.ResponseChannel <- response
+			}
+		}
+		if summonGiant != nil {
+			if msg, err := summonGiant.Cast(ctx.caster, &ctx.caster.Living); err == nil && msg != "" {
+				response.Message = msg
+				event.ResponseChannel <- response
+			}
+		}
+
+		target := spellTargetWithMirror("Elemental", ctx, ctx.target, response, event)
+		if target == nil {
+			continue
+		}
+		if msg, err := elemental.Cast(ctx.caster, target); err == nil && msg != "" {
+			response.Message = msg
+			event.ResponseChannel <- response
+		}
+	}
+}
+
+func spellTargetWithMirror(
+	spellName string,
+	ctx spellContext,
+	target *wavinghands.Living,
+	response comms.Response,
+	event *BotGame,
+) *wavinghands.Living {
+	if target == nil {
+		return target
+	}
+	if target == &ctx.caster.Living {
+		return target
+	}
+	if wavinghands.HasWard(target, "magic-mirror") {
+		response.Message = fmt.Sprintf("%s's magic mirror reflects %s back at %s.", target.Selector, spellName, ctx.caster.Name)
+		event.ResponseChannel <- response
+		return &ctx.caster.Living
+	}
+	return target
 }
