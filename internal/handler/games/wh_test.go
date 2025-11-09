@@ -603,6 +603,82 @@ func TestFormatMonsters(t *testing.T) {
 		t.Fatalf("expected target summary: %s", text)
 	}
 }
+func TestMonsterSummoningFlow(t *testing.T) {
+	cache := &MCache{}
+	storeTestUser(cache, "player1")
+	storeTestUser(cache, "player2")
+	channel := &model.Channel{Id: "chan-2", Name: "arena"}
+	respChan := make(chan comms.Response, 200)
+	join := func(sender string) {
+		event := BotGame{
+			body:            "",
+			sender:          fmt.Sprintf("@%s", sender),
+			ReplyChannel:    channel,
+			ResponseChannel: respChan,
+			Cache:           cache,
+		}
+		handleEmptyBody(&event)
+	}
+	join("player1")
+	join("player2")
+	startEvent := &BotGame{
+		body:            "start",
+		sender:          "@player1",
+		ReplyChannel:    channel,
+		ResponseChannel: respChan,
+		Cache:           cache,
+	}
+	if err, _ := handleGameWithDirective(startEvent, nil); err != nil {
+		t.Fatalf("start failed: %v", err)
+	}
+	collectResponses(respChan)
+	submit := func(sender, right, left, target string) {
+		event := &BotGame{
+			body:            fmt.Sprintf("%s %s %s %s", channel.Name, right, left, target),
+			sender:          fmt.Sprintf("@%s", sender),
+			ReplyChannel:    channel,
+			ResponseChannel: respChan,
+			Cache:           cache,
+		}
+		if err, _ := handleGameWithDirective(event, nil); err != nil {
+			t.Fatalf("gesture submission failed: %v", err)
+		}
+	}
+	submit("player1", "p", "s", "player2")
+	submit("player2", "nothing", "nothing", "")
+	submit("player1", "s", "f", "player2")
+	submit("player2", "nothing", "nothing", "")
+	submit("player1", "f", "w", "player2")
+	submit("player2", "nothing", "nothing", "")
+	submit("player1", "w", "p", "player2")
+	submit("player2", "nothing", "nothing", "")
+	submit("player1", "sfw", "nothing", "player2")
+	submit("player2", "nothing", "nothing", "")
+	responses := collectResponses(respChan)
+	var found bool
+	for _, r := range responses {
+		if strings.Contains(r.Message, "summons a goblin") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected goblin summon, responses: %+v", responses)
+	}
+	g, err := GetChannelGame(channel.Id, cache)
+	if err != nil {
+		t.Fatalf("expected game state: %v", err)
+	}
+	goblinFound := false
+	for _, m := range g.Players[0].Monsters {
+		if m.Type == "goblin" {
+			goblinFound = true
+		}
+	}
+	if !goblinFound {
+		t.Fatalf("expected player1 to have a goblin")
+	}
+}
+
 func storeTestUser(cache *MCache, username string) {
 	user := users.User{
 		Id:   fmt.Sprintf("%s-id", username),
