@@ -218,12 +218,16 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 		}
 
 		statusMsg := fmt.Sprintf("/echo **Waving Hands Game Status - Round %d**\n", g.Round)
-		for _, player := range g.Players {
+		for i := range g.Players {
+			player := &g.Players[i]
 			statusMsg += fmt.Sprintf("**%s**: %d HP", player.Name, player.Living.HitPoints)
-			if player.Living.Wards != "" {
-				statusMsg += fmt.Sprintf(" (Protected: %s)", player.Living.Wards)
+			if wards := wavinghands.FormatWards(player.Living); wards != "" {
+				statusMsg += fmt.Sprintf(" (Wards: %s)", wards)
 			}
 			statusMsg += "\n"
+			if monsters := formatMonsters(player); monsters != "" {
+				statusMsg += monsters
+			}
 		}
 
 		response.Message = statusMsg
@@ -337,6 +341,16 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 			p.LastRight = string(rGesture[0])
 			p.LastLeft = string(lGesture[0])
 			p.SetTarget(target)
+
+			if len(p.Monsters) > 0 && p.GetTarget() == "" && currentUser.Id != "" {
+				dm := comms.Response{
+					ReplyChannelId: event.ReplyChannel.Id,
+					Type:           "dm",
+					UserId:         currentUser.Id,
+					Message:        "/echo You have active monsters. Include a target at the end of your command (e.g., `wh channel f p enemy`).",
+				}
+				event.ResponseChannel <- dm
+			}
 		}
 		// Completed setting gestures for the current player
 
@@ -971,4 +985,20 @@ func spellTargetWithMirror(
 		return &ctx.caster.Living
 	}
 	return target
+}
+
+func formatMonsters(w *wavinghands.Wizard) string {
+	if len(w.Monsters) == 0 {
+		return ""
+	}
+	var builder strings.Builder
+	builder.WriteString("    Monsters:\n")
+	for _, m := range w.Monsters {
+		title := strings.Title(m.Type)
+		builder.WriteString(fmt.Sprintf("    - %s (HP %d, Damage %d)\n", title, m.Living.HitPoints, m.Damage))
+	}
+	if w.Target != "" {
+		builder.WriteString(fmt.Sprintf("      Target: %s\n", w.Target))
+	}
+	return builder.String()
 }

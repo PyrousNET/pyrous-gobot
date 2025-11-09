@@ -324,6 +324,37 @@ var persistentWards = map[string]bool{
 	"resist-cold": true,
 }
 
+var wardLabels = map[string]string{
+	"shield":               "Shield",
+	"counter-spell":        "Counter Spell",
+	"magic-mirror":         "Magic Mirror",
+	"resist-heat":          "Resist Heat",
+	"resist-cold":          "Resist Cold",
+	"protection-from-evil": "Protection from Evil",
+	"anti-spell":           "Anti-Spell",
+	"amnesia":              "Amnesia",
+}
+
+func FormatWards(l Living) string {
+	wards := tokenizeWards(l.Wards)
+	if len(wards) == 0 {
+		return ""
+	}
+	names := make([]string, 0, len(wards))
+	for _, w := range wards {
+		base, duration, hasDuration := parseTimedWard(w)
+		label := wardLabels[base]
+		if label == "" {
+			label = base
+		}
+		if hasDuration {
+			label = fmt.Sprintf("%s (%d)", label, duration)
+		}
+		names = append(names, label)
+	}
+	return strings.Join(names, ", ")
+}
+
 func wardBase(token string) string {
 	if idx := strings.Index(token, ":"); idx >= 0 {
 		return token[:idx]

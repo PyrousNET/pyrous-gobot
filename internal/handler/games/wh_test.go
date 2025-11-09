@@ -586,6 +586,23 @@ func TestDispelMagicClearsWards(t *testing.T) {
 		}
 	}
 }
+
+func TestFormatMonsters(t *testing.T) {
+	wizard := &wavinghands.Wizard{
+		Name:   "player",
+		Target: "enemy",
+		Monsters: []wavinghands.Monster{
+			{Type: "goblin", Damage: 1, Living: wavinghands.Living{HitPoints: 1}},
+		},
+	}
+	text := formatMonsters(wizard)
+	if !strings.Contains(text, "Goblin") {
+		t.Fatalf("expected goblin in summary: %s", text)
+	}
+	if !strings.Contains(text, "Target: enemy") {
+		t.Fatalf("expected target summary: %s", text)
+	}
+}
 func storeTestUser(cache *MCache, username string) {
 	user := users.User{
 		Id:   fmt.Sprintf("%s-id", username),

@@ -96,3 +96,12 @@ func TestGetMinTeams(t *testing.T) {
 		t.Errorf("Expected min teams to be 2, got %d", min)
 	}
 }
+
+func TestFormatWards(t *testing.T) {
+	living := Living{Wards: "shield,protection-from-evil:3,resist-heat"}
+	got := FormatWards(living)
+	expected := "Shield, Protection from Evil (3), Resist Heat"
+	if got != expected {
+		t.Fatalf("expected %s, got %s", expected, got)
+	}
+}
