@@ -7,6 +7,7 @@ toolchain go1.23.3
 require (
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/google/uuid v1.6.0
+	github.com/gorilla/websocket v1.5.3
 	github.com/mattermost/mattermost/server/public v0.1.10
 	github.com/mitchellh/mapstructure v1.4.2
 	github.com/olebedev/when v0.0.0-20221205223600-4d190b02b8d8
@@ -27,7 +28,6 @@ require (
 	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/go-asn1-ber/asn1-ber v1.5.7 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
-	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-hclog v1.6.3 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
