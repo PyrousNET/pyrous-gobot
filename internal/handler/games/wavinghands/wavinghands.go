@@ -3,7 +3,6 @@ package wavinghands
 import (
 	"encoding/json"
 	"fmt"
-	"golang.org/x/exp/slices"
 	"io"
 	"os"
 	"strconv"
