@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/gorilla/websocket"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/pyrousnet/pyrous-gobot/internal/settings"
 )
@@ -249,6 +250,18 @@ func (c *MMClient) NewWebSocketClient() (*model.WebSocketClient, error) {
 	uri := fmt.Sprintf("%s://%s:%s", c.Server.WS_PROTOCOL, c.Server.HOST, c.Server.PORT)
 
 	ws, appErr := model.NewWebSocketClient4(uri, c.Client.AuthToken)
+	if appErr != nil {
+		err = fmt.Errorf("%+v", appErr)
+	}
+
+	return ws, err
+}
+
+func (c *MMClient) NewReliableWebSocketClient(connID string, seqNo int64) (*model.WebSocketClient, error) {
+	var err error
+	uri := fmt.Sprintf("%s://%s:%s", c.Server.WS_PROTOCOL, c.Server.HOST, c.Server.PORT)
+
+	ws, appErr := model.NewReliableWebSocketClientWithDialer(websocket.DefaultDialer, uri, c.Client.AuthToken, connID, int(seqNo), true)
 	if appErr != nil {
 		err = fmt.Errorf("%+v", appErr)
 	}

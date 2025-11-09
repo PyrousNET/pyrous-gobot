@@ -1,12 +1,13 @@
 package main
 
 import (
-	"fmt"
+	"context"
 	"github.com/pyrousnet/pyrous-gobot/internal/handler/commands"
 	"github.com/pyrousnet/pyrous-gobot/internal/pubsub"
 	"log"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -60,39 +61,21 @@ func main() {
 
 	}()
 
-	run(mmClient, handler)
+	notifier := newSystemdNotifier()
+
+	run(mmClient, handler, notifier)
 }
 
-func run(mmClient *mmclient.MMClient, handler *handler.Handler) {
+func run(mmClient *mmclient.MMClient, handler *handler.Handler, notifier *systemdNotifier) {
 	quit := make(chan bool)
-	reconnectDelay := 5 * time.Second
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
-		for {
-			ws, err := mmClient.NewWebSocketClient()
-			if err != nil {
-				log.Printf("failed to connect to websocket: %v; retrying in %s", err, reconnectDelay)
-				time.Sleep(reconnectDelay)
-				continue
-			}
-
-			fmt.Println("Connected to WS")
-
-			ws.Listen()
-
-			for resp := range ws.EventChannel {
-				// We don't want this fella blocking the bot from picking up new events
-				go handler.HandleWebSocketResponse(quit, resp)
-			}
-
-			if ws.ListenError != nil {
-				log.Printf("websocket closed with error: %v; reconnecting in %s", ws.ListenError, reconnectDelay)
-			} else {
-				log.Printf("websocket closed; reconnecting in %s", reconnectDelay)
-			}
-
-			time.Sleep(reconnectDelay)
-		}
+		defer wg.Done()
+		superviseWebSocket(ctx, mmClient, handler, quit)
 	}()
 
 	bc := commands.BotCommand{}
@@ -101,7 +84,20 @@ func run(mmClient *mmclient.MMClient, handler *handler.Handler) {
 	bc.ResponseChannel = handler.ResponseChannel
 	go commands.Scheduler(bc)
 
+	if notifier != nil {
+		notifier.NotifyReady()
+		notifier.StartWatchdog(ctx)
+	}
+
 	<-quit
+	if notifier != nil {
+		notifier.NotifyStopping()
+	}
+	cancel()
+	wg.Wait()
+	if notifier != nil {
+		notifier.Close()
+	}
 	log.Print("Shutting down...")
 	os.Exit(2)
 }
