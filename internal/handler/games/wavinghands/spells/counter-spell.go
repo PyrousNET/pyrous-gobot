@@ -3,7 +3,6 @@ package spells
 import (
 	"fmt"
 	"github.com/pyrousnet/pyrous-gobot/internal/handler/games/wavinghands"
-	"golang.org/x/exp/slices"
 	"strings"
 )
 
@@ -22,7 +21,7 @@ func (cs CounterSpell) Cast(wizard *wavinghands.Wizard, target *wavinghands.Livi
 	// Counter-spell can be cast with two different sequences: "wws" or "wpp"
 	sequences := strings.Split(cs.Sequence, "|")
 	canCast := false
-	
+
 	for _, seq := range sequences {
 		if (len(wizard.Right.Sequence) >= len(seq) && strings.HasSuffix(wizard.Right.Sequence, seq)) ||
 			(len(wizard.Left.Sequence) >= len(seq) && strings.HasSuffix(wizard.Left.Sequence, seq)) {
@@ -32,11 +31,7 @@ func (cs CounterSpell) Cast(wizard *wavinghands.Wizard, target *wavinghands.Livi
 	}
 
 	if canCast {
-		if target.Wards == "" {
-			target.Wards = "counter-spell"
-		} else {
-			target.Wards = target.Wards + ",counter-spell"
-		}
+		wavinghands.AddWard(target, "counter-spell")
 
 		return fmt.Sprintf("%s has cast Counter-Spell on %s", wizard.Name, target.Selector), nil
 	}
@@ -62,11 +57,6 @@ func GetCounterSpellSpell(s *wavinghands.Spell, e error) (*CounterSpell, error) 
 }
 
 func (cs CounterSpell) clear(target *wavinghands.Living) error {
-	wards := strings.Split(target.Wards, ",")
-	idx := slices.Index(wards, "counter-spell")
-	if idx >= 0 {
-		wards = wavinghands.Remove(wards, idx)
-		target.Wards = strings.Join(wards, ",")
-	}
+	wavinghands.RemoveWard(target, "counter-spell")
 	return nil
 }

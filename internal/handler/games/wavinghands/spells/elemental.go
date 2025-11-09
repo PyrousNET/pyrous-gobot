@@ -18,24 +18,16 @@ type Elemental struct {
 }
 
 func (e Elemental) Cast(wizard *wavinghands.Wizard, target *wavinghands.Living) (string, error) {
-	// Elemental requires both hands: "cswws"
-	if len(wizard.Right.Sequence) >= 5 && len(wizard.Left.Sequence) >= 5 &&
-		strings.HasSuffix(wizard.Right.Sequence, "cswws") &&
-		strings.HasSuffix(wizard.Left.Sequence, "cswws") {
-		
-		// The caster decides the type after seeing all gestures (fire or ice)
-		// For simplicity, we'll alternate or use a simple rule
-		elementalType := "fire" // Could be made more dynamic
-		
-		// Add the elemental as a monster to the target wizard
-		// This is a simplification - in the full game, elementals would be separate entities
-		if target.Wards == "" {
-			target.Wards = fmt.Sprintf("%s-elemental", elementalType)
-		} else {
-			target.Wards = target.Wards + fmt.Sprintf(",%s-elemental", elementalType)
+	if len(wizard.Right.Sequence) >= len(e.Sequence) && len(wizard.Left.Sequence) >= len(e.Sequence) &&
+		strings.HasSuffix(wizard.Right.Sequence, e.Sequence) &&
+		strings.HasSuffix(wizard.Left.Sequence, e.Sequence) {
+
+		monster, err := wavinghands.AddMonster(wizard, "fire-elemental")
+		if err != nil {
+			return "", err
 		}
 
-		return fmt.Sprintf("%s has summoned a %s elemental targeting %s", wizard.Name, elementalType, target.Selector), nil
+		return fmt.Sprintf("%s summons a %s", wizard.Name, monster.Type), nil
 	}
 
 	return "", nil

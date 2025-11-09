@@ -3,7 +3,6 @@ package spells
 import (
 	"fmt"
 	"github.com/pyrousnet/pyrous-gobot/internal/handler/games/wavinghands"
-	"golang.org/x/exp/slices"
 	"strings"
 )
 
@@ -21,12 +20,8 @@ type CureLightWounds struct {
 func (cLW CureLightWounds) Cast(wizard *wavinghands.Wizard, target *wavinghands.Living) (string, error) {
 	if (len(wizard.Right.Sequence) >= len(cLW.Sequence) && strings.HasSuffix(wizard.Right.Sequence, cLW.Sequence)) ||
 		(len(wizard.Left.Sequence) >= len(cLW.Sequence) && strings.HasSuffix(wizard.Left.Sequence, cLW.ShSequence)) {
-		
-		if target.Wards == "" {
-			target.Wards = "cureLightWounds"
-		} else {
-			target.Wards = target.Wards + ",cureLightWounds"
-		}
+
+		wavinghands.AddWard(target, "cureLightWounds")
 
 		// Heal 2 points but don't exceed starting health (typically 15)
 		target.HitPoints += 2
@@ -58,11 +53,6 @@ func GetCureLightWoundsSpell(s *wavinghands.Spell, e error) (*CureLightWounds, e
 }
 
 func (cLW CureLightWounds) clear(target *wavinghands.Living) error {
-	wards := strings.Split(target.Wards, ",")
-	idx := slices.Index(wards, "cureLightWounds")
-	if idx >= 0 {
-		wards = wavinghands.Remove(wards, idx)
-		target.Wards = strings.Join(wards, ",")
-	}
+	wavinghands.RemoveWard(target, "cureLightWounds")
 	return nil
 }

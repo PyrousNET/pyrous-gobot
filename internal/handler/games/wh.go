@@ -24,6 +24,11 @@ type (
 		gData   WHGameData
 		Channel *model.Channel
 	}
+	spellContext struct {
+		caster      *wavinghands.Wizard
+		target      *wavinghands.Living
+		casterIndex int
+	}
 )
 
 func NewWavingHands(event *BotGame) (Game, error) {
@@ -211,7 +216,7 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 			event.ResponseChannel <- response
 			return nil, true
 		}
-		
+
 		statusMsg := fmt.Sprintf("/echo **Waving Hands Game Status - Round %d**\n", g.Round)
 		for _, player := range g.Players {
 			statusMsg += fmt.Sprintf("**%s**: %d HP", player.Name, player.Living.HitPoints)
@@ -220,7 +225,7 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 			}
 			statusMsg += "\n"
 		}
-		
+
 		response.Message = statusMsg
 		response.Type = "command"
 		event.ResponseChannel <- response
@@ -261,24 +266,42 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 			return err, true
 		}
 		fmt.Sscanf(event.body, "%s %s %s %s", &channelName, &rGesture, &lGesture, &target)
-		if channelName != "" {
-			c, err := event.mm.GetChannelByName(channelName)
-			if err != nil {
-				return err, true
+		switch {
+		case event.mm == nil && event.ReplyChannel != nil:
+			channel = event.ReplyChannel
+		case channelName != "":
+			if event.mm != nil {
+				c, err := event.mm.GetChannelByName(channelName)
+				if err != nil {
+					return err, true
+				}
+				channel = c
+			} else {
+				return fmt.Errorf("unable to resolve channel %s", channelName), true
 			}
-			channel = c
-			response.ReplyChannelId = channel.Id
-			wHGameData, err = GetChannelGame(channel.Id, event.Cache)
-		} else {
+		case event.ReplyChannel != nil:
+			channel = event.ReplyChannel
+		default:
 			return fmt.Errorf("no channel name included"), true
+		}
+
+		response.ReplyChannelId = channel.Id
+		wHGameData, err = GetChannelGame(channel.Id, event.Cache)
+		if err != nil {
+			return fmt.Errorf("game state: %w", err), true
 		}
 
 		g := Game{gData: wHGameData, Channel: channel}
 		p, err := GetCurrentPlayer(g, name)
 
 		if err != nil {
-			return err, true
+			return fmt.Errorf("player lookup: %w", err), true
 		} else {
+			currentUser, _, err := users.GetUser(p.Name, event.Cache)
+			if err != nil {
+				return err, true
+			}
+
 			if rGesture == "stab" {
 				rGesture = "1"
 			}
@@ -291,11 +314,28 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 			if lGesture == "nothing" {
 				lGesture = "0"
 			}
+
+			rGesture, lGesture, notices := applyPreTurnEffects(p, rGesture, lGesture)
+			for _, note := range notices {
+				if currentUser.Id == "" {
+					continue
+				}
+				dm := comms.Response{
+					ReplyChannelId: event.ReplyChannel.Id,
+					Type:           "dm",
+					UserId:         currentUser.Id,
+					Message:        fmt.Sprintf("/echo %s", note),
+				}
+				event.ResponseChannel <- dm
+			}
+
 			rightGestures := append(p.Right.Get(), rGesture[0])
 			leftGestures := append(p.Left.Get(), lGesture[0])
 
 			p.Right.Set(string(rightGestures))
 			p.Left.Set(string(leftGestures))
+			p.LastRight = string(rGesture[0])
+			p.LastLeft = string(lGesture[0])
 			p.SetTarget(target)
 		}
 		// Completed setting gestures for the current player
@@ -307,7 +347,7 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 				rG := p.Right.GetAt(len(p.Right.Sequence) - 1)
 				lG := p.Left.GetAt(len(p.Left.Sequence) - 1)
 				announceGestures(&p, event.ResponseChannel, response, string(rG), string(lG), p.GetTarget())
-				
+
 				// Find the target for this player's spells
 				var spellTarget *wavinghands.Living
 				if p.GetTarget() != "" {
@@ -319,7 +359,7 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 					// Default to self if no target specified
 					spellTarget = &p.Living
 				}
-				
+
 				sr, err := spells.GetSurrenderSpell(wavinghands.GetSpell("Surrender"))
 				if err != nil {
 					return err, true
@@ -332,7 +372,7 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 					return err, true
 				}
 				// Run Protection Spells
-				
+
 				// Shield
 				shield, err := spells.GetShieldSpell(wavinghands.GetSpell("Shield"))
 				if err != nil {
@@ -380,6 +420,45 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 				clwResult, err := cLW.Cast(&g.gData.Players[i], spellTarget)
 				if err == nil && clwResult != "" {
 					response.Message = clwResult
+					event.ResponseChannel <- response
+				} else if err != nil {
+					return err, true
+				}
+
+				// Remove Enchantment
+				removeEnchant, err := spells.GetRemoveEnchantmentSpell(wavinghands.GetSpell("Remove Enchantment"))
+				if err != nil {
+					return err, true
+				}
+				removeResult, err := removeEnchant.Cast(&g.gData.Players[i], spellTarget)
+				if err == nil && removeResult != "" {
+					response.Message = removeResult
+					event.ResponseChannel <- response
+				} else if err != nil {
+					return err, true
+				}
+
+				// Resist Heat
+				resistHeat, err := spells.GetResistHeatSpell(wavinghands.GetSpell("Resist Heat"))
+				if err != nil {
+					return err, true
+				}
+				resistHeatResult, err := resistHeat.Cast(&g.gData.Players[i], spellTarget)
+				if err == nil && resistHeatResult != "" {
+					response.Message = resistHeatResult
+					event.ResponseChannel <- response
+				} else if err != nil {
+					return err, true
+				}
+
+				// Resist Cold
+				resistCold, err := spells.GetResistColdSpell(wavinghands.GetSpell("Resist Cold"))
+				if err != nil {
+					return err, true
+				}
+				resistColdResult, err := resistCold.Cast(&g.gData.Players[i], spellTarget)
+				if err == nil && resistColdResult != "" {
+					response.Message = resistColdResult
 					event.ResponseChannel <- response
 				} else if err != nil {
 					return err, true
@@ -481,7 +560,7 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 				}
 
 				// Run Summon Spells
-				
+
 				// Elemental
 				elemental, err := spells.GetElementalSpell(wavinghands.GetSpell("Elemental"))
 				if err != nil {
@@ -496,9 +575,11 @@ func handleGameWithDirective(event *BotGame, err error) (error, bool) {
 				}
 			}
 
+			resolveMonsterAttacks(&g, event, response)
+			wavinghands.CleanupDeadMonsters(g.gData.Players)
 			// Clean up expired wards at end of round
 			wavinghands.CleanupAllWards(g.gData.Players)
-			
+
 			g.gData.Round += 1
 		}
 
@@ -536,6 +617,48 @@ func announceGestures(
 	}
 
 	channel <- response
+}
+
+func applyPreTurnEffects(
+	wizard *wavinghands.Wizard,
+	rightGesture string,
+	leftGesture string,
+) (string, string, []string) {
+	notifications := []string{}
+
+	if wavinghands.HasWard(&wizard.Living, "anti-spell") {
+		wizard.Right.Set("")
+		wizard.Left.Set("")
+		wavinghands.RemoveWard(&wizard.Living, "anti-spell")
+		notifications = append(
+			notifications,
+			"Anti-Spell disrupts your preparations; all prior gestures are lost and you must start new sequences this turn.",
+		)
+	}
+
+	if wavinghands.HasWard(&wizard.Living, "amnesia") {
+		forcedRight := wizard.LastRight
+		forcedLeft := wizard.LastLeft
+		if forcedRight == "" {
+			forcedRight = rightGesture
+		}
+		if forcedLeft == "" {
+			forcedLeft = leftGesture
+		}
+		rightGesture = forcedRight
+		leftGesture = forcedLeft
+		wavinghands.RemoveWard(&wizard.Living, "amnesia")
+		notifications = append(
+			notifications,
+			fmt.Sprintf(
+				"Amnesia forces you to repeat %s and %s.",
+				convertGesture(forcedRight),
+				convertGesture(forcedLeft),
+			),
+		)
+	}
+
+	return rightGesture, leftGesture, notifications
 }
 
 func convertGesture(gesture string) string {
@@ -622,7 +745,7 @@ func FindTarget(g Game, selector string) (*wavinghands.Living, error) {
 	} else {
 		name = selector
 	}
-	
+
 	// Find the wizard by name
 	for i, w := range g.gData.Players {
 		if w.Name == name {
@@ -630,7 +753,7 @@ func FindTarget(g Game, selector string) (*wavinghands.Living, error) {
 			break
 		}
 	}
-	
+
 	if wizard == nil {
 		return &wavinghands.Living{}, fmt.Errorf("wizard %s not found", name)
 	}
@@ -678,4 +801,53 @@ func CheckAllPlayers(g Game) bool {
 		}
 	}
 	return true
+}
+
+func resolveMonsterAttacks(g *Game, event *BotGame, response comms.Response) {
+	wavinghands.CleanupDeadMonsters(g.gData.Players)
+	for i := range g.gData.Players {
+		attacker := &g.gData.Players[i]
+		if len(attacker.Monsters) == 0 || attacker.Target == "" {
+			continue
+		}
+
+		target, err := FindTarget(*g, attacker.Target)
+		if err != nil {
+			continue
+		}
+
+		for mi := range attacker.Monsters {
+			monster := &attacker.Monsters[mi]
+			if monster.Living.HitPoints <= 0 {
+				continue
+			}
+			stats, ok := wavinghands.GetMonsterStats(monster.Type)
+			if !ok {
+				continue
+			}
+
+			if wavinghands.HasShield(target) {
+				response.Message = fmt.Sprintf("%s's %s attack on %s was blocked by a shield.", attacker.Name, monster.Type, target.Selector)
+				event.ResponseChannel <- response
+				continue
+			}
+
+			if stats.Element == "fire" && wavinghands.HasWard(target, "resist-heat") {
+				response.Message = fmt.Sprintf("%s shrugs off the %s's flame.", target.Selector, monster.Type)
+				event.ResponseChannel <- response
+				continue
+			}
+
+			if stats.Element == "cold" && wavinghands.HasWard(target, "resist-cold") {
+				response.Message = fmt.Sprintf("%s shrugs off the %s's chill.", target.Selector, monster.Type)
+				event.ResponseChannel <- response
+				continue
+			}
+
+			target.HitPoints -= stats.Damage
+			response.Message = fmt.Sprintf("%s's %s hits %s for %d damage.", attacker.Name, monster.Type, target.Selector, stats.Damage)
+			event.ResponseChannel <- response
+		}
+	}
+	wavinghands.CleanupDeadMonsters(g.gData.Players)
 }

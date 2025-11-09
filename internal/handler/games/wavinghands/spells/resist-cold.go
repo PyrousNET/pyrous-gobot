@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-type Shield struct {
+type ResistCold struct {
 	Name        string `json:"name"`
 	Sequence    string `json:"sequence"`
 	ShSequence  string `json:"sh-sequence"`
@@ -17,24 +17,22 @@ type Shield struct {
 	Protections string `json:"protections"`
 }
 
-func (s Shield) Cast(wizard *wavinghands.Wizard, target *wavinghands.Living) (string, error) {
-	if (len(wizard.Right.Sequence) >= len(s.Sequence) && strings.HasSuffix(wizard.Right.Sequence, s.Sequence)) ||
-		(len(wizard.Left.Sequence) >= len(s.Sequence) && strings.HasSuffix(wizard.Left.Sequence, s.ShSequence)) {
-
-		wavinghands.AddWard(target, "shield")
-
-		return fmt.Sprintf("%s has cast Shield on %s", wizard.Name, target.Selector), nil
+func (rc ResistCold) Cast(wizard *wavinghands.Wizard, target *wavinghands.Living) (string, error) {
+	if (len(wizard.Right.Sequence) >= len(rc.Sequence) && strings.HasSuffix(wizard.Right.Sequence, rc.Sequence)) ||
+		(len(wizard.Left.Sequence) >= len(rc.Sequence) && strings.HasSuffix(wizard.Left.Sequence, rc.ShSequence)) {
+		wavinghands.AddWard(target, "resist-cold")
+		return fmt.Sprintf("%s is now resistant to cold", target.Selector), nil
 	}
 
 	return "", nil
 }
 
-func GetShieldSpell(s *wavinghands.Spell, e error) (*Shield, error) {
+func GetResistColdSpell(s *wavinghands.Spell, e error) (*ResistCold, error) {
 	if e != nil {
-		return &Shield{}, e
+		return &ResistCold{}, e
 	}
 
-	return &Shield{
+	return &ResistCold{
 		Name:        s.Name,
 		Sequence:    s.Sequence,
 		ShSequence:  s.ShSequence,
@@ -44,9 +42,4 @@ func GetShieldSpell(s *wavinghands.Spell, e error) (*Shield, error) {
 		Resistences: s.Resistances,
 		Protections: s.Protections,
 	}, nil
-}
-
-func (s Shield) clear(target *wavinghands.Living) error {
-	wavinghands.RemoveWard(target, "shield")
-	return nil
 }

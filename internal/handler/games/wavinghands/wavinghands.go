@@ -3,8 +3,10 @@ package wavinghands
 import (
 	"encoding/json"
 	"fmt"
+	"golang.org/x/exp/slices"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -38,6 +40,8 @@ type (
 		Living      Living `json:"living"`
 		Curses      string `json:"curses"`
 		Protections string `json:"protections"`
+		Damage      int    `json:"damage"`
+		Element     string `json:"element"`
 	}
 	Wizard struct {
 		Right       Hand      `json:"right"`
@@ -48,6 +52,8 @@ type (
 		Curses      string    `json:"curses"`
 		Protections string    `json:"protections"`
 		Monsters    []Monster `json:"monsters"`
+		LastRight   string    `json:"last_right"`
+		LastLeft    string    `json:"last_left"`
 	}
 )
 
@@ -68,10 +74,6 @@ func (h Hand) Get() []byte {
 
 func (h Hand) GetAt(index int) byte {
 	return h.Sequence[index]
-}
-
-func Remove[T any](slice []T, s int) []T {
-	return append(slice[:s], slice[s+1:]...)
 }
 
 func GetMaxTeams() int {
@@ -118,21 +120,145 @@ func GetHelpSpell(chSp string) string {
 	return response
 }
 
+type rawSpell struct {
+	Name        string          `json:"name"`
+	Category    string          `json:"category"`
+	Gestures    []string        `json:"gestures"`
+	Alternates  json.RawMessage `json:"alternates"`
+	Description string          `json:"description"`
+	Usage       string          `json:"usage"`
+	Damage      int             `json:"damage"`
+	Resistances string          `json:"resistances"`
+	Protections string          `json:"protections"`
+}
+
 func getSpells() []Spell {
-	jsonFile, err := os.Open("./spells.json")
-	// if we os.Open returns an error then handle it
-	if err != nil {
-		fmt.Println(err)
+	candidates := []string{
+		"./spells.json",
+		"../spells.json",
+		"../../spells.json",
+		"../../../spells.json",
+		"../../../../spells.json",
 	}
-	fmt.Println("Successfully Opened spells.json")
-	byteValue, _ := io.ReadAll(jsonFile)
 
-	// defer the closing of our jsonFile so that we can parse it later on
-	defer jsonFile.Close()
+	var lastErr error
+	for _, path := range candidates {
+		jsonFile, err := os.Open(path)
+		if err != nil {
+			lastErr = err
+			continue
+		}
 
-	var spells []Spell
-	json.Unmarshal(byteValue, &spells)
-	return spells
+		byteValue, readErr := io.ReadAll(jsonFile)
+		jsonFile.Close()
+		if readErr != nil {
+			panic(fmt.Errorf("failed to read spells data from %s: %w", path, readErr))
+		}
+
+		var rawSpells []rawSpell
+		if err := json.Unmarshal(byteValue, &rawSpells); err != nil {
+			panic(fmt.Errorf("failed to parse spells data from %s: %w", path, err))
+		}
+
+		spells := make([]Spell, 0, len(rawSpells))
+		for _, rs := range rawSpells {
+			sequence, shSequence := buildSequences(rs.Gestures)
+			sequence = appendAlternateSequences(sequence, rs.Alternates)
+			spells = append(spells, Spell{
+				Name:        rs.Name,
+				Sequence:    sequence,
+				ShSequence:  shSequence,
+				Description: rs.Description,
+				Usage:       rs.Usage,
+				Damage:      rs.Damage,
+				Resistances: rs.Resistances,
+				Protections: rs.Protections,
+			})
+		}
+		return spells
+	}
+
+	panic(fmt.Errorf("spells.json not found in paths %v: %w", candidates, lastErr))
+}
+
+func buildSequences(gestures []string) (string, string) {
+	if len(gestures) == 0 {
+		return "", ""
+	}
+
+	var builder strings.Builder
+	for _, g := range gestures {
+		builder.WriteString(normalizeGesture(g))
+	}
+
+	sequence := builder.String()
+	shSequence := ""
+	if len(gestures) == 1 && strings.HasPrefix(strings.ToLower(gestures[0]), "(") {
+		shSequence = sequence
+	}
+
+	return sequence, shSequence
+}
+
+func normalizeGesture(token string) string {
+	trimmed := strings.TrimSpace(token)
+	lower := strings.ToLower(trimmed)
+	if strings.HasPrefix(lower, "(") {
+		lower = strings.TrimPrefix(lower, "(")
+	}
+
+	switch lower {
+	case "p", "w", "s", "d", "f", "c":
+		return lower
+	case "stab":
+		return "stab"
+	default:
+		return lower
+	}
+}
+
+func appendAlternateSequences(sequence string, raw json.RawMessage) string {
+	if len(raw) == 0 || string(raw) == "null" {
+		return sequence
+	}
+
+	appendSeq := func(base, addition string) string {
+		if addition == "" {
+			return base
+		}
+		if base == "" {
+			return addition
+		}
+		return base + "|" + addition
+	}
+
+	var asStrings []string
+	if err := json.Unmarshal(raw, &asStrings); err == nil && len(asStrings) > 0 {
+		return appendSeq(sequence, encodeGestureList(asStrings))
+	}
+
+	var nested [][]string
+	if err := json.Unmarshal(raw, &nested); err == nil && len(nested) > 0 {
+		for _, seq := range nested {
+			sequence = appendSeq(sequence, encodeGestureList(seq))
+		}
+		return sequence
+	}
+
+	var single string
+	if err := json.Unmarshal(raw, &single); err == nil {
+		return appendSeq(sequence, encodeGestureList([]string{single}))
+	}
+
+	return sequence
+}
+
+func encodeGestureList(gestures []string) string {
+	var builder strings.Builder
+	for _, g := range gestures {
+		builder.WriteString(normalizeGesture(g))
+	}
+	return builder.String()
 }
 
 func GetSpell(name string) (*Spell, error) {
@@ -144,18 +270,29 @@ func GetSpell(name string) (*Spell, error) {
 		}
 	}
 
-	return &Spell{}, fmt.Errorf("not found")
+	return &Spell{}, fmt.Errorf("spell %s not found", name)
 }
 
 // CleanupWards removes expired ward effects from a Living entity
 func CleanupWards(living *Living) {
-	if living.Wards == "" {
+	wards := tokenizeWards(living.Wards)
+	if len(wards) == 0 {
 		return
 	}
-	
-	// For now, clear all wards at end of round since they last 1 round
-	// In a more sophisticated implementation, we could track ward durations
-	living.Wards = ""
+
+	var keep []string
+	for _, ward := range wards {
+		base, duration, hasDuration := parseTimedWard(ward)
+		switch {
+		case base == "protection-from-evil" && hasDuration:
+			if duration > 1 {
+				keep = append(keep, fmt.Sprintf("%s:%d", base, duration-1))
+			}
+		case persistentWards[base]:
+			keep = append(keep, ward)
+		}
+	}
+	living.Wards = strings.Join(keep, ",")
 }
 
 // CleanupAllWards removes expired ward effects from all players
@@ -167,4 +304,167 @@ func CleanupAllWards(players []Wizard) {
 			CleanupWards(&players[i].Monsters[j].Living)
 		}
 	}
+}
+
+func CleanupDeadMonsters(players []Wizard) {
+	for i := range players {
+		alive := players[i].Monsters[:0]
+		for _, m := range players[i].Monsters {
+			if m.Living.HitPoints > 0 {
+				alive = append(alive, m)
+			}
+		}
+		players[i].Monsters = alive
+	}
+}
+
+var persistentWards = map[string]bool{
+	"amnesia":     true,
+	"anti-spell":  true,
+	"resist-heat": true,
+	"resist-cold": true,
+}
+
+func wardBase(token string) string {
+	if idx := strings.Index(token, ":"); idx >= 0 {
+		return token[:idx]
+	}
+	return token
+}
+
+func parseTimedWard(token string) (string, int, bool) {
+	if idx := strings.Index(token, ":"); idx >= 0 {
+		base := token[:idx]
+		value := token[idx+1:]
+		if d, err := strconv.Atoi(value); err == nil {
+			return base, d, true
+		}
+		return base, 0, false
+	}
+	return token, 0, false
+}
+
+type MonsterStat struct {
+	Damage    int
+	HitPoints int
+	Element   string
+}
+
+var monsterStats = map[string]MonsterStat{
+	"goblin":         {Damage: 1, HitPoints: 1},
+	"ogre":           {Damage: 2, HitPoints: 2},
+	"troll":          {Damage: 3, HitPoints: 3},
+	"giant":          {Damage: 4, HitPoints: 4},
+	"fire-elemental": {Damage: 3, HitPoints: 3, Element: "fire"},
+	"ice-elemental":  {Damage: 3, HitPoints: 3, Element: "cold"},
+}
+
+func GetMonsterStats(monsterType string) (MonsterStat, bool) {
+	stat, ok := monsterStats[monsterType]
+	return stat, ok
+}
+
+func AddMonster(wizard *Wizard, monsterType string) (Monster, error) {
+	stats, ok := GetMonsterStats(monsterType)
+	if !ok {
+		return Monster{}, fmt.Errorf("unknown monster type %s", monsterType)
+	}
+
+	selector := fmt.Sprintf("%s:%s#%d", wizard.Name, monsterType, len(wizard.Monsters)+1)
+	monster := Monster{
+		Type:    monsterType,
+		Damage:  stats.Damage,
+		Element: stats.Element,
+		Living: Living{
+			Selector:  selector,
+			HitPoints: stats.HitPoints,
+		},
+	}
+	wizard.Monsters = append(wizard.Monsters, monster)
+	return monster, nil
+}
+
+func tokenizeWards(raw string) []string {
+	if raw == "" {
+		return []string{}
+	}
+	parts := strings.Split(raw, ",")
+	results := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		results = append(results, p)
+	}
+	return results
+}
+
+// AddWard ensures the target has the named ward exactly once.
+func AddWard(living *Living, ward string) {
+	if ward == "" {
+		return
+	}
+	wards := tokenizeWards(living.Wards)
+	for _, w := range wards {
+		if wardBase(w) == ward {
+			return
+		}
+	}
+	wards = append(wards, ward)
+	living.Wards = strings.Join(wards, ",")
+}
+
+func AddTimedWard(living *Living, ward string, duration int) {
+	if ward == "" || duration <= 0 {
+		return
+	}
+	RemoveWard(living, ward)
+	token := fmt.Sprintf("%s:%d", ward, duration)
+	wards := tokenizeWards(living.Wards)
+	wards = append(wards, token)
+	living.Wards = strings.Join(wards, ",")
+}
+
+// HasWard checks whether a ward is active on the target.
+func HasWard(living *Living, ward string) bool {
+	if ward == "" {
+		return false
+	}
+	wards := tokenizeWards(living.Wards)
+	for _, w := range wards {
+		if wardBase(w) == ward {
+			return true
+		}
+	}
+	return false
+}
+
+// RemoveWard removes a ward immediately (used after it takes effect).
+func RemoveWard(living *Living, ward string) {
+	if ward == "" || living.Wards == "" {
+		return
+	}
+	wards := tokenizeWards(living.Wards)
+	filtered := wards[:0]
+	for _, w := range wards {
+		if wardBase(w) == ward {
+			continue
+		}
+		filtered = append(filtered, w)
+	}
+	living.Wards = strings.Join(filtered, ",")
+}
+
+// CounterSpellBlocks reports whether an active counter-spell nullifies an incoming spell.
+func CounterSpellBlocks(target *Living, caster, spellName string) (bool, string) {
+	if HasWard(target, "counter-spell") {
+		return true, fmt.Sprintf("%s tried to cast %s on %s but it was countered.", caster, spellName, target.Selector)
+	}
+	return false, ""
+}
+
+// HasShield returns true when shield-like protection (shield, counter-spell, protection from evil) is active.
+func HasShield(target *Living) bool {
+	return HasWard(target, "shield") || HasWard(target, "counter-spell") || HasWard(target, "protection-from-evil")
 }

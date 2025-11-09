@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-type Shield struct {
+type RemoveEnchantment struct {
 	Name        string `json:"name"`
 	Sequence    string `json:"sequence"`
 	ShSequence  string `json:"sh-sequence"`
@@ -17,24 +17,22 @@ type Shield struct {
 	Protections string `json:"protections"`
 }
 
-func (s Shield) Cast(wizard *wavinghands.Wizard, target *wavinghands.Living) (string, error) {
-	if (len(wizard.Right.Sequence) >= len(s.Sequence) && strings.HasSuffix(wizard.Right.Sequence, s.Sequence)) ||
-		(len(wizard.Left.Sequence) >= len(s.Sequence) && strings.HasSuffix(wizard.Left.Sequence, s.ShSequence)) {
-
-		wavinghands.AddWard(target, "shield")
-
-		return fmt.Sprintf("%s has cast Shield on %s", wizard.Name, target.Selector), nil
+func (re RemoveEnchantment) Cast(wizard *wavinghands.Wizard, target *wavinghands.Living) (string, error) {
+	if (len(wizard.Right.Sequence) >= len(re.Sequence) && strings.HasSuffix(wizard.Right.Sequence, re.Sequence)) ||
+		(len(wizard.Left.Sequence) >= len(re.Sequence) && strings.HasSuffix(wizard.Left.Sequence, re.ShSequence)) {
+		target.Wards = ""
+		return fmt.Sprintf("%s has removed all enchantments from %s", wizard.Name, target.Selector), nil
 	}
 
 	return "", nil
 }
 
-func GetShieldSpell(s *wavinghands.Spell, e error) (*Shield, error) {
+func GetRemoveEnchantmentSpell(s *wavinghands.Spell, e error) (*RemoveEnchantment, error) {
 	if e != nil {
-		return &Shield{}, e
+		return &RemoveEnchantment{}, e
 	}
 
-	return &Shield{
+	return &RemoveEnchantment{
 		Name:        s.Name,
 		Sequence:    s.Sequence,
 		ShSequence:  s.ShSequence,
@@ -44,9 +42,4 @@ func GetShieldSpell(s *wavinghands.Spell, e error) (*Shield, error) {
 		Resistences: s.Resistances,
 		Protections: s.Protections,
 	}, nil
-}
-
-func (s Shield) clear(target *wavinghands.Living) error {
-	wavinghands.RemoveWard(target, "shield")
-	return nil
 }

@@ -16,6 +16,20 @@ func TestCleanupWards(t *testing.T) {
 	}
 }
 
+func TestCleanupWards_Persistent(t *testing.T) {
+	living := &Living{
+		Selector:  "test",
+		HitPoints: 15,
+		Wards:     "shield,amnesia",
+	}
+
+	CleanupWards(living)
+
+	if living.Wards != "amnesia" {
+		t.Errorf("Expected amnesia ward to persist, got '%s'", living.Wards)
+	}
+}
+
 func TestCleanupAllWards(t *testing.T) {
 	players := []Wizard{
 		{
@@ -49,6 +63,30 @@ func TestGetMaxTeams(t *testing.T) {
 	max := GetMaxTeams()
 	if max != 6 {
 		t.Errorf("Expected max teams to be 6, got %d", max)
+	}
+}
+
+func TestGetSpellSequences(t *testing.T) {
+	tests := []struct {
+		name     string
+		sequence string
+	}{
+		{"Anti-Spell", "spf"},
+		{"Counter Spell", "wpp|wws"},
+		{"Finger of Death", "pwpfsssd"},
+		{"Surrender", "p"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			spell, err := GetSpell(tt.name)
+			if err != nil {
+				t.Fatalf("GetSpell(%s) error: %v", tt.name, err)
+			}
+			if spell.Sequence != tt.sequence {
+				t.Fatalf("spell %s sequence mismatch: got %q want %q", tt.name, spell.Sequence, tt.sequence)
+			}
+		})
 	}
 }
 

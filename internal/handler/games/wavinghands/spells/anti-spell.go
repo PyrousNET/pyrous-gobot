@@ -3,7 +3,6 @@ package spells
 import (
 	"fmt"
 	"github.com/pyrousnet/pyrous-gobot/internal/handler/games/wavinghands"
-	"golang.org/x/exp/slices"
 	"strings"
 )
 
@@ -19,14 +18,14 @@ type AntiSpell struct {
 }
 
 func (as AntiSpell) Cast(wizard *wavinghands.Wizard, target *wavinghands.Living) (string, error) {
+	if blocked, msg := wavinghands.CounterSpellBlocks(target, wizard.Name, as.Name); blocked {
+		return msg, nil
+	}
+
 	if (len(wizard.Right.Sequence) >= len(as.Sequence) && strings.HasSuffix(wizard.Right.Sequence, as.Sequence)) ||
 		(len(wizard.Left.Sequence) >= len(as.Sequence) && strings.HasSuffix(wizard.Left.Sequence, as.ShSequence)) {
 
-		if target.Wards == "" {
-			target.Wards = "anti-spell"
-		} else {
-			target.Wards = target.Wards + ",anti-spell"
-		}
+		wavinghands.AddWard(target, "anti-spell")
 
 		return fmt.Sprintf("%s has cast Anti-Spell on %s", wizard.Name, target.Selector), nil
 	}
@@ -52,11 +51,6 @@ func GetAntiSpellSpell(s *wavinghands.Spell, e error) (*AntiSpell, error) {
 }
 
 func (as AntiSpell) clear(target *wavinghands.Living) error {
-	wards := strings.Split(target.Wards, ",")
-	idx := slices.Index(wards, "anti-spell")
-	if idx >= 0 {
-		wards = wavinghands.Remove(wards, idx)
-		target.Wards = strings.Join(wards, ",")
-	}
+	wavinghands.RemoveWard(target, "anti-spell")
 	return nil
 }
