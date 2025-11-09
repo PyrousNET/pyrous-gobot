@@ -67,7 +67,7 @@ func run(mmClient *mmclient.MMClient, handler *handler.Handler) {
 	quit := make(chan bool)
 	reconnectDelay := 5 * time.Second
 
-	go func() error {
+	go func() {
 		for {
 			ws, err := mmClient.NewWebSocketClient()
 			if err != nil {
