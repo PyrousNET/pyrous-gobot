@@ -7,6 +7,7 @@ import (
 	"log"
 	"math"
 	"math/rand"
+	"sync"
 	"time"
 
 	"github.com/mattermost/mattermost/server/public/model"
@@ -18,6 +19,40 @@ import (
 type wsSessionState struct {
 	connectionID string
 	lastSequence int64
+}
+
+// eventWorkerPool manages a pool of workers to limit concurrent event handlers
+type eventWorkerPool struct {
+	semaphore chan struct{}
+	wg        sync.WaitGroup
+}
+
+// newEventWorkerPool creates a worker pool with the specified maximum concurrency
+func newEventWorkerPool(maxConcurrent int) *eventWorkerPool {
+	if maxConcurrent <= 0 {
+		maxConcurrent = 100 // default to 100 concurrent handlers
+	}
+	return &eventWorkerPool{
+		semaphore: make(chan struct{}, maxConcurrent),
+	}
+}
+
+// submit submits a task to the worker pool
+func (p *eventWorkerPool) submit(task func()) {
+	p.wg.Add(1)
+	p.semaphore <- struct{}{} // acquire
+	go func() {
+		defer func() {
+			<-p.semaphore // release
+			p.wg.Done()
+		}()
+		task()
+	}()
+}
+
+// wait waits for all pending tasks to complete
+func (p *eventWorkerPool) wait() {
+	p.wg.Wait()
 }
 
 func superviseWebSocket(ctx context.Context, mmClient *mmclient.MMClient, handler *handler.Handler, quit chan bool) {
@@ -93,16 +128,22 @@ func runWebSocketSession(ctx context.Context, ws *model.WebSocketClient, handler
 	ws.Listen()
 	defer ws.Close()
 
+	// Create a worker pool with a limit of 100 concurrent handlers
+	pool := newEventWorkerPool(100)
+
 	go drainWebSocketResponses(ctx, ws)
 
 	for {
 		select {
 		case <-ctx.Done():
+			pool.wait() // wait for pending handlers to complete
 			return ctx.Err()
 		case <-ws.PingTimeoutChannel:
+			pool.wait() // wait for pending handlers to complete
 			return errors.New("websocket heartbeat timeout")
 		case event, ok := <-ws.EventChannel:
 			if !ok {
+				pool.wait() // wait for pending handlers to complete
 				if ws.ListenError != nil {
 					return fmt.Errorf("websocket listener error: %w", ws.ListenError)
 				}
@@ -122,7 +163,9 @@ func runWebSocketSession(ctx context.Context, ws *model.WebSocketClient, handler
 				}
 			}
 
-			go handler.HandleWebSocketResponse(quit, event)
+			pool.submit(func() {
+				handler.HandleWebSocketResponse(quit, event)
+			})
 		}
 	}
 }
