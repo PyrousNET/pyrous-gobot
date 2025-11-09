@@ -52,22 +52,21 @@ func main() {
 		log.Fatalln(err.Error())
 	}
 
+	notifier := newSystemdNotifier()
+	quit := make(chan bool)
+
 	sigQuit := make(chan os.Signal, 1)
 	signal.Notify(sigQuit, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
 	go func() {
 		<-sigQuit
-		log.Print("Shutting down...")
-		os.Exit(0)
-
+		log.Print("Received signal, initiating graceful shutdown...")
+		close(quit)
 	}()
 
-	notifier := newSystemdNotifier()
-
-	run(mmClient, handler, notifier)
+	run(mmClient, handler, notifier, quit)
 }
 
-func run(mmClient *mmclient.MMClient, handler *handler.Handler, notifier *systemdNotifier) {
-	quit := make(chan bool)
+func run(mmClient *mmclient.MMClient, handler *handler.Handler, notifier *systemdNotifier, quit chan bool) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
