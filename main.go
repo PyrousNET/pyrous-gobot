@@ -99,5 +99,5 @@ func run(mmClient *mmclient.MMClient, handler *handler.Handler, notifier *system
 		notifier.Close()
 	}
 	log.Print("Shutting down...")
-	os.Exit(2)
+	os.Exit(0)
 }
