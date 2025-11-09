@@ -65,12 +65,15 @@ func main() {
 
 func run(mmClient *mmclient.MMClient, handler *handler.Handler) {
 	quit := make(chan bool)
+	reconnectDelay := 5 * time.Second
 
-	go func() error {
+	go func() {
 		for {
 			ws, err := mmClient.NewWebSocketClient()
 			if err != nil {
-				log.Fatal(err)
+				log.Printf("failed to connect to websocket: %v; retrying in %s", err, reconnectDelay)
+				time.Sleep(reconnectDelay)
+				continue
 			}
 
 			fmt.Println("Connected to WS")
@@ -81,6 +84,14 @@ func run(mmClient *mmclient.MMClient, handler *handler.Handler) {
 				// We don't want this fella blocking the bot from picking up new events
 				go handler.HandleWebSocketResponse(quit, resp)
 			}
+
+			if ws.ListenError != nil {
+				log.Printf("websocket closed with error: %v; reconnecting in %s", ws.ListenError, reconnectDelay)
+			} else {
+				log.Printf("websocket closed; reconnecting in %s", reconnectDelay)
+			}
+
+			time.Sleep(reconnectDelay)
 		}
 	}()
 
