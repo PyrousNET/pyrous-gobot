@@ -89,18 +89,20 @@ func (c *Commands) NewBotCommand(post string, sender string) (BotCommand, error)
 	commandToken := strings.TrimSpace(ps[0])
 	trigger := c.Settings.GetCommandTrigger()
 	if trigger != "" && strings.HasPrefix(commandToken, trigger) {
-		commandToken = commandToken[len(trigger):]
+		commandToken = strings.TrimPrefix(commandToken, trigger)
 	}
 
 	commandToken = strings.TrimSpace(commandToken)
+	isDice := isDiceCommand(commandToken)
+
 	methodName := strings.Title(commandToken)
-	if diceCommandPattern != nil && diceCommandPattern.MatchString(strings.ToLower(commandToken)) {
+	if isDice {
 		methodName = "Dice"
 	}
 	ps = append(ps[:0], ps[1:]...)
 
 	method, err := c.getMethod(methodName)
-	if err != nil && diceCommandPattern != nil && diceCommandPattern.MatchString(strings.ToLower(commandToken)) {
+	if err != nil && isDice {
 		method, err = c.getMethod("Dice")
 	}
 	if err != nil {
@@ -149,6 +151,9 @@ func (c *Commands) CallCommand(botCommand BotCommand) error {
 	f := botCommand.method.valueOf
 
 	if botCommand.method.typeOf.Type == nil {
+		if isDiceCommand(botCommand.target) {
+			return botCommand.Dice(botCommand)
+		}
 		return fmt.Errorf("Man! What are you talking about? You need `!help`")
 	}
 
@@ -183,4 +188,17 @@ func (bc *BotCommand) SetCache(c cache.Cache) {
 
 func (bc *BotCommand) SetPubsub(ps pubsub.Pubsub) {
 	bc.pubsub = ps
+}
+
+func isDiceCommand(token string) bool {
+	if diceCommandPattern == nil {
+		return false
+	}
+
+	token = strings.ToLower(strings.TrimSpace(token))
+	if token == "" || token == "dice" {
+		return true
+	}
+
+	return diceCommandPattern.MatchString(token)
 }
