@@ -82,7 +82,15 @@ func NewCommands(settings *settings.Settings, mm *mmclient.MMClient, cache cache
 func (c *Commands) NewBotCommand(post string, sender string) (BotCommand, error) {
 	ps := strings.Split(post, " ")
 
-	methodName := strings.Title(strings.TrimLeft(ps[0], c.Settings.GetCommandTrigger()))
+	if len(ps) == 0 || ps[0] == "" {
+		return BotCommand{}, fmt.Errorf("no command provided")
+	}
+
+	commandToken := strings.TrimLeft(ps[0], c.Settings.GetCommandTrigger())
+	methodName := strings.Title(commandToken)
+	if diceCommandPattern.MatchString(strings.ToLower(commandToken)) {
+		methodName = "Dice"
+	}
 	ps = append(ps[:0], ps[1:]...)
 
 	method, err := c.getMethod(methodName)
@@ -118,6 +126,7 @@ func (c *Commands) NewBotCommand(post string, sender string) (BotCommand, error)
 		mm:           c.Mm,
 		settings:     c.Settings,
 		body:         body,
+		target:       commandToken,
 		method:       method,
 		ReplyChannel: replyChannel,
 		sender:       sender,
