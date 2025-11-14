@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-type Elemental struct {
+type ResistCold struct {
 	Name        string `json:"name"`
 	Sequence    string `json:"sequence"`
 	ShSequence  string `json:"sh-sequence"`
@@ -17,28 +17,26 @@ type Elemental struct {
 	Protections string `json:"protections"`
 }
 
-func (e Elemental) Cast(wizard *wavinghands.Wizard, target *wavinghands.Living) (string, error) {
-	if len(wizard.Right.Sequence) >= len(e.Sequence) && len(wizard.Left.Sequence) >= len(e.Sequence) &&
-		strings.HasSuffix(wizard.Right.Sequence, e.Sequence) &&
-		strings.HasSuffix(wizard.Left.Sequence, e.Sequence) {
+func (rc ResistCold) Cast(wizard *wavinghands.Wizard, target *wavinghands.Living) (string, error) {
+	rightMatch := len(wizard.Right.Sequence) >= len(rc.Sequence) &&
+		strings.HasSuffix(wizard.Right.Sequence, rc.Sequence)
+	leftMatch := len(wizard.Left.Sequence) >= len(rc.Sequence) &&
+		strings.HasSuffix(wizard.Left.Sequence, rc.Sequence)
 
-		monster, err := wavinghands.AddMonster(wizard, "fire-elemental")
-		if err != nil {
-			return "", err
-		}
-
-		return fmt.Sprintf("%s summons a %s", wizard.Name, monster.Type), nil
+	if rightMatch || leftMatch {
+		wavinghands.AddWard(target, "resist-cold")
+		return fmt.Sprintf("%s is now resistant to cold", target.Selector), nil
 	}
 
 	return "", nil
 }
 
-func GetElementalSpell(s *wavinghands.Spell, e error) (*Elemental, error) {
+func GetResistColdSpell(s *wavinghands.Spell, e error) (*ResistCold, error) {
 	if e != nil {
-		return &Elemental{}, e
+		return &ResistCold{}, e
 	}
 
-	return &Elemental{
+	return &ResistCold{
 		Name:        s.Name,
 		Sequence:    s.Sequence,
 		ShSequence:  s.ShSequence,

@@ -200,3 +200,155 @@ func TestCounterSpell_Cast(t *testing.T) {
 		t.Errorf("Expected result message about counter spell, got empty string")
 	}
 }
+
+func TestRemoveEnchantment_Cast(t *testing.T) {
+	wizard := &wavinghands.Wizard{
+		Right: wavinghands.Hand{Sequence: "pdwp"},
+		Left:  wavinghands.Hand{},
+		Name:  "TestWizard",
+	}
+	target := &wavinghands.Living{
+		Selector: "target",
+		Wards:    "shield,counter-spell",
+	}
+
+	spell := RemoveEnchantment{Sequence: "pdwp"}
+
+	result, err := spell.Cast(wizard, target)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if target.Wards != "" {
+		t.Fatalf("expected wards cleared, got %q", target.Wards)
+	}
+	if result == "" {
+		t.Fatalf("expected messaging for remove enchantment")
+	}
+}
+
+func TestResistHeat_Cast(t *testing.T) {
+	wizard := &wavinghands.Wizard{
+		Right: wavinghands.Hand{Sequence: "wwfp"},
+		Name:  "TestWizard",
+	}
+	target := &wavinghands.Living{Selector: "target"}
+
+	spell := ResistHeat{Sequence: "wwfp"}
+
+	result, err := spell.Cast(wizard, target)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !wavinghands.HasWard(target, "resist-heat") {
+		t.Fatalf("expected resist-heat ward")
+	}
+	if result == "" {
+		t.Fatalf("expected messaging for resist heat")
+	}
+}
+
+func TestResistCold_Cast(t *testing.T) {
+	wizard := &wavinghands.Wizard{
+		Right: wavinghands.Hand{Sequence: "ssfp"},
+		Name:  "TestWizard",
+	}
+	target := &wavinghands.Living{Selector: "target"}
+
+	spell := ResistCold{Sequence: "ssfp"}
+
+	result, err := spell.Cast(wizard, target)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !wavinghands.HasWard(target, "resist-cold") {
+		t.Fatalf("expected resist-cold ward")
+	}
+	if result == "" {
+		t.Fatalf("expected messaging for resist cold")
+	}
+}
+
+func TestMagicMirror_Cast(t *testing.T) {
+	wizard := &wavinghands.Wizard{
+		Right: wavinghands.Hand{Sequence: "cw"},
+		Name:  "TestWizard",
+	}
+	target := &wavinghands.Living{Selector: "target"}
+
+	spell := MagicMirror{Sequence: "cw"}
+
+	result, err := spell.Cast(wizard, target)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !wavinghands.HasWard(target, "magic-mirror") {
+		t.Fatalf("expected magic mirror ward")
+	}
+	if result == "" {
+		t.Fatalf("expected messaging for magic mirror")
+	}
+}
+
+func TestProtectionFromEvil_Cast(t *testing.T) {
+	wizard := &wavinghands.Wizard{
+		Right: wavinghands.Hand{Sequence: "wwp"},
+		Name:  "TestWizard",
+	}
+	target := &wavinghands.Living{Selector: "target"}
+
+	spell := ProtectionFromEvil{Sequence: "wwp"}
+
+	result, err := spell.Cast(wizard, target)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !wavinghands.HasShield(target) {
+		t.Fatalf("expected shield effect from protection from evil")
+	}
+	if result == "" {
+		t.Fatalf("expected messaging for protection from evil")
+	}
+}
+
+func TestDispelMagic_Cast(t *testing.T) {
+	wizard := &wavinghands.Wizard{
+		Right: wavinghands.Hand{Sequence: "cdpw"},
+		Name:  "TestWizard",
+	}
+	target := &wavinghands.Living{Selector: "target"}
+
+	spell := DispelMagic{Sequence: "cdpw"}
+
+	ok, result, err := spell.Cast(wizard, target)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !ok {
+		t.Fatalf("expected dispel trigger")
+	}
+	if result == "" {
+		t.Fatalf("expected messaging for dispel magic")
+	}
+}
+
+func TestSummonGoblin_Cast(t *testing.T) {
+	wizard := &wavinghands.Wizard{
+		Right: wavinghands.Hand{Sequence: "sfw"},
+		Name:  "Summoner",
+	}
+	spell := SummonMonster{Sequence: "sfw", MonsterType: "goblin"}
+
+	result, err := spell.Cast(wizard, &wizard.Living)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(wizard.Monsters) != 1 {
+		t.Fatalf("expected 1 monster, got %d", len(wizard.Monsters))
+	}
+	if wizard.Monsters[0].Type != "goblin" {
+		t.Fatalf("expected goblin, got %s", wizard.Monsters[0].Type)
+	}
+	if result == "" {
+		t.Fatalf("expected summon message")
+	}
+}

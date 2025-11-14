@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-type Elemental struct {
+type RemoveEnchantment struct {
 	Name        string `json:"name"`
 	Sequence    string `json:"sequence"`
 	ShSequence  string `json:"sh-sequence"`
@@ -17,28 +17,26 @@ type Elemental struct {
 	Protections string `json:"protections"`
 }
 
-func (e Elemental) Cast(wizard *wavinghands.Wizard, target *wavinghands.Living) (string, error) {
-	if len(wizard.Right.Sequence) >= len(e.Sequence) && len(wizard.Left.Sequence) >= len(e.Sequence) &&
-		strings.HasSuffix(wizard.Right.Sequence, e.Sequence) &&
-		strings.HasSuffix(wizard.Left.Sequence, e.Sequence) {
+func (re RemoveEnchantment) Cast(wizard *wavinghands.Wizard, target *wavinghands.Living) (string, error) {
+	rightMatch := len(wizard.Right.Sequence) >= len(re.Sequence) &&
+		strings.HasSuffix(wizard.Right.Sequence, re.Sequence)
+	leftMatch := len(wizard.Left.Sequence) >= len(re.Sequence) &&
+		strings.HasSuffix(wizard.Left.Sequence, re.Sequence)
 
-		monster, err := wavinghands.AddMonster(wizard, "fire-elemental")
-		if err != nil {
-			return "", err
-		}
-
-		return fmt.Sprintf("%s summons a %s", wizard.Name, monster.Type), nil
+	if rightMatch || leftMatch {
+		target.Wards = ""
+		return fmt.Sprintf("%s has removed all enchantments from %s", wizard.Name, target.Selector), nil
 	}
 
 	return "", nil
 }
 
-func GetElementalSpell(s *wavinghands.Spell, e error) (*Elemental, error) {
+func GetRemoveEnchantmentSpell(s *wavinghands.Spell, e error) (*RemoveEnchantment, error) {
 	if e != nil {
-		return &Elemental{}, e
+		return &RemoveEnchantment{}, e
 	}
 
-	return &Elemental{
+	return &RemoveEnchantment{
 		Name:        s.Name,
 		Sequence:    s.Sequence,
 		ShSequence:  s.ShSequence,

@@ -18,11 +18,23 @@ type Missile struct {
 }
 
 func (m Missile) Cast(wizard *wavinghands.Wizard, target *wavinghands.Living) (string, error) {
-	if (len(wizard.Right.Sequence) >= len(m.Sequence) && strings.HasSuffix(wizard.Right.Sequence, m.Sequence)) ||
-		(len(wizard.Left.Sequence) >= len(m.Sequence) && strings.HasSuffix(wizard.Left.Sequence, m.ShSequence)) {
+	if blocked, msg := wavinghands.CounterSpellBlocks(target, wizard.Name, m.Name); blocked {
+		return msg, nil
+	}
+
+	rightMatch := len(wizard.Right.Sequence) >= len(m.Sequence) &&
+		strings.HasSuffix(wizard.Right.Sequence, m.Sequence)
+	leftPattern := m.Sequence
+	if m.ShSequence != "" {
+		leftPattern = m.ShSequence
+	}
+	leftMatch := len(wizard.Left.Sequence) >= len(leftPattern) &&
+		strings.HasSuffix(wizard.Left.Sequence, leftPattern)
+
+	if rightMatch || leftMatch {
 
 		// Missile is blocked by shield
-		if strings.Contains(target.Wards, "shield") {
+		if wavinghands.HasShield(target) {
 			return fmt.Sprintf("%s cast missile at %s but it was blocked by a shield", wizard.Name, target.Selector), nil
 		} else {
 			target.HitPoints -= 1

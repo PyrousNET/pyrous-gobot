@@ -3,7 +3,6 @@ package spells
 import (
 	"fmt"
 	"github.com/pyrousnet/pyrous-gobot/internal/handler/games/wavinghands"
-	"strings"
 )
 
 type Stab struct {
@@ -23,7 +22,7 @@ func (s Stab) Cast(wizard *wavinghands.Wizard, target *wavinghands.Living) (stri
 		(len(wizard.Left.Sequence) > 0 && wizard.Left.Sequence[len(wizard.Left.Sequence)-1] == '1') {
 
 		// Stab is blocked by shield
-		if strings.Contains(target.Wards, "shield") {
+		if wavinghands.HasShield(target) {
 			return fmt.Sprintf("%s tried to stab %s but was blocked by a shield", wizard.Name, target.Selector), nil
 		} else {
 			target.HitPoints -= 1
