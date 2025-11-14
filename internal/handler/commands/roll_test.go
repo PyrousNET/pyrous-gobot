@@ -18,21 +18,39 @@ func TestBotCommand_Roll(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		sender      string
 		seed        int64
+		body        string
 		wantMessage string
 	}{
 		{
-			name:        "basic roll",
-			sender:      "@roller",
+			name:        "default roll",
 			seed:        1,
-			wantMessage: "@roller rolled a 2 and a 3 for a total of 5",
+			body:        "",
+			wantMessage: "@roller rolled a 6 and a 4 for a total of 10",
 		},
 		{
-			name:        "different user",
-			sender:      "@wizard",
+			name:        "default roll with reason",
+			seed:        1,
+			body:        "should I nap?",
+			wantMessage: "@roller rolled a 6 and a 4 for a total of 10 - should I nap?",
+		},
+		{
+			name:        "single die NdM",
+			seed:        2,
+			body:        "1d20 attack",
+			wantMessage: "@roller rolled 1d20 and got 7 - attack",
+		},
+		{
+			name:        "multiple dice NdM",
 			seed:        7,
-			wantMessage: "@wizard rolled a 2 and a 1 for a total of 3",
+			body:        "3d4 escape",
+			wantMessage: "@roller rolled 3d4 (3 + 3 + 2) for a total of 8 - escape",
+		},
+		{
+			name:        "too many dice",
+			seed:        1,
+			body:        "51d6",
+			wantMessage: "that's too many dice! Please roll 50 or fewer.",
 		},
 	}
 
@@ -42,8 +60,8 @@ func TestBotCommand_Roll(t *testing.T) {
 
 			responseCh := make(chan comms.Response, 1)
 			event := BotCommand{
-				body:            "",
-				sender:          tt.sender,
+				body:            tt.body,
+				sender:          "@roller",
 				ReplyChannel:    &model.Channel{Id: "test"},
 				ResponseChannel: responseCh,
 				cache:           &cache.MockCache{},
