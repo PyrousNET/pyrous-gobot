@@ -6,6 +6,8 @@ import (
 	"github.com/pyrousnet/pyrous-gobot/internal/pubsub"
 	"log"
 	"reflect"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -97,18 +99,10 @@ func (c *Commands) NewBotCommand(post string, sender string) (BotCommand, error)
 	}
 
 	commandToken = strings.TrimSpace(commandToken)
-	isDice := isDiceCommand(commandToken)
-
 	methodName := strings.Title(commandToken)
-	if isDice {
-		methodName = "Dice"
-	}
 	ps = append(ps[:0], ps[1:]...)
 
 	method, err := c.getMethod(methodName)
-	if err != nil && isDice {
-		method, err = c.getMethod("Dice")
-	}
 	if err != nil {
 		return BotCommand{}, err
 	}
@@ -155,9 +149,6 @@ func (c *Commands) CallCommand(botCommand BotCommand) error {
 	f := botCommand.method.valueOf
 
 	if botCommand.method.typeOf.Type == nil {
-		if isDiceCommand(botCommand.target) {
-			return botCommand.Dice(botCommand)
-		}
 		return fmt.Errorf("Man! What are you talking about? You need `!help`")
 	}
 
@@ -194,15 +185,45 @@ func (bc *BotCommand) SetPubsub(ps pubsub.Pubsub) {
 	bc.pubsub = ps
 }
 
-func isDiceCommand(token string) bool {
-	if diceCommandPattern == nil {
-		return false
+var diceCommandPattern = regexp.MustCompile(`(?i)^(\d*)d(\d+)$`)
+
+const maxDice = 50
+
+func parseRollSpec(body string) (int, int, string, error) {
+	body = strings.TrimSpace(body)
+	if body == "" {
+		return 2, 6, "", nil
 	}
 
-	token = strings.ToLower(strings.TrimSpace(token))
-	if token == "" || token == "dice" {
-		return true
+	parts := strings.Fields(body)
+	if len(parts) == 0 {
+		return 2, 6, "", nil
 	}
 
-	return diceCommandPattern.MatchString(token)
+	spec := strings.ToLower(parts[0])
+	rest := strings.Join(parts[1:], " ")
+	matches := diceCommandPattern.FindStringSubmatch(spec)
+	if len(matches) == 0 {
+		return 2, 6, body, nil
+	}
+
+	count := 1
+	if matches[1] != "" {
+		var err error
+		count, err = strconv.Atoi(matches[1])
+		if err != nil || count <= 0 {
+			return 0, 0, "", fmt.Errorf("invalid dice count '%s'", matches[1])
+		}
+	}
+
+	sides, err := strconv.Atoi(matches[2])
+	if err != nil || sides <= 0 {
+		return 0, 0, "", fmt.Errorf("invalid dice sides '%s'", matches[2])
+	}
+
+	if count > maxDice {
+		return 0, 0, "", fmt.Errorf("that's too many dice! Please roll %d or fewer.", maxDice)
+	}
+
+	return count, sides, strings.TrimSpace(rest), nil
 }
