@@ -86,14 +86,23 @@ func (c *Commands) NewBotCommand(post string, sender string) (BotCommand, error)
 		return BotCommand{}, fmt.Errorf("no command provided")
 	}
 
-	commandToken := strings.TrimLeft(ps[0], c.Settings.GetCommandTrigger())
+	commandToken := strings.TrimSpace(ps[0])
+	trigger := c.Settings.GetCommandTrigger()
+	if trigger != "" && strings.HasPrefix(commandToken, trigger) {
+		commandToken = commandToken[len(trigger):]
+	}
+
+	commandToken = strings.TrimSpace(commandToken)
 	methodName := strings.Title(commandToken)
-	if diceCommandPattern.MatchString(strings.ToLower(commandToken)) {
+	if diceCommandPattern != nil && diceCommandPattern.MatchString(strings.ToLower(commandToken)) {
 		methodName = "Dice"
 	}
 	ps = append(ps[:0], ps[1:]...)
 
 	method, err := c.getMethod(methodName)
+	if err != nil && diceCommandPattern != nil && diceCommandPattern.MatchString(strings.ToLower(commandToken)) {
+		method, err = c.getMethod("Dice")
+	}
 	if err != nil {
 		return BotCommand{}, err
 	}

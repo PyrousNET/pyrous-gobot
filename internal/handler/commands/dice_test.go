@@ -18,6 +18,7 @@ func TestBotCommand_Dice(t *testing.T) {
 
 	tests := []struct {
 		name        string
+		sender      string
 		target      string
 		body        string
 		seed        int64
@@ -26,6 +27,7 @@ func TestBotCommand_Dice(t *testing.T) {
 	}{
 		{
 			name:        "single die roll",
+			sender:      "@adventurer",
 			target:      "1d20",
 			body:        "",
 			seed:        1,
@@ -33,13 +35,23 @@ func TestBotCommand_Dice(t *testing.T) {
 		},
 		{
 			name:        "multiple dice with reason",
+			sender:      "@wizard",
 			target:      "3d4",
 			body:        "initiative",
 			seed:        7,
 			wantMessage: "@wizard rolled 3d4 (3 + 3 + 2) for a total of 8 - initiative",
 		},
 		{
+			name:        "dice keyword with inline spec",
+			sender:      "@rogue",
+			target:      "dice",
+			body:        "2d6 roll to get away from monsters",
+			seed:        5,
+			wantMessage: "@rogue rolled 2d6 (1 + 5) for a total of 6 - roll to get away from monsters",
+		},
+		{
 			name:    "invalid dice format",
+			sender:  "@adventurer",
 			target:  "xd20",
 			body:    "",
 			seed:    1,
@@ -47,6 +59,7 @@ func TestBotCommand_Dice(t *testing.T) {
 		},
 		{
 			name:    "too many dice",
+			sender:  "@adventurer",
 			target:  "100d6",
 			body:    "",
 			seed:    1,
@@ -62,16 +75,11 @@ func TestBotCommand_Dice(t *testing.T) {
 			event := BotCommand{
 				target:          tt.target,
 				body:            tt.body,
-				sender:          "@adventurer",
+				sender:          tt.sender,
 				ReplyChannel:    &model.Channel{Id: "test"},
 				ResponseChannel: responseCh,
 				cache:           &cache.MockCache{},
 			}
-
-			if tt.name == "multiple dice with reason" {
-				event.sender = "@wizard"
-			}
-
 			bc := BotCommand{
 				cache: &cache.MockCache{},
 			}

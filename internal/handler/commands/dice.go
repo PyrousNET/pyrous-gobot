@@ -28,8 +28,22 @@ func (h BotCommandHelp) Dice(request BotCommand) (response HelpResponse) {
 
 func (bc BotCommand) Dice(event BotCommand) error {
 	diceSpec := strings.ToLower(event.target)
-	if diceSpec == "" {
-		diceSpec = "1d20"
+	reason := strings.TrimSpace(event.body)
+
+	if !diceCommandPattern.MatchString(diceSpec) {
+		if diceSpec == "" || diceSpec == "dice" {
+			parts := strings.Fields(reason)
+			if len(parts) > 0 && diceCommandPattern.MatchString(strings.ToLower(parts[0])) {
+				diceSpec = strings.ToLower(parts[0])
+				reason = strings.TrimSpace(strings.Join(parts[1:], " "))
+			} else {
+				diceSpec = "1d20"
+			}
+		} else if diceCommandPattern.MatchString(strings.ToLower(diceSpec)) {
+			diceSpec = strings.ToLower(diceSpec)
+		} else {
+			return fmt.Errorf("invalid dice format '%s'. Use something like !2d6", diceSpec)
+		}
 	}
 
 	matches := diceCommandPattern.FindStringSubmatch(diceSpec)
@@ -71,7 +85,6 @@ func (bc BotCommand) Dice(event BotCommand) error {
 		total += rolls[i]
 	}
 
-	reason := strings.TrimSpace(event.body)
 	var message string
 
 	if count == 1 {
