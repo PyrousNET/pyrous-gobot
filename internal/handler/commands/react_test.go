@@ -52,7 +52,7 @@ func TestBotCommand_React(t *testing.T) {
 				mm:              nil,
 				settings:        nil,
 				ReplyChannel:    &model.Channel{Id: "test"},
-				ResponseChannel: make(chan comms.Response),
+				ResponseChannel: make(chan comms.Response, 1),
 				method:          Method{},
 				cache:           &cache.MockCache{},
 				Quit:            make(chan bool),
@@ -65,7 +65,7 @@ func TestBotCommand_React(t *testing.T) {
 					mm:              nil,
 					settings:        sttngs,
 					ReplyChannel:    &model.Channel{Id: "test"},
-					ResponseChannel: make(chan comms.Response),
+					ResponseChannel: make(chan comms.Response, 1),
 					method:          Method{},
 					cache:           &cache.MockCache{},
 					Quit:            make(chan bool),
@@ -91,15 +91,10 @@ func TestBotCommand_React(t *testing.T) {
 				Quit:            tt.fields.Quit,
 			}
 			var r comms.Response
-			go func() {
-				for {
-					r = <-tt.args.event.ResponseChannel
-					return
-				}
-			}()
 			if err := bc.React(tt.args.event); (err != nil) != tt.wantErr {
 				t.Errorf("React() error = %v, wantErr %v", err, tt.wantErr)
 			}
+			r = <-tt.args.event.ResponseChannel
 			if r.Message != tt.wantMsg {
 				t.Errorf("React() = %v, want %v", r.Message, tt.wantMsg)
 			}

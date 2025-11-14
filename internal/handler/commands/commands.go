@@ -88,8 +88,12 @@ func (c *Commands) NewBotCommand(post string, sender string) (BotCommand, error)
 
 	commandToken := strings.TrimSpace(ps[0])
 	trigger := c.Settings.GetCommandTrigger()
-	if trigger != "" && strings.HasPrefix(commandToken, trigger) {
-		commandToken = strings.TrimPrefix(commandToken, trigger)
+	if trigger != "" {
+		if strings.HasPrefix(commandToken, trigger) {
+			commandToken = strings.TrimPrefix(commandToken, trigger)
+		} else {
+			commandToken = strings.TrimLeft(commandToken, trigger)
+		}
 	}
 
 	commandToken = strings.TrimSpace(commandToken)
