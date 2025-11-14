@@ -100,10 +100,8 @@ func (c *Commands) NewBotCommand(post string, sender string) (BotCommand, error)
 	ps = append(ps[:0], ps[1:]...)
 
 	method, err := c.getMethod(methodName)
-	if err != nil {
-		if diceCommandPattern != nil && diceCommandPattern.MatchString(strings.ToLower(commandToken)) {
-			method, err = c.getMethod("Dice")
-		}
+	if err != nil && diceCommandPattern != nil && diceCommandPattern.MatchString(strings.ToLower(commandToken)) {
+		method, err = c.getMethod("Dice")
 	}
 	if err != nil {
 		return BotCommand{}, err

@@ -80,7 +80,6 @@ func TestBotCommand_Dice(t *testing.T) {
 				ResponseChannel: responseCh,
 				cache:           &cache.MockCache{},
 			}
-
 			bc := BotCommand{
 				cache: &cache.MockCache{},
 			}

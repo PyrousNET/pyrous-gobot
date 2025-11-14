@@ -3,11 +3,13 @@ package comms
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"strings"
+
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/opentracing/opentracing-go/log"
 	"github.com/pyrousnet/pyrous-gobot/internal/cache"
 	"github.com/pyrousnet/pyrous-gobot/internal/mmclient"
-	"strings"
 )
 
 type Response struct {
@@ -50,7 +52,10 @@ func (h *MessageHandler) SendMessage(r *Response) {
 		}
 	}
 
-	dmchannel, _, _ := h.Mm.Client.CreateDirectChannel(h.ctx, h.Mm.BotUser.Id, r.UserId)
+	dmchannel, _, dmErr := h.Mm.Client.CreateDirectChannel(h.ctx, h.Mm.BotUser.Id, r.UserId)
+	if dmErr != nil {
+		log.Error(dmErr)
+	}
 	if r.Type != "shutdown" {
 		if dmchannel != nil && r.ReplyChannelId == dmchannel.Id {
 			r.Type = "dm"
@@ -74,8 +79,9 @@ func (h *MessageHandler) SendMessage(r *Response) {
 		case "command":
 			err = h.Mm.SendCmdToChannel(r.Message, r.ReplyChannelId, post)
 		case "dm":
-			if err != nil {
-				log.Error(err)
+			if dmchannel == nil {
+				log.Error(fmt.Errorf("unable to open DM channel for user %s", r.UserId))
+				break
 			}
 
 			post.ChannelId = dmchannel.Id
