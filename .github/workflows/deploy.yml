@@ -13,8 +13,8 @@ jobs:
     runs-on: self-hosted
     concurrency: deploy-prod
     steps:
-      - name: Restart pyrous-gobot service
+      - name: Restart gobot service
         run: |
           set -euo pipefail
-          sudo systemctl restart pyrous-gobot.service
-          sudo systemctl status pyrous-gobot.service --no-pager -l | head -n 30
+          sudo systemctl restart gobot
+          sudo systemctl status gobot --no-pager -l | head -n 30
