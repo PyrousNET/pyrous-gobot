@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"time"
 
 	"github.com/go-redis/redis/v8"
 )
@@ -77,4 +78,11 @@ func (rc *RedisCache) CleanAll() {
 
 func (rc *RedisCache) GetKeys(prefix string) ([]string, error) {
 	return rc.conn.Keys(rc.ctx, prefix+"*").Result()
+}
+
+// Expire sets a TTL for the given key.
+func (rc *RedisCache) Expire(key string, ttl time.Duration) {
+	if err := rc.conn.Expire(rc.ctx, key, ttl).Err(); err != nil {
+		fmt.Println(err)
+	}
 }
