@@ -1,0 +1,102 @@
+package games
+
+import (
+	"encoding/json"
+	"strings"
+	"testing"
+
+	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/pyrousnet/pyrous-gobot/internal/cache"
+	"github.com/pyrousnet/pyrous-gobot/internal/comms"
+	"github.com/pyrousnet/pyrous-gobot/internal/users"
+)
+
+func TestFarkleEndToEndFinalRound(t *testing.T) {
+	c := cache.GetLocalCache()
+	addTestUser(t, c, "alice")
+	addTestUser(t, c, "bob")
+
+	channel := &model.Channel{Id: "chan1", Name: "chan1"}
+	responses := make(chan comms.Response, 20)
+	play := func(sender, body string) {
+		t.Helper()
+		err := BotGame{}.Farkle(BotGame{
+			body:            body,
+			sender:          sender,
+			ReplyChannel:    channel,
+			ResponseChannel: responses,
+			Cache:           c,
+		})
+		if err != nil {
+			t.Fatalf("call from %s failed: %v", sender, err)
+		}
+	}
+
+	// Join lobby
+	play("alice", "")
+	play("bob", "")
+	play("alice", "start")
+
+	// Lower the goal to finish quickly.
+	game, ok, err := loadFarkle(channel.Id, c)
+	if err != nil || !ok {
+		t.Fatalf("expected game in cache: %v", err)
+	}
+	game.TargetScore = 500
+	saveFarkle(game, c)
+
+	// Deterministic rolls.
+	originalRoll := rollDiceFn
+	defer func() { rollDiceFn = originalRoll }()
+	rollDiceFn = (&testRoller{rolls: [][]int{
+		{1, 1, 1, 1, 1, 1}, // Alice
+		{2, 3, 4, 6, 2, 3}, // Bob (farkle, ends final round)
+	}}).roll
+
+	play("alice", "roll")
+	play("alice", "keep 1 1 1 1 1 1")
+	play("alice", "bank") // triggers final round
+
+	play("bob", "roll") // farkle in final round ends game
+
+	// Collect final response
+	close(responses)
+	var lastMsg string
+	for r := range responses {
+		lastMsg = r.Message
+	}
+
+	if !strings.Contains(lastMsg, "Winner: alice") {
+		t.Fatalf("expected final winner message for alice, got: %s", lastMsg)
+	}
+
+	// Game state should be cleared.
+	_, ok, _ = c.Get(farklePrefix + channel.Id)
+	if ok {
+		t.Fatalf("expected farkle game to be cleared after completion")
+	}
+}
+
+type testRoller struct {
+	rolls [][]int
+	idx   int
+}
+
+func (tr *testRoller) roll(n int) []int {
+	if tr.idx >= len(tr.rolls) {
+		return rollDice(n)
+	}
+	roll := tr.rolls[tr.idx]
+	tr.idx++
+	return roll[:n]
+}
+
+func addTestUser(t *testing.T, c cache.Cache, name string) {
+	t.Helper()
+	u := users.User{Id: name, Name: name}
+	data, err := json.Marshal(u)
+	if err != nil {
+		t.Fatalf("marshal user: %v", err)
+	}
+	c.Put(users.KeyPrefix+name, data)
+}
