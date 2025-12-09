@@ -28,8 +28,17 @@ type TicTacToeGame struct {
 }
 
 func (h BotGameHelp) Ttt(request BotGame) (response HelpResponse) {
-	response.Help = "Play Tic Tac Toe in the current channel."
-	response.Description = "Play Tic Tac Toe in the current channel."
+	response.Description = "Play Tic Tac Toe in a channel."
+	response.Help = strings.TrimSpace(`
+Play Tic Tac Toe in a channel.
+
+Usage:
+  $ttt [in <channel>]           - Join or create a game lobby in the channel
+  $ttt <row><col>               - Make a move once two players are in (e.g. $ttt 13 for row 1, col 3)
+
+Notes:
+- First player joins and waits; second player joining starts the game.
+- Boards are posted in-channel after each move.`)
 
 	return response
 }
