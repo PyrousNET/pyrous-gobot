@@ -1,0 +1,20 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: ["Go"]
+    types: [completed]
+
+jobs:
+  restart-daemon:
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: self-hosted
+    concurrency: deploy-prod
+    steps:
+      - name: Restart pyrous-gobot service
+        run: |
+          set -euo pipefail
+          sudo systemctl restart pyrous-gobot.service
+          sudo systemctl status pyrous-gobot.service --no-pager -l | head -n 30

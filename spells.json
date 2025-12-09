@@ -1,124 +1,629 @@
-[{
-    "name": "Amnesia",
-    "sequence": "ddp",
-    "sh-sequence": "",
-    "description": "If the subject of this spell is a wizard, next turn they must repeat identically the gestures they made in the current turn, including stabs. If the subject is a monster it will attack whoever it attacked in this turn. If the subject is simultaneously the subject of any of confusion, charm person, charm monster, paralysis or fear then none of the spells work.",
-    "usage": "Amnesia can be cast with Gestures:\nDigitPoint (D), ProfferedPalm (P) and ProfferedPalm (P)",
+[
+  {
+    "name": "Shield",
+    "category": "Protection",
+    "gestures": [
+      "P"
+    ],
+    "description": "Blocks any number of missile, monster, or stab attacks on the turn it is cast.",
+    "usage": "Casts instantly; lasts one round.",
     "damage": 0,
-    "resistances": "",
-    "protections": ""
-},
-{
-    "name": "Anti-Spell",
-    "sequence": "spf",
-    "sh-sequence": "",
-    "description": "On the turn following the casting of this spell, the subject cannot include any gestures made on or before this turn in a spell sequence and must restart a new spell from the beginning of that spell sequence. The spell does not affect spells which are cast on the same turn nor does it affect monsters.",
-    "usage": "Anti-Spell can be cast with Gestures: \nSnap (S), Proffered Palm (P) and Wiggling Fingers (F).",
+    "implemented": true,
+    "notes": "Equivalent to ward \"shield\" in the bot."
+  },
+  {
+    "name": "Remove Enchantment",
+    "category": "Protection",
+    "gestures": [
+      "P",
+      "D",
+      "W",
+      "P"
+    ],
+    "description": "Removes every enchantment affecting the subject (including those resolving this turn) and destroys targeted monsters.",
+    "usage": "Does not undo past effects like turns already lost to blindness.",
     "damage": 0,
-    "resistances": "",
-    "protections": "anti-spell"
-},
-{
-    "name": "Cause Heavy Wounds",
-    "sequence": "wpfd",
-    "sh-sequence": "",
-    "description": "This has the same effect as cause light wounds but inflicts three points of damage instead of two.",
-    "usage": "Cause Heavy Wounds can be cast with Gestures:\nWave (W), Proffered Palm (P), Wiggling Fingers (F) and Digit Point (D)",
-    "damage": 3,
-    "resistances": "",
-    "protections": ""
-},
-{
-    "name": "Cause Light Wounds",
-    "sequence": "wpf",
-    "sh-sequence": "",
-    "description": "The subject of this spell is inflicted with two points of damage. Resistance to heat or cold offers no defence. A simultaneous cure light wounds will serve only to reduce the damage to 1 point. A shield has no effect.",
-    "usage": "Cause Light Wounds can be cast with Gestures: \nWave (W), Wiggling Fingers (F) and Proffered Palm (P)",
-    "damage": 2,
-    "resistances": "",
-    "protections": ""
-},
-{
+    "implemented": true,
+    "notes": "Also clears beneficial enchantments."
+  },
+  {
+    "name": "Magic Mirror",
+    "category": "Protection",
+    "gestures": [
+      "C",
+      "(w"
+    ],
+    "description": "Reflects any spell cast at the subject back to the caster for that turn.",
+    "usage": "Does not reflect self-targeted spells or area effects.",
+    "damage": 0,
+    "implemented": true,
+    "notes": "Cancelled if Counter-spell or Dispel Magic also lands."
+  },
+  {
     "name": "Counter Spell",
-    "sequence": "wws|wpp",
-    "sh-sequence": "",
-    "description": "Any other spell cast upon the subject in the same turn has no effect. In the case of blanket spells, which affect more than one person, the subject of the counter-spell alone is protected.\n\nFor example, a fire storm spell could kill off a monster but not if a counter-spell were cast on the monster in the same turn. Everyone else would be affected as usual by the fire storm unless they had their own protection. The counter-spell will cancel all the spells cast at the subject for that turn (including remove enchantment and magic mirror) except dispel magic and finger of death. It will combine with another spell of its own type for the same effect as if it were alone. The counter-spell will also act as a shield on the final gesture in addition to its other properties, but the shield effect is on the same subject as its other effect.",
-    "usage": "Counter-Spell can be cast with Gestures: \nWave (W), Proffered Palm (P) and Proffered Palm (P) or Wave (W), Wave (W) and Snap (S).",
+    "category": "Protection",
+    "gestures": [
+      "W",
+      "P",
+      "P"
+    ],
+    "alternates": [
+      "W",
+      "W",
+      "S"
+    ],
+    "description": "Cancels every hostile spell on the subject that turn (except Dispel Magic and Finger of Death) and counts as a shield.",
+    "usage": "Protects only the chosen subject from blanket spells.",
     "damage": 0,
-    "resistances": "",
-    "protections": ""
-},
-{
-    "name": "Elemental",
-    "sequence": "cswws",
-    "sh-sequence": "",
-    "description": "This spell creates either a fire elemental or an ice elemental at the discretion of the person upon whom the spell is cast after he has seen all the gestures made that turn. Elementals must be cast at someone and cannot be \"shot off\" harmlessly at some inanimate object.\n\nThe elemental will, for that turn and until destroyed, attack everyone who is not resistant to its type (heat or cold), causing three points of damage per turn. The elemental takes three points of damage to be killed but may be destroyed by spells of the opposite type (e.g. fire storm, resist cold or fireball will kill an ice elemental), and will also neutralize the canceing spell. Elementals will not attack on the turn they are destroyed by such a spell. An elemental will also be engulfed and destroyed by a storm of its own type but, in such an event, the storm is not neutralized although the elemental still does not attack in that turn. Two elementals of the opposite type will also destroy each other before attacking, and two of the same type will join together to form a single elemental of normal strength. Note that only wizards or monsters resistant to the type of elemental, or who are casting a spell which has the effect of a shield do not get attacked by the elemental. Casting a fireball upon yourself when being attacked by an ice elemental is no defence! (Cast it at the elemental...)",
-    "usage": "Summon Elemental can be case with Gestures: \nClap (C Both Hands), Snap (S), Wave (W), Wave (W) and Snap (S)",
-    "damage": "",
-    "protections": ""
-},
-{
-    "name": "Finger of Death",
-    "sequence": "pwpfsssd",
-    "sh-sequence": "",
-    "description": "Kills the subject stone dead. This spell is so powerful that it is unaffected by a counter-spell although a dispel magic spell cast upon the final gesture will stop it. The usual way to prevent being harmed by this spell is to disrupt it during casting using, for example, an anti-spell.",
-    "usage": "Finger of Death can be cast with Gestures: \nProffered Palm (P), Wave (W), Proffered Palm (P) Wiggling Fingers (F), Snap (S), Snap (S), Snap (S) and Digit Point (D).",
-    "damage": 15,
-    "resistances": "",
-    "protections": ""
-},
-{
-  "name": "Missile",
-  "sequence": "sd",
-  "sh-sequence": "",
-  "description": "This spell creates a material object of hard substance which is hurled towards the subject of the spell and causes them one point of damage. The spell is thwarted by a shield in addition to the usual count-spell, dispel magic and magic mirror ( the latter causing it to hit whoever cast it instead).",
-  "usage": "Missile can be cast with Gestures: \nSnap (S) and Digit Point (D)",
-  "damage": 1,
-  "resistances": "",
-  "protections": ""
-},
-{
-  "name": "Shield",
-  "sequence": "p",
-  "sh-sequence": "",
-  "description": "This spell protects the subject from monsters (that is, creatures created by a summoning spell), from missile spells and from stabs by wizards. The shield will block any number of such attacks but lasts for only one round. The shield protects the subject on the turn in which it was cast.",
-  "usage": "Counter-Spell can be cast with Gestures: \nProffered Palm (P)",
-  "damage": 0,
-  "resistances": "",
-  "protections": "shield"
-},
-{
-    "name": "Stab",
-    "sequence": "stab",
-    "sh-sequence": "",
-    "description": "This is not a spell but an attack which can be directed at any individual monster or wizard. Unless protected in that turn by a shield spell or another spell with the same effect, the being stabbed suffers 1 point of damage. The wizard only has one knife so can only stab with one hand in any turn, although which hand doesn't matter. The stab cannot be reflected by a magic mirror or stopped by dispel magic (although its shield effect *could* stop the stab). Wizards are not allowed to stab themselves and must choose a target for the stab. Knives cannot be thrown.",
-    "usage": "Stab is a single handed gesture: stab",
-    "damage": 1,
-    "resistances": "shield",
-    "protections": ""
-},
-{
-    "name": "Surrender",
-    "sequence": "p",
-    "sh-sequence": "p",
-    "description": "This is not a spell and consequently cannot be cast at anyone. The wizard making these gestures, irrespective of whether they terminate spells or not, surrenders and the contest is over. The surrendering wizard is deemed to have lost unless his gestures completed spells which killed his opponent. Two simultaneous surrenders count as a draw. It is a skill for wizards to work their spells so that they never accidentally perform 2 P gestures simultaneously. Wizards can be killed as they surrender if hit with appropriate spells or attacked physically, but the \"referees\" will cure any diseases, poisons etc immediately after the surrender for them.",
-    "usage": "Surrender can be estured as: \nProffered Palm (P both hands)"
-},
-{
-    "name": "Cure Heavy Wounds",
-    "sequence": "dfpw",
-    "sh-sequence": "",
-    "description": "This spell is similar to cure light wounds in effect but two points of damage are cured. Note that only one point is cured if only one point of damage has been sustained and the spell has no effect if the subject is completely undamaged.\nThis spell will also cure any diseases the subject might have at the time.",
-    "usage": "Cure Heavy Wounds can be cast with Gestures: \nDigitPoint (D), WiggingFingers (F), ProfferedPalm (P) and Wave (W)"
-},
-{
+    "implemented": true,
+    "notes": "Bot models this via temporary \"counter-spell\" ward."
+  },
+  {
+    "name": "Dispel Magic",
+    "category": "Protection",
+    "gestures": [
+      "C",
+      "D",
+      "P",
+      "W"
+    ],
+    "description": "Universal counter: nullifies every spell in the turn (except another Dispel), removes all enchantments, destroys all monsters, and shields the caster.",
+    "usage": "Cannot stop stabs or surrenders.",
+    "damage": 0,
+    "implemented": true,
+    "notes": "Acts globally rather than per subject."
+  },
+  {
+    "name": "Raise Dead",
+    "category": "Protection",
+    "gestures": [
+      "D",
+      "W",
+      "W",
+      "F",
+      "W",
+      "C"
+    ],
+    "description": "Restores a freshly dead wizard/monster to full health and clears every enchantment and ailment.",
+    "usage": "Subject may act immediately after being raised.",
+    "damage": 0,
+    "implemented": false,
+    "notes": "Not blocked by Counter-spell but canceled by Dispel Magic."
+  },
+  {
     "name": "Cure Light Wounds",
-    "sequence": "dfp",
-    "sh-sequence": "",
-    "description": "This spell cures two points of damage inflicted upon the subject. It will have no effect if the subject is completely undamaged. A cure light wounds spell will reduce the damage from a cause light wounds spell cast at the same target in the same turn to only 1 point. It has no effect on diseases.",
-    "usage": "Cure Light Wounds can be cast with Gestures: \nDigitPoint (D), WiggingFingers (F) and ProfferedPalm (P)",
+    "category": "Healing",
+    "gestures": [
+      "D",
+      "F",
+      "W"
+    ],
+    "description": "Heals 1 point and reduces simultaneous Cause Light Wounds damage to 1.",
+    "usage": "No effect if the subject is undamaged.",
+    "damage": -1,
+    "implemented": true,
+    "notes": "Grants temporary \"cureLightWounds\" ward."
+  },
+  {
+    "name": "Cure Heavy Wounds",
+    "category": "Healing",
+    "gestures": [
+      "D",
+      "F",
+      "P",
+      "W"
+    ],
+    "description": "Heals up to 2 points, removes disease, and halves simultaneous Cause Heavy Wounds damage.",
+    "usage": "No effect on a fully healthy subject.",
+    "damage": -2,
+    "implemented": true,
+    "notes": "Adds \"cureHeavyWounds\" ward for one round."
+  },
+  {
+    "name": "Summon Goblin",
+    "category": "Summoning",
+    "gestures": [
+      "S",
+      "F",
+      "W"
+    ],
+    "description": "Creates a goblin that deals/takes 1 damage per attack.",
+    "usage": "Targeted monster can act immediately.",
     "damage": 0,
-    "resistances": "",
-    "protections": ""
-}
+    "implemented": true,
+    "notes": "Monsters obey their current controller."
+  },
+  {
+    "name": "Summon Ogre",
+    "category": "Summoning",
+    "gestures": [
+      "P",
+      "S",
+      "F",
+      "W"
+    ],
+    "description": "Creates an ogre (2 damage each turn, 2 HP).",
+    "usage": "Monster attacks or waits per controller orders.",
+    "damage": 0,
+    "implemented": true,
+    "notes": "Stronger goblin variant."
+  },
+  {
+    "name": "Summon Troll",
+    "category": "Summoning",
+    "gestures": [
+      "F",
+      "P",
+      "S",
+      "F",
+      "W"
+    ],
+    "description": "Creates a troll that deals 3 damage per attack and has 3 HP.",
+    "usage": "Functions like other summoned monsters.",
+    "damage": 0,
+    "implemented": true,
+    "notes": ""
+  },
+  {
+    "name": "Summon Giant",
+    "category": "Summoning",
+    "gestures": [
+      "W",
+      "F",
+      "P",
+      "S",
+      "F",
+      "W"
+    ],
+    "description": "Creates a giant (4 damage, 4 HP).",
+    "usage": "Targets like other summons.",
+    "damage": 0,
+    "implemented": true,
+    "notes": "Heaviest mundane summon."
+  },
+  {
+    "name": "Elemental",
+    "category": "Summoning",
+    "gestures": [
+      "C",
+      "S",
+      "W",
+      "W",
+      "S"
+    ],
+    "description": "Summons fire or ice elemental; hits everyone lacking proper resistance for 3 damage each turn until destroyed.",
+    "usage": "Caster chooses type after seeing the turn\u2019s gestures.",
+    "damage": 3,
+    "implemented": false,
+    "notes": "Cancel rules depend on element type."
+  },
+  {
+    "name": "Missile",
+    "category": "Damage",
+    "gestures": [
+      "S",
+      "D"
+    ],
+    "description": "Deals 1 damage unless blocked by Shield, Counter-spell, Magic Mirror, or Dispel Magic.",
+    "usage": "Quick poke to finish an opponent.",
+    "damage": 1,
+    "implemented": true,
+    "notes": ""
+  },
+  {
+    "name": "Finger of Death",
+    "category": "Damage",
+    "gestures": [
+      "P",
+      "W",
+      "P",
+      "F",
+      "S",
+      "S",
+      "S",
+      "D"
+    ],
+    "description": "Instant kill that ignores Counter-spell; only Dispel Magic on the final gesture prevents it.",
+    "usage": "Requires long buildup; disrupt with Anti-spell.",
+    "damage": 15,
+    "implemented": true,
+    "notes": ""
+  },
+  {
+    "name": "Lightning Bolt",
+    "category": "Damage",
+    "gestures": [
+      "D",
+      "F",
+      "F",
+      "D",
+      "D"
+    ],
+    "alternates": [
+      "W",
+      "D",
+      "D",
+      "C"
+    ],
+    "description": "Deals 5 unblockable damage (short sequence usable once per duel).",
+    "usage": "Heat/cold resistance irrelevant.",
+    "damage": 5,
+    "implemented": false,
+    "notes": "Shield does not help."
+  },
+  {
+    "name": "Cause Light Wounds",
+    "category": "Damage",
+    "gestures": [
+      "W",
+      "F",
+      "P"
+    ],
+    "description": "Inflicts 2 damage; simultaneous Cure Light Wounds reduces to 1.",
+    "usage": "Quick offensive spell.",
+    "damage": 2,
+    "implemented": true,
+    "notes": ""
+  },
+  {
+    "name": "Cause Heavy Wounds",
+    "category": "Damage",
+    "gestures": [
+      "W",
+      "P",
+      "F",
+      "D"
+    ],
+    "description": "Inflicts 3 damage; simultaneous Cure Heavy Wounds reduces to 1.",
+    "usage": "Longer variant of Cause Light Wounds.",
+    "damage": 3,
+    "implemented": true,
+    "notes": ""
+  },
+  {
+    "name": "Fireball",
+    "category": "Damage",
+    "gestures": [
+      "F",
+      "S",
+      "S",
+      "D",
+      "D"
+    ],
+    "description": "Deals 5 fire damage unless the subject has heat resistance; cancels with Ice Storm on the same victim.",
+    "usage": "Destroys ice elementals on contact.",
+    "damage": 5,
+    "implemented": false,
+    "notes": ""
+  },
+  {
+    "name": "Fire Storm",
+    "category": "Damage",
+    "gestures": [
+      "S",
+      "W",
+      "W",
+      "C"
+    ],
+    "description": "Deals 5 heat damage to everyone lacking resist heat.",
+    "usage": "Cancels entirely with an Ice Storm or an ice elemental.",
+    "damage": 5,
+    "implemented": false,
+    "notes": ""
+  },
+  {
+    "name": "Ice Storm",
+    "category": "Damage",
+    "gestures": [
+      "W",
+      "S",
+      "S",
+      "C"
+    ],
+    "description": "Deals 5 cold damage to everyone without resist cold.",
+    "usage": "Cancels with Fire Storm or a fire elemental; cancels locally with Fireball.",
+    "damage": 5,
+    "implemented": false,
+    "notes": ""
+  },
+  {
+    "name": "Amnesia",
+    "category": "Enchantment",
+    "gestures": [
+      "D",
+      "P",
+      "P"
+    ],
+    "description": "Subject must repeat this turn\u2019s gestures on the next turn.",
+    "usage": "Breaks long sequences; monsters repeat previous targets.",
+    "damage": 0,
+    "implemented": true,
+    "notes": "Conflicts with other mental enchantments."
+  },
+  {
+    "name": "Confusion",
+    "category": "Enchantment",
+    "gestures": [
+      "D",
+      "S",
+      "F"
+    ],
+    "description": "For wizards, randomizes one hand\u2019s next gesture; monsters attack random targets.",
+    "usage": "Fails if subject simultaneously has amnesia/charm/fear/paralysis.",
+    "damage": 0,
+    "implemented": false,
+    "notes": ""
+  },
+  {
+    "name": "Charm Person",
+    "category": "Enchantment",
+    "gestures": [
+      "P",
+      "S",
+      "D",
+      "F"
+    ],
+    "description": "Caster chooses one gesture for the target\u2019s named hand next turn.",
+    "usage": "Can force stabs or interrupt spells.",
+    "damage": 0,
+    "implemented": false,
+    "notes": "Reflected by Magic Mirror."
+  },
+  {
+    "name": "Charm Monster",
+    "category": "Enchantment",
+    "gestures": [
+      "P",
+      "S",
+      "D",
+      "D"
+    ],
+    "description": "Transfers control of a non-elemental monster immediately.",
+    "usage": "Fails under conflicting enchantments.",
+    " damage": 0,
+    "implemented": false,
+    "notes": ""
+  },
+  {
+    "name": "Paralysis",
+    "category": "Enchantment",
+    "gestures": [
+      "F",
+      "F",
+      "F"
+    ],
+    "description": "Freezes a chosen hand (or monster) into its current position for the next turn.",
+    "usage": "Converts C/S/W gestures into F/D/P when immobilized.",
+    "damage": 0,
+    "implemented": false,
+    "notes": "Fails alongside amnesia/charm/fear/confusion."
+  },
+  {
+    "name": "Fear",
+    "category": "Enchantment",
+    "gestures": [
+      "S",
+      "W",
+      "D"
+    ],
+    "description": "Subject may not gesture C, D, F, or S next turn.",
+    "usage": "No effect on monsters.",
+    "damage": 0,
+    "implemented": false,
+    "notes": ""
+  },
+  {
+    "name": "Anti-Spell",
+    "category": "Enchantment",
+    "gestures": [
+      "S",
+      "P",
+      "F"
+    ],
+    "description": "Subject must restart all spell sequences after the current turn.",
+    "usage": "Does not affect spells already resolving.",
+    "damage": 0,
+    "implemented": true,
+    "notes": ""
+  },
+  {
+    "name": "Protection from Evil",
+    "category": "Protection",
+    "gestures": [
+      "W",
+      "W",
+      "P"
+    ],
+    "description": "Provides shield-level protection for this and the next three turns.",
+    "usage": "Hands remain free while the effect lasts.",
+    "damage": 0,
+    "implemented": true,
+    "notes": "Multiple casts overlap without stacking."
+  },
+  {
+    "name": "Resist Heat",
+    "category": "Protection",
+    "gestures": [
+      "W",
+      "W",
+      "F",
+      "P"
+    ],
+    "description": "Grants total heat immunity until dispelled.",
+    "usage": "Destroys fire elementals if they are the subject.",
+    "damage": 0,
+    "implemented": true,
+    "notes": ""
+  },
+  {
+    "name": "Resist Cold",
+    "category": "Protection",
+    "gestures": [
+      "S",
+      "S",
+      "F",
+      "P"
+    ],
+    "description": "Grants total cold immunity until dispelled.",
+    "usage": "Destroys ice elementals if targeted.",
+    "damage": 0,
+    "implemented": true,
+    "notes": ""
+  },
+  {
+    "name": "Disease",
+    "category": "Enchantment",
+    "gestures": [
+      "D",
+      "S",
+      "F",
+      "F",
+      "F",
+      "C"
+    ],
+    "description": "Subject dies 6 turns later unless Remove Enchantment, Cure Heavy Wounds, or Dispel Magic is applied.",
+    "usage": "Non-contagious.",
+    "damage": 0,
+    "implemented": false,
+    "notes": ""
+  },
+  {
+    "name": "Poison",
+    "category": "Enchantment",
+    "gestures": [
+      "D",
+      "W",
+      "W",
+      "F",
+      "W",
+      "D"
+    ],
+    "description": "As Disease, but Cure Heavy Wounds no longer helps.",
+    "usage": "Only Remove Enchantment or Dispel Magic cures it.",
+    "damage": 0,
+    "implemented": false,
+    "notes": ""
+  },
+  {
+    "name": "Blindness",
+    "category": "Enchantment",
+    "gestures": [
+      "D",
+      "W",
+      "F",
+      "F",
+      "(d"
+    ],
+    "description": "Target cannot read gestures for three turns; blinded monsters die immediately.",
+    "usage": "Caster must still announce spells affecting them.",
+    "damage": 0,
+    "implemented": false,
+    "notes": ""
+  },
+  {
+    "name": "Invisibility",
+    "category": "Enchantment",
+    "gestures": [
+      "P",
+      "P",
+      "(w",
+      "(s"
+    ],
+    "description": "Subject becomes invisible; opponents see spells but not gestures, and their monsters cannot attack the subject.",
+    "usage": "Invisible monsters disintegrate.",
+    "damage": 0,
+    "implemented": false,
+    "notes": ""
+  },
+  {
+    "name": "Haste",
+    "category": "Enchantment",
+    "gestures": [
+      "P",
+      "W",
+      "P",
+      "W",
+      "W",
+      "C"
+    ],
+    "description": "Subject makes two gesture pairs per turn for three turns.",
+    "usage": "Extra gestures resolve simultaneously, so single counter-spell can stop both if timed.",
+    "damage": 0,
+    "implemented": false,
+    "notes": "Monsters controlled by a hasted wizard do not gain extra actions."
+  },
+  {
+    "name": "Time Stop",
+    "category": "Enchantment",
+    "gestures": [
+      "S",
+      "P",
+      "P",
+      "C"
+    ],
+    "description": "Subject takes an immediate secret extra turn; others cannot react and lose all resistances for that turn.",
+    "usage": "Monsters/elementals under time stop act instantly as directed.",
+    "damage": 0,
+    "implemented": false,
+    "notes": ""
+  },
+  {
+    "name": "Delayed Effect",
+    "category": "Enchantment",
+    "gestures": [
+      "D",
+      "W",
+      "S",
+      "S",
+      "S",
+      "P"
+    ],
+    "description": "Next spell the subject completes within three turns is stored (\u2018banked\u2019) and may be triggered later.",
+    "usage": "Only spells cast by the subject qualify; one stored spell at a time.",
+    "damage": 0,
+    "implemented": false,
+    "notes": ""
+  },
+  {
+    "name": "Permanency",
+    "category": "Enchantment",
+    "gestures": [
+      "S",
+      "P",
+      "F",
+      "P",
+      "S",
+      "D",
+      "W"
+    ],
+    "description": "Next eligible enchantment completed by the subject within three turns becomes permanent.",
+    "usage": "Cannot target Anti-spell, Disease, Poison, or Time Stop.",
+    "damage": 0,
+    "implemented": false,
+    "notes": ""
+  },
+  {
+    "name": "Stab",
+    "category": "Physical",
+    "gestures": [
+      "stab"
+    ],
+    "description": "Non-spell attack for 1 damage; blocked by shield-class defenses.",
+    "usage": "Only one stab per turn because wizards carry one dagger.",
+    "damage": 1,
+    "implemented": true,
+    "notes": "Cannot target self."
+  },
+  {
+    "name": "Surrender",
+    "category": "Non-spell",
+    "gestures": [
+      "(p"
+    ],
+    "description": "Wizard concedes immediately; duel ends unless simultaneous lethal spells resolve.",
+    "usage": "Draw if multiple wizards surrender simultaneously.",
+    "damage": 0,
+    "implemented": true,
+    "notes": ""
+  }
 ]

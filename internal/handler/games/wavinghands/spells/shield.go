@@ -3,7 +3,6 @@ package spells
 import (
 	"fmt"
 	"github.com/pyrousnet/pyrous-gobot/internal/handler/games/wavinghands"
-	"golang.org/x/exp/slices"
 	"strings"
 )
 
@@ -19,14 +18,18 @@ type Shield struct {
 }
 
 func (s Shield) Cast(wizard *wavinghands.Wizard, target *wavinghands.Living) (string, error) {
-	if (len(wizard.Right.Sequence) >= len(s.Sequence) && strings.HasSuffix(wizard.Right.Sequence, s.Sequence)) ||
-		(len(wizard.Left.Sequence) >= len(s.Sequence) && strings.HasSuffix(wizard.Left.Sequence, s.ShSequence)) {
-		
-		if target.Wards == "" {
-			target.Wards = "shield"
-		} else {
-			target.Wards = target.Wards + ",shield"
-		}
+	rightMatch := len(wizard.Right.Sequence) >= len(s.Sequence) &&
+		strings.HasSuffix(wizard.Right.Sequence, s.Sequence)
+	leftPattern := s.Sequence
+	if s.ShSequence != "" {
+		leftPattern = s.ShSequence
+	}
+	leftMatch := len(wizard.Left.Sequence) >= len(leftPattern) &&
+		strings.HasSuffix(wizard.Left.Sequence, leftPattern)
+
+	if rightMatch || leftMatch {
+
+		wavinghands.AddWard(target, "shield")
 
 		return fmt.Sprintf("%s has cast Shield on %s", wizard.Name, target.Selector), nil
 	}
@@ -52,11 +55,6 @@ func GetShieldSpell(s *wavinghands.Spell, e error) (*Shield, error) {
 }
 
 func (s Shield) clear(target *wavinghands.Living) error {
-	wards := strings.Split(target.Wards, ",")
-	idx := slices.Index(wards, "shield")
-	if idx >= 0 {
-		wards = wavinghands.Remove(wards, idx)
-		target.Wards = strings.Join(wards, ",")
-	}
+	wavinghands.RemoveWard(target, "shield")
 	return nil
 }

@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-type FingerOfDeath struct {
+type DispelMagic struct {
 	Name        string `json:"name"`
 	Sequence    string `json:"sequence"`
 	ShSequence  string `json:"sh-sequence"`
@@ -17,33 +17,27 @@ type FingerOfDeath struct {
 	Protections string `json:"protections"`
 }
 
-func (fod FingerOfDeath) Cast(wizard *wavinghands.Wizard, target *wavinghands.Living) (string, error) {
-	rightMatch := len(wizard.Right.Sequence) >= len(fod.Sequence) &&
-		strings.HasSuffix(wizard.Right.Sequence, fod.Sequence)
-	leftPattern := fod.Sequence
-	if fod.ShSequence != "" {
-		leftPattern = fod.ShSequence
+func (dm DispelMagic) Cast(wizard *wavinghands.Wizard, target *wavinghands.Living) (bool, string, error) {
+	rightMatch := len(wizard.Right.Sequence) >= len(dm.Sequence) &&
+		strings.HasSuffix(wizard.Right.Sequence, dm.Sequence)
+	leftPattern := dm.Sequence
+	if dm.ShSequence != "" {
+		leftPattern = dm.ShSequence
 	}
 	leftMatch := len(wizard.Left.Sequence) >= len(leftPattern) &&
 		strings.HasSuffix(wizard.Left.Sequence, leftPattern)
 
 	if rightMatch || leftMatch {
-
-		// Finger of Death is unaffected by counter-spell but can be stopped by dispel magic
-		// For simplicity, we'll implement it as instant death
-		target.HitPoints = 0
-		return fmt.Sprintf("%s has cast Finger of Death on %s - they are killed instantly!", wizard.Name, target.Selector), nil
+		return true, fmt.Sprintf("%s unleashes Dispel Magic!", wizard.Name), nil
 	}
-
-	return "", nil
+	return false, "", nil
 }
 
-func GetFingerOfDeathSpell(s *wavinghands.Spell, e error) (*FingerOfDeath, error) {
+func GetDispelMagicSpell(s *wavinghands.Spell, e error) (*DispelMagic, error) {
 	if e != nil {
-		return &FingerOfDeath{}, e
+		return &DispelMagic{}, e
 	}
-
-	return &FingerOfDeath{
+	return &DispelMagic{
 		Name:        s.Name,
 		Sequence:    s.Sequence,
 		ShSequence:  s.ShSequence,

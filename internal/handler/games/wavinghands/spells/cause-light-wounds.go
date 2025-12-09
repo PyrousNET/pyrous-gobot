@@ -18,10 +18,23 @@ type CauseLightWounds struct {
 }
 
 func (cLW CauseLightWounds) Cast(wizard *wavinghands.Wizard, target *wavinghands.Living) (string, error) {
-	if (len(wizard.Right.Sequence) >= len(cLW.Sequence) && strings.HasSuffix(wizard.Right.Sequence, cLW.Sequence)) ||
-		(len(wizard.Left.Sequence) >= len(cLW.Sequence) && strings.HasSuffix(wizard.Left.Sequence, cLW.ShSequence)) {
+	if blocked, msg := wavinghands.CounterSpellBlocks(target, wizard.Name, cLW.Name); blocked {
+		return msg, nil
+	}
 
-		if strings.Contains(target.Wards, "cureLightWounds") {
+	rightMatch := len(wizard.Right.Sequence) >= len(cLW.Sequence) &&
+		strings.HasSuffix(wizard.Right.Sequence, cLW.Sequence)
+	leftPattern := cLW.Sequence
+	if cLW.ShSequence != "" {
+		leftPattern = cLW.ShSequence
+	}
+	leftMatch := len(wizard.Left.Sequence) >= len(leftPattern) &&
+		strings.HasSuffix(wizard.Left.Sequence, leftPattern)
+
+	if rightMatch || leftMatch {
+
+		if wavinghands.HasWard(target, "cureLightWounds") {
+			wavinghands.RemoveWard(target, "cureLightWounds")
 			target.HitPoints -= 1
 			return fmt.Sprintf("%s caused light wounds on %s but they were protected and only sustained minimal damage", wizard.Name, target.Selector), nil
 		} else {

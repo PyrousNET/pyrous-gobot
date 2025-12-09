@@ -3,7 +3,6 @@ package spells
 import (
 	"fmt"
 	"github.com/pyrousnet/pyrous-gobot/internal/handler/games/wavinghands"
-	"golang.org/x/exp/slices"
 	"strings"
 )
 
@@ -21,11 +20,9 @@ type CureHeavyWounds struct {
 func (cHW CureHeavyWounds) Cast(wizard *wavinghands.Wizard, target *wavinghands.Living) (string, error) {
 	rightHandMatch := len(wizard.Right.Sequence) >= len(cHW.Sequence) && strings.HasSuffix(wizard.Right.Sequence, cHW.Sequence)
 	leftHandMatch := cHW.ShSequence != "" && len(wizard.Left.Sequence) >= len(cHW.ShSequence) && strings.HasSuffix(wizard.Left.Sequence, cHW.ShSequence)
-	
+
 	if rightHandMatch || leftHandMatch {
-		wards := strings.Split(target.Wards, ",")
-		wards = append(wards, "cureHeavyWounds") // Lasts one round
-		target.Wards = strings.Join(wards, ",")
+		wavinghands.AddWard(target, "cureHeavyWounds") // Lasts one round
 
 		return fmt.Sprintf("%s has cast Cure Heavy Wounds on %s", wizard.Name, target.Selector), nil
 	}
@@ -51,9 +48,6 @@ func GetCureHeavyWoundsSpell(s *wavinghands.Spell, e error) (*CureHeavyWounds, e
 }
 
 func (cHW CureHeavyWounds) clear(target *wavinghands.Living) error {
-	wards := strings.Split(target.Wards, ",")
-	idx := slices.Index(wards, "cureHeavyWounds")
-	wavinghands.Remove(wards, idx)
-	target.Wards = strings.Join(wards, ",")
+	wavinghands.RemoveWard(target, "cureHeavyWounds")
 	return nil
 }
