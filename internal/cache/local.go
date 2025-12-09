@@ -3,6 +3,7 @@ package cache
 import (
 	"strings"
 	"sync"
+	"time"
 )
 
 type LocalCache struct {
@@ -67,4 +68,11 @@ func (c *LocalCache) GetKeys(prefix string) ([]string, error) {
 	}
 
 	return keys, nil
+}
+
+// Expire removes a key after the provided duration.
+func (c *LocalCache) Expire(key string, ttl time.Duration) {
+	time.AfterFunc(ttl, func() {
+		c.Clean(key)
+	})
 }

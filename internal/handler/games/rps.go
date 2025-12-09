@@ -51,6 +51,7 @@ func (bg BotGame) Rps(event BotGame) error {
 				UserId: playerUser.Id,
 			}
 			event.Cache.Put(id.String(), event.ReplyChannel.Id)
+			rps.SetGameTTL(event.Cache, id.String())
 			response.Message = fmt.Sprintf("/echo %s is looking for an opponent in RPS.", event.sender)
 			dmResponse.Message = fmt.Sprintf("Would you like to throw Rock, Paper or Scissors (Usage: $rps %s rock)", event.ReplyChannel.Name)
 			event.ResponseChannel <- dmResponse

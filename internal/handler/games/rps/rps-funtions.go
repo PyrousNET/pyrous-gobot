@@ -11,6 +11,7 @@ import (
 	"github.com/pyrousnet/pyrous-gobot/internal/users"
 	"reflect"
 	"strings"
+	"time"
 )
 
 type RPS struct {
@@ -18,6 +19,8 @@ type RPS struct {
 	Rps        string `json:"rps"`
 	Name       string `json:"name"`
 }
+
+const rpsCacheTTL = time.Hour
 
 type RpsBotGame struct {
 	body            string
@@ -155,6 +158,7 @@ func UpdateRps(playerRps RPS, chanId string, c cache.Cache) (RPS, error) {
 	key := fmt.Sprintf("%s-%s-%s", "rps", playerRps.Name, chanId)
 	p, _ := json.Marshal(playerRps)
 	c.Put(key, p)
+	setCacheTTL(c, key)
 	return playerRps, nil
 }
 
@@ -164,4 +168,20 @@ func DeleteRps(playerRps RPS, chanId string, c cache.Cache) {
 }
 func DeleteGame(uuid string, c cache.Cache) {
 	c.Clean(uuid)
+}
+
+// setCacheTTL sets an expiration when the underlying cache supports it.
+func setCacheTTL(c cache.Cache, key string) {
+	type expirer interface {
+		Expire(string, time.Duration)
+	}
+
+	if ec, ok := c.(expirer); ok {
+		ec.Expire(key, rpsCacheTTL)
+	}
+}
+
+// SetGameTTL exposes TTL setting for game IDs stored outside this package.
+func SetGameTTL(c cache.Cache, key string) {
+	setCacheTTL(c, key)
 }
