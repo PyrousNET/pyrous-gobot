@@ -123,6 +123,67 @@ func TestFarkleTracksPointsWhenUserIdMissing(t *testing.T) {
 	}
 }
 
+func TestFinalRoundSummaryUsesPlayerKey(t *testing.T) {
+	c := cache.GetLocalCache()
+	addTestUserNoID(t, c, "alice")
+	addTestUserNoID(t, c, "bob")
+
+	channel := &model.Channel{Id: "chan3", Name: "chan3"}
+	responses := make(chan comms.Response, 20)
+
+	originalRoll := rollDiceFn
+	defer func() { rollDiceFn = originalRoll }()
+	rollDiceFn = (&testRoller{rolls: [][]int{
+		{1, 1, 1, 1, 1, 1}, // alice hits target
+		{2, 3, 4, 6, 2, 3}, // bob farkles in final round
+	}}).roll
+
+	play := func(sender, body string) {
+		t.Helper()
+		err := BotGame{}.Farkle(BotGame{
+			body:            body,
+			sender:          sender,
+			ReplyChannel:    channel,
+			ResponseChannel: responses,
+			Cache:           c,
+		})
+		if err != nil {
+			t.Fatalf("call from %s failed: %v", sender, err)
+		}
+	}
+
+	play("alice", "")
+	play("bob", "")
+	play("alice", "start")
+
+	// Lower goal for test brevity.
+	game, ok, err := loadFarkle(channel.Id, c)
+	if err != nil || !ok {
+		t.Fatalf("expected game: %v", err)
+	}
+	game.TargetScore = 500
+	saveFarkle(game, c)
+
+	play("alice", "roll")
+	play("alice", "keep 6 dice")
+	play("alice", "bank") // triggers final round
+	play("bob", "roll")   // farkles, should end game
+
+	close(responses)
+	found := false
+	for r := range responses {
+		if strings.Contains(r.Message, "Game over! Winner: alice") {
+			found = true
+			if !strings.Contains(r.Message, "alice:") {
+				t.Fatalf("expected final scores to include alice entry, got: %s", r.Message)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("expected final round summary message")
+	}
+}
+
 type testRoller struct {
 	rolls [][]int
 	idx   int

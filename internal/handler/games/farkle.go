@@ -228,7 +228,7 @@ func handleFarkleRoll(game *FarkleGame, player users.User) (string, string, erro
 		msg := fmt.Sprintf("/echo %s rolled %v and farkled. Turn points lost. %s to play. %s", player.Name, roll, game.Players[next].Name, formatScores(*game))
 		if game.State == stateFinalRound && next == game.FinalStart {
 			winner := determineWinner(game)
-			endMsg := fmt.Sprintf("Game over! Winner: %s with %d points. Final scores: %s", winner.Name, game.Scores[winner.Id], formatScores(*game))
+			endMsg := fmt.Sprintf("Game over! Winner: %s with %d points. Final scores: %s", winner.Name, game.Scores[playerKey(winner)], formatScores(*game))
 			return msg, endMsg, nil
 		}
 		return msg, "", nil
@@ -300,7 +300,7 @@ func handleFarkleBank(game *FarkleGame, player users.User) (string, string, erro
 	if game.State == stateFinalRound && next == game.FinalStart {
 		// Final round complete, determine winner.
 		winner := determineWinner(game)
-		endMsg = fmt.Sprintf("Game over! Winner: %s with %d points. Final scores: %s", winner.Name, game.Scores[winner.Id], formatScores(*game))
+		endMsg = fmt.Sprintf("Game over! Winner: %s with %d points. Final scores: %s", winner.Name, game.Scores[playerKey(winner)], formatScores(*game))
 	}
 
 	return msg, endMsg, nil
