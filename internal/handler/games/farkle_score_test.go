@@ -64,3 +64,47 @@ func TestIsSubset(t *testing.T) {
 		t.Fatalf("expected subset to be false when exceeding counts")
 	}
 }
+
+func TestBestScoringSubsetCountMode(t *testing.T) {
+	roll := []int{1, 5, 5, 2, 3, 4}
+
+	subset, warn, err := bestScoringSubset(roll, 4)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if warn == "" {
+		t.Fatalf("expected warning when requesting more scoring dice than available")
+	}
+	if len(subset) != 3 {
+		t.Fatalf("expected 3 scoring dice kept, got %v", subset)
+	}
+	score, err := scoreSelection(subset)
+	if err != nil || score == 0 {
+		t.Fatalf("subset should be scoring, score=%d err=%v", score, err)
+	}
+
+	// Keeping 1 should pick the best single scoring die (the 1 worth 100 over a 5 worth 50).
+	subset, warn, err = bestScoringSubset(roll, 1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if warn != "" {
+		t.Fatalf("did not expect warning for exact available dice")
+	}
+	if len(subset) != 1 || subset[0] != 1 {
+		t.Fatalf("expected to keep the single '1' die, got %v", subset)
+	}
+
+	// Prefer higher value scoring when scores tie: choose 1+5 (150) over two 5s (100).
+	subset, _, err = bestScoringSubset(roll, 2)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	score, err = scoreSelection(subset)
+	if err != nil {
+		t.Fatalf("score error: %v", err)
+	}
+	if score != 150 {
+		t.Fatalf("expected highest scoring dice kept (score 150), got %d with %v", score, subset)
+	}
+}

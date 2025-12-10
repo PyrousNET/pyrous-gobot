@@ -140,9 +140,10 @@ func (bg BotGame) Farkle(event BotGame) error {
 }
 
 func newFarkleGame(channelId string, starter users.User) FarkleGame {
+	key := playerKey(starter)
 	return FarkleGame{
 		Players:       []users.User{starter},
-		Scores:        map[string]int{starter.Id: 0},
+		Scores:        map[string]int{key: 0},
 		State:         stateLobby,
 		CurrentTurn:   0,
 		TurnPoints:    0,
@@ -154,13 +155,14 @@ func newFarkleGame(channelId string, starter users.User) FarkleGame {
 }
 
 func addPlayerToFarkle(game *FarkleGame, player users.User) bool {
+	key := playerKey(player)
 	for _, p := range game.Players {
-		if p.Id == player.Id {
+		if playerKey(p) == key {
 			return false
 		}
 	}
 	game.Players = append(game.Players, player)
-	game.Scores[player.Id] = 0
+	game.Scores[key] = 0
 	return true
 }
 
@@ -198,7 +200,7 @@ func handleFarkleStart(game *FarkleGame, player users.User) (string, error) {
 	if len(game.Players) < 2 {
 		return "", fmt.Errorf("need at least 2 players to start")
 	}
-	if !isPlayerIn(game.Players, player.Id) {
+	if !isPlayerIn(game.Players, player) {
 		return "", fmt.Errorf("join the lobby first with `$farkle`")
 	}
 	game.State = statePlaying
@@ -242,7 +244,8 @@ func handleFarkleKeep(game *FarkleGame, player users.User, args []string) (strin
 	if len(game.LastRoll) == 0 {
 		return "", fmt.Errorf("roll first with `$farkle roll`")
 	}
-	selection, err := parseDiceSelection(args)
+
+	selection, warn, err := selectDiceToKeep(args, game.LastRoll)
 	if err != nil {
 		return "", err
 	}
@@ -262,7 +265,12 @@ func handleFarkleKeep(game *FarkleGame, player users.User, args []string) (strin
 	}
 	game.LastRoll = nil
 
-	return fmt.Sprintf("/echo Kept %v for %d points. Turn points: %d. Dice remaining: %d. Roll again with `$farkle roll` or bank with `$farkle bank`.", selection, score, game.TurnPoints, game.DiceRemaining), nil
+	msg := fmt.Sprintf("/echo Kept %v for %d points. Turn points: %d. Dice remaining: %d. Roll again with `$farkle roll` or bank with `$farkle bank`.", selection, score, game.TurnPoints, game.DiceRemaining)
+	if warn != "" {
+		msg = fmt.Sprintf("/echo %s\n%s", warn, strings.TrimPrefix(msg, "/echo "))
+	}
+
+	return msg, nil
 }
 
 func handleFarkleBank(game *FarkleGame, player users.User) (string, string, error) {
@@ -270,8 +278,9 @@ func handleFarkleBank(game *FarkleGame, player users.User) (string, string, erro
 		return "", "", err
 	}
 
-	total := game.Scores[player.Id] + game.TurnPoints
-	game.Scores[player.Id] = total
+	key := playerKey(player)
+	total := game.Scores[key] + game.TurnPoints
+	game.Scores[key] = total
 	game.TurnPoints = 0
 	game.LastRoll = nil
 	game.DiceRemaining = 6
@@ -298,13 +307,13 @@ func handleFarkleBank(game *FarkleGame, player users.User) (string, string, erro
 }
 
 func ensurePlayerTurn(game *FarkleGame, player users.User) error {
-	if !isPlayerIn(game.Players, player.Id) {
+	if !isPlayerIn(game.Players, player) {
 		return fmt.Errorf("you are not in this game")
 	}
 	if game.State == stateLobby {
 		return fmt.Errorf("game has not started yet. Use `$farkle start`.")
 	}
-	if game.Players[game.CurrentTurn].Id != player.Id {
+	if playerKey(game.Players[game.CurrentTurn]) != playerKey(player) {
 		return fmt.Errorf("it's %s's turn", game.Players[game.CurrentTurn].Name)
 	}
 	return nil
@@ -318,9 +327,10 @@ func advanceTurn(game *FarkleGame) int {
 	return game.CurrentTurn
 }
 
-func isPlayerIn(players []users.User, id string) bool {
+func isPlayerIn(players []users.User, u users.User) bool {
+	key := playerKey(u)
 	for _, p := range players {
-		if p.Id == id {
+		if playerKey(p) == key {
 			return true
 		}
 	}
@@ -342,7 +352,7 @@ func formatScores(game FarkleGame) string {
 	}
 	var scores []entry
 	for _, p := range game.Players {
-		scores = append(scores, entry{name: p.Name, score: game.Scores[p.Id]})
+		scores = append(scores, entry{name: p.Name, score: game.Scores[playerKey(p)]})
 	}
 	sort.Slice(scores, func(i, j int) bool {
 		if scores[i].score == scores[j].score {
@@ -370,10 +380,17 @@ func determineWinner(game *FarkleGame) users.User {
 	bestIdx := 0
 	bestScore := -1
 	for idx, p := range game.Players {
-		if score := game.Scores[p.Id]; score > bestScore {
+		if score := game.Scores[playerKey(p)]; score > bestScore {
 			bestScore = score
 			bestIdx = idx
 		}
 	}
 	return game.Players[bestIdx]
+}
+
+func playerKey(u users.User) string {
+	if u.Id != "" {
+		return u.Id
+	}
+	return u.Name
 }

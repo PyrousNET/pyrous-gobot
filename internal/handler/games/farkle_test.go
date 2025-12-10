@@ -77,6 +77,52 @@ func TestFarkleEndToEndFinalRound(t *testing.T) {
 	}
 }
 
+func TestFarkleTracksPointsWhenUserIdMissing(t *testing.T) {
+	c := cache.GetLocalCache()
+	addTestUserNoID(t, c, "alice")
+	addTestUserNoID(t, c, "bob")
+
+	channel := &model.Channel{Id: "chan2", Name: "chan2"}
+	responses := make(chan comms.Response, 10)
+
+	originalRoll := rollDiceFn
+	defer func() { rollDiceFn = originalRoll }()
+	rollDiceFn = (&testRoller{rolls: [][]int{
+		{1, 3, 2, 6, 1, 2}, // alice
+	}}).roll
+
+	play := func(sender, body string) {
+		t.Helper()
+		err := BotGame{}.Farkle(BotGame{
+			body:            body,
+			sender:          sender,
+			ReplyChannel:    channel,
+			ResponseChannel: responses,
+			Cache:           c,
+		})
+		if err != nil {
+			t.Fatalf("call from %s failed: %v", sender, err)
+		}
+	}
+
+	play("alice", "")
+	play("bob", "")
+	play("alice", "start")
+	play("alice", "roll")
+	play("alice", "keep 2 dice")
+	play("alice", "bank")
+
+	game, ok, err := loadFarkle(channel.Id, c)
+	if err != nil || !ok {
+		t.Fatalf("expected farkle game loaded: %v", err)
+	}
+
+	aliceKey := playerKey(users.User{Name: "alice"})
+	if game.Scores[aliceKey] <= 0 {
+		t.Fatalf("expected alice to have points recorded, got %d", game.Scores[aliceKey])
+	}
+}
+
 type testRoller struct {
 	rolls [][]int
 	idx   int
@@ -94,6 +140,16 @@ func (tr *testRoller) roll(n int) []int {
 func addTestUser(t *testing.T, c cache.Cache, name string) {
 	t.Helper()
 	u := users.User{Id: name, Name: name}
+	data, err := json.Marshal(u)
+	if err != nil {
+		t.Fatalf("marshal user: %v", err)
+	}
+	c.Put(users.KeyPrefix+name, data)
+}
+
+func addTestUserNoID(t *testing.T, c cache.Cache, name string) {
+	t.Helper()
+	u := users.User{Name: name}
 	data, err := json.Marshal(u)
 	if err != nil {
 		t.Fatalf("marshal user: %v", err)
