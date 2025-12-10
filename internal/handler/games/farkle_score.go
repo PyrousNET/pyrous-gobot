@@ -6,6 +6,24 @@ import (
 	"strings"
 )
 
+// selectDiceToKeep either parses explicit dice or selects the best scoring subset
+// up to a requested count (e.g. `$farkle keep 4` or `$farkle keep 4 dice`).
+func selectDiceToKeep(args []string, roll []int) ([]int, string, error) {
+	// Count-based selection: keep up to N scoring dice.
+	if len(args) == 1 || (len(args) == 2 && strings.ToLower(args[1]) == "dice") {
+		if n, err := strconv.Atoi(args[0]); err == nil {
+			if n <= 0 {
+				return nil, "", fmt.Errorf("number of dice to keep must be > 0")
+			}
+			return bestScoringSubset(roll, n)
+		}
+	}
+
+	// Explicit dice values.
+	dice, err := parseDiceSelection(args)
+	return dice, "", err
+}
+
 func parseDiceSelection(args []string) ([]int, error) {
 	if len(args) == 0 {
 		return nil, fmt.Errorf("specify dice to keep, e.g. `$farkle keep 1 5 5`")
@@ -182,4 +200,76 @@ func formatDice(dice []int) string {
 		parts[i] = strconv.Itoa(d)
 	}
 	return strings.Join(parts, " ")
+}
+
+// bestScoringSubset finds the highest-scoring subset of roll with size <= maxKeep.
+// If fewer scoring dice exist than requested, it returns all scoring dice and a warning.
+func bestScoringSubset(roll []int, maxKeep int) ([]int, string, error) {
+	if len(roll) == 0 {
+		return nil, "", fmt.Errorf("no roll to choose from")
+	}
+
+	type result struct {
+		subset []int
+		score  int
+	}
+	var candidates []result
+	maxSize := 0
+
+	// Enumerate all subsets (up to 6 dice).
+	for mask := 1; mask < 1<<len(roll); mask++ {
+		var subset []int
+		for i, v := range roll {
+			if mask&(1<<i) != 0 {
+				subset = append(subset, v)
+			}
+		}
+		score, err := scoreSelection(subset)
+		if err == nil {
+			candidates = append(candidates, result{subset: subset, score: score})
+			if len(subset) > maxSize {
+				maxSize = len(subset)
+			}
+		}
+	}
+
+	if len(candidates) == 0 {
+		return nil, "", fmt.Errorf("no scoring dice to keep")
+	}
+
+	warn := ""
+	limit := maxKeep
+	if maxKeep > maxSize {
+		limit = maxSize
+		warn = fmt.Sprintf("Only %d scoring dice available; keeping those.", maxSize)
+	}
+
+	// Pick highest score; tiebreaker: higher die sum, then smaller subset to leave dice to reroll.
+	var best result
+	best.score = -1
+	bestLen := 0
+	bestSum := 0
+	for _, c := range candidates {
+		if len(c.subset) > limit {
+			continue
+		}
+		sum := 0
+		for _, v := range c.subset {
+			sum += v
+		}
+		if c.score > best.score ||
+			(c.score == best.score && sum > bestSum) ||
+			(c.score == best.score && sum == bestSum && len(c.subset) < bestLen) ||
+			best.score == -1 {
+			best = c
+			bestLen = len(c.subset)
+			bestSum = sum
+		}
+	}
+
+	if best.score == -1 {
+		return nil, warn, fmt.Errorf("no scoring dice within requested count")
+	}
+
+	return best.subset, warn, nil
 }
