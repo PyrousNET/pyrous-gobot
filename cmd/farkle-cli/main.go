@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/pyrousnet/pyrous-gobot/internal/handler/games"
 	"github.com/pyrousnet/pyrous-gobot/internal/users"
@@ -19,29 +20,39 @@ func main() {
 		human = "You"
 	}
 	goal := parseGoal()
+	botCount := parseBotCount()
 
-	game, err := games.InitFarkleGame([]users.User{
-		{Name: human, Id: human},
-		{Name: botName},
-	}, goal)
+	players := []users.User{{Name: human, Id: human}}
+	for i := 1; i <= botCount; i++ {
+		suffix := ""
+		if botCount > 1 {
+			suffix = fmt.Sprintf(" %d", i)
+		}
+		players = append(players, users.User{Name: botName + suffix})
+	}
+
+	game, err := games.InitFarkleGame(players, goal)
 	if err != nil {
 		fmt.Println("Error:", err)
 		return
 	}
 
-	fmt.Printf("Farkle local test. Players: %s vs %s. Goal: %d.\n", human, botName, game.TargetScore)
+	fmt.Printf("Farkle local test. Players: %s. Goal: %d.\n", playerNames(players), game.TargetScore)
 	fmt.Println("Commands: roll | keep <dice or N> | bank | quit")
 
 	reader := bufio.NewReader(os.Stdin)
 	for {
 		current := game.Players[game.CurrentTurn]
-		if current.Name == botName {
+		if strings.HasPrefix(current.Name, botName) {
+			fmt.Println("\n--- Bot turn:", current.Name, "---")
 			if done := botTurn(&game); done {
 				return
 			}
+			time.Sleep(300 * time.Millisecond)
 			continue
 		}
 
+		fmt.Printf("\n--- %s turn ---\n", current.Name)
 		fmt.Printf("[%s] > ", current.Name)
 		line, _ := reader.ReadString('\n')
 		line = strings.TrimSpace(line)
@@ -79,7 +90,7 @@ func main() {
 
 func botTurn(game *games.FarkleGame) bool {
 	player := game.Players[game.CurrentTurn]
-	fmt.Println("[Bot] rolling...")
+	fmt.Printf("[%s] rolling...\n", player.Name)
 	msg, endMsg, err := games.FarkleRollTurn(game, player)
 	printResult(msg, endMsg, err)
 	if err != nil || endMsg != "" {
@@ -93,6 +104,7 @@ func botTurn(game *games.FarkleGame) bool {
 		if err != nil {
 			return false
 		}
+		time.Sleep(200 * time.Millisecond)
 	}
 
 	// Simple policy: bank if turn points >= 750 or dice remaining <= 2 and turn points > 0
@@ -103,7 +115,7 @@ func botTurn(game *games.FarkleGame) bool {
 			return true
 		}
 	} else {
-		fmt.Println("[Bot] rolling again...")
+		fmt.Printf("[%s] rolling again...\n", player.Name)
 	}
 	return false
 }
@@ -132,4 +144,21 @@ func parseGoal() int {
 		}
 	}
 	return 0
+}
+
+func parseBotCount() int {
+	if v := os.Getenv("FARKLE_BOTS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return n
+		}
+	}
+	return 1
+}
+
+func playerNames(players []users.User) string {
+	names := make([]string, 0, len(players))
+	for _, p := range players {
+		names = append(names, p.Name)
+	}
+	return strings.Join(names, ", ")
 }
