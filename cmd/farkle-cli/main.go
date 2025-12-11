@@ -34,7 +34,7 @@ func main() {
 	}
 
 	fmt.Printf("Farkle local test. Players: %s. Goal: %d.\n", playerNames(players), game.TargetScore)
-	fmt.Println("Commands: roll | keep <dice or N> | bank | quit")
+	fmt.Println("Commands: roll | keep <dice or N> | bank | status | quit")
 
 	reader := bufio.NewReader(os.Stdin)
 	for {
@@ -56,6 +56,10 @@ func main() {
 			continue
 		}
 		parts := strings.Fields(line)
+		parts = unwrapFarklePrefix(parts)
+		if len(parts) == 0 {
+			continue
+		}
 		cmd := strings.ToLower(parts[0])
 		args := parts[1:]
 
@@ -75,11 +79,15 @@ func main() {
 			if endMsg != "" {
 				return
 			}
+		case "status":
+			fmt.Println(statusLine(&game))
 		case "quit":
 			fmt.Println("Exiting.")
 			return
+		case "help":
+			fmt.Println("Commands: roll | keep <dice or N> | bank | status | quit")
 		default:
-			fmt.Println("Unknown command. Try: roll | keep <dice or N> | bank | quit")
+			fmt.Println("Unknown command. Try: roll | keep <dice or N> | bank | status | quit")
 		}
 	}
 }
@@ -184,4 +192,27 @@ func playerNames(players []users.User) string {
 		names = append(names, p.Name)
 	}
 	return strings.Join(names, ", ")
+}
+
+func unwrapFarklePrefix(parts []string) []string {
+	if len(parts) == 0 {
+		return parts
+	}
+	first := strings.ToLower(strings.TrimLeft(parts[0], "$"))
+	if first == "farkle" {
+		return parts[1:]
+	}
+	return parts
+}
+
+func statusLine(game *games.FarkleGame) string {
+	parts := make([]string, 0, len(game.Players))
+	for _, p := range game.Players {
+		key := p.Id
+		if key == "" {
+			key = p.Name
+		}
+		parts = append(parts, fmt.Sprintf("%s: %d", p.Name, game.Scores[key]))
+	}
+	return "Scores - " + strings.Join(parts, " | ")
 }
