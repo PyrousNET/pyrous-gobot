@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"os"
 	"strconv"
@@ -15,12 +16,7 @@ import (
 const botName = "Computer"
 
 func main() {
-	human := os.Getenv("FARKLE_PLAYER")
-	if human == "" {
-		human = "You"
-	}
-	goal := parseGoal()
-	botCount := parseBotCount()
+	human, goal, botCount := parseConfig()
 
 	players := []users.User{{Name: human, Id: human}}
 	for i := 1; i <= botCount; i++ {
@@ -153,6 +149,33 @@ func parseBotCount() int {
 		}
 	}
 	return 1
+}
+
+func parseConfig() (player string, goal int, bots int) {
+	// Defaults from env
+	player = os.Getenv("FARKLE_PLAYER")
+	if player == "" {
+		player = "You"
+	}
+	goal = parseGoal()
+	bots = parseBotCount()
+
+	// Flags override env
+	playerFlag := flag.String("player", player, "Human player name")
+	goalFlag := flag.Int("goal", goal, "Target score to win")
+	botsFlag := flag.Int("bots", bots, "Number of computer opponents")
+	flag.Parse()
+
+	if *playerFlag != "" {
+		player = *playerFlag
+	}
+	if *goalFlag > 0 {
+		goal = *goalFlag
+	}
+	if *botsFlag > 0 {
+		bots = *botsFlag
+	}
+	return
 }
 
 func playerNames(players []users.User) string {
