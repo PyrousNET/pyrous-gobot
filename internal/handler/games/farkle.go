@@ -132,6 +132,7 @@ func (bg BotGame) Farkle(event BotGame) error {
 	case "quit", "leave", "end":
 		clearFarkle(event.ReplyChannel.Id, event.Cache)
 		response.Message = "/echo Farkle game cleared."
+		return nil
 	case "addbot":
 		count := 1
 		if len(args) > 0 {
