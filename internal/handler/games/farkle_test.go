@@ -174,7 +174,7 @@ func TestFinalRoundSummaryUsesPlayerKey(t *testing.T) {
 	for r := range responses {
 		if strings.Contains(r.Message, "Game over! Winner: alice") {
 			found = true
-			if !strings.Contains(r.Message, "alice:") {
+			if !(strings.Contains(r.Message, "| alice") || strings.Contains(r.Message, "**alice")) {
 				t.Fatalf("expected final scores to include alice entry, got: %s", r.Message)
 			}
 		}
@@ -226,6 +226,60 @@ func TestBotAutoTurnPlaysAndReturnsToHuman(t *testing.T) {
 	}
 	if game.CurrentTurn != 0 {
 		t.Fatalf("expected turn to return to human (index 0), got %d", game.CurrentTurn)
+	}
+}
+
+func TestFarkleScoreCommandShowsTable(t *testing.T) {
+	c := cache.GetLocalCache()
+	addTestUser(t, c, "alice")
+	addTestUser(t, c, "bob")
+
+	channel := &model.Channel{Id: "chan-score", Name: "chan-score"}
+	responses := make(chan comms.Response, 10)
+	play := func(sender, body string) {
+		t.Helper()
+		err := BotGame{}.Farkle(BotGame{
+			body:            body,
+			sender:          sender,
+			ReplyChannel:    channel,
+			ResponseChannel: responses,
+			Cache:           c,
+		})
+		if err != nil {
+			t.Fatalf("call from %s failed: %v", sender, err)
+		}
+	}
+
+	play("alice", "")
+	play("bob", "")
+	play("alice", "start")
+
+	// Give alice a score so ordering is obvious.
+	game, ok, err := loadFarkle(channel.Id, c)
+	if err != nil || !ok {
+		t.Fatalf("expected farkle game loaded: %v", err)
+	}
+	game.Scores[playerKey(users.User{Id: "alice", Name: "alice"})] = 750
+	saveFarkle(game, c)
+
+	play("alice", "score")
+
+	close(responses)
+	var scoreMsg string
+	for r := range responses {
+		if strings.Contains(r.Message, "Scores:") {
+			scoreMsg = r.Message
+		}
+	}
+
+	if scoreMsg == "" {
+		t.Fatalf("expected a score message")
+	}
+	if !strings.Contains(scoreMsg, "| Player | Score |") {
+		t.Fatalf("expected markdown table headers, got: %s", scoreMsg)
+	}
+	if !strings.Contains(scoreMsg, "**alice (turn)**") && !strings.Contains(scoreMsg, "alice") {
+		t.Fatalf("expected alice to appear in score table, got: %s", scoreMsg)
 	}
 }
 
