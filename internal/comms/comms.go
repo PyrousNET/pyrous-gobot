@@ -47,7 +47,7 @@ func (h *MessageHandler) StartMessageHandler() {
 	go func() {
 		for r := range h.ResponseCh {
 			// Preserve order per channel by sequencing and dispatching in order.
-			go h.enqueueAndSend(&r)
+			h.enqueueAndSend(&r)
 		}
 	}()
 }
