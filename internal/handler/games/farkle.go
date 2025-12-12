@@ -460,23 +460,12 @@ func isBotPlayer(u users.User) bool {
 func runBotTurns(game *FarkleGame, event BotGame) {
 	// Avoid runaway loops.
 	maxTurns := len(game.Players) * 6
-	for i := 0; i < maxTurns; i++ {
+	for turn := 0; turn < maxTurns; turn++ {
 		if game.State == stateLobby || !isBotPlayer(game.Players[game.CurrentTurn]) {
 			return
 		}
 
 		bot := game.Players[game.CurrentTurn]
-		send := func(msg string) {
-			if msg == "" {
-				return
-			}
-			event.ResponseChannel <- comms.Response{
-				ReplyChannelId: event.ReplyChannel.Id,
-				Type:           "command",
-				Message:        msg,
-			}
-		}
-
 		lines := []string{fmt.Sprintf("**%s** is taking a turn...", bot.Name)}
 		appendLine := func(msg string) {
 			msg = strings.TrimSpace(strings.TrimPrefix(msg, "/echo "))
@@ -484,56 +473,66 @@ func runBotTurns(game *FarkleGame, event BotGame) {
 				lines = append(lines, msg)
 			}
 		}
-		flush := func() {
+		send := func() {
 			if len(lines) == 0 {
 				return
 			}
-			send("/echo " + strings.Join(lines, "\n"))
+			event.ResponseChannel <- comms.Response{
+				ReplyChannelId: event.ReplyChannel.Id,
+				Type:           "command",
+				Message:        "/echo " + strings.Join(lines, "\n"),
+			}
 			lines = lines[:0]
 		}
 
-		msg, endMsg, err := handleFarkleRoll(game, bot)
-		if err != nil {
-			appendLine(fmt.Sprintf("%v", err))
-			flush()
-			return
-		}
-		saveFarkle(*game, event.Cache)
-		appendLine(msg)
-		if endMsg != "" {
-			appendLine(endMsg)
-			flush()
-			clearFarkle(event.ReplyChannel.Id, event.Cache)
-			return
-		}
-
-		// Farkle advanceTurn already happened, continue loop.
-		if len(game.LastRoll) == 0 {
-			flush()
-			continue
-		}
-
-		keepArgs := []string{strconv.Itoa(game.DiceRemaining), "dice"}
-		msg, err = handleFarkleKeep(game, bot, keepArgs)
-		if err == nil {
+		// Play the full bot turn before sending to minimize message count.
+		for step := 0; step < 12; step++ { // safety cap per bot turn
+			msg, endMsg, err := handleFarkleRoll(game, bot)
+			if err != nil {
+				appendLine(fmt.Sprintf("%v", err))
+				send()
+				return
+			}
+			saveFarkle(*game, event.Cache)
 			appendLine(msg)
-		}
-		saveFarkle(*game, event.Cache)
+			if endMsg != "" {
+				appendLine(endMsg)
+				send()
+				clearFarkle(event.ReplyChannel.Id, event.Cache)
+				return
+			}
 
-		// Heuristic: bank if enough points or low dice.
-		if game.TurnPoints >= 750 || (game.DiceRemaining <= 2 && game.TurnPoints > 0) {
-			msg, endMsg, err = handleFarkleBank(game, bot)
+			// Farkle advanced the turn; bot turn ends.
+			if len(game.LastRoll) == 0 {
+				send()
+				break
+			}
+
+			keepArgs := []string{strconv.Itoa(game.DiceRemaining), "dice"}
+			msg, err = handleFarkleKeep(game, bot, keepArgs)
 			if err == nil {
 				appendLine(msg)
 			}
 			saveFarkle(*game, event.Cache)
-			if endMsg != "" {
-				appendLine(endMsg)
-				flush()
-				clearFarkle(event.ReplyChannel.Id, event.Cache)
-				return
+
+			// Heuristic: bank if enough points or low dice.
+			if game.TurnPoints >= 750 || (game.DiceRemaining <= 2 && game.TurnPoints > 0) {
+				msg, endMsg, err = handleFarkleBank(game, bot)
+				if err == nil {
+					appendLine(msg)
+				}
+				saveFarkle(*game, event.Cache)
+				if endMsg != "" {
+					appendLine(endMsg)
+					send()
+					clearFarkle(event.ReplyChannel.Id, event.Cache)
+					return
+				}
+				send()
+				break
 			}
+
+			// Continue rolling same bot.
 		}
-		flush()
 	}
 }
