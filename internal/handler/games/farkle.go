@@ -76,7 +76,7 @@ func (bg BotGame) Farkle(event BotGame) error {
 				response.Message = fmt.Sprintf("/echo Farkle lobby players: %s. Use `$farkle start` when ready.", formatPlayerNames(game.Players))
 			}
 		} else {
-			response.Message = fmt.Sprintf("/echo Game in progress. %s to play. %s", game.Players[game.CurrentTurn].Name, formatScores(game))
+			response.Message = fmt.Sprintf("/echo Game in progress. %s to play.\n%s", game.Players[game.CurrentTurn].Name, formatScores(game))
 		}
 		event.ResponseChannel <- response
 		return nil
@@ -101,7 +101,7 @@ func (bg BotGame) Farkle(event BotGame) error {
 		} else {
 			saveFarkle(game, event.Cache)
 			if endMsg != "" {
-				response.Message = fmt.Sprintf("/echo %s\n%s", msg, endMsg)
+				response.Message = fmt.Sprintf("%s\n%s", msg, endMsg)
 				clearFarkle(event.ReplyChannel.Id, event.Cache)
 			} else {
 				response.Message = msg
@@ -122,7 +122,7 @@ func (bg BotGame) Farkle(event BotGame) error {
 		} else {
 			saveFarkle(game, event.Cache)
 			if endMsg != "" {
-				response.Message = fmt.Sprintf("/echo %s\n%s", msg, endMsg)
+				response.Message = fmt.Sprintf("%s\n%s", msg, endMsg)
 				// Game ended; clear state.
 				clearFarkle(event.ReplyChannel.Id, event.Cache)
 			} else {
@@ -147,6 +147,8 @@ func (bg BotGame) Farkle(event BotGame) error {
 			saveFarkle(game, event.Cache)
 			response.Message = fmt.Sprintf("/echo Added %d bot(s). Players: %s", added, formatPlayerNames(game.Players))
 		}
+	case "score", "scores":
+		response.Message = fmt.Sprintf("/echo %s to play.\n%s", game.Players[game.CurrentTurn].Name, formatScores(game))
 	default:
 		response.Message = "/echo Unknown farkle command. Try `$farkle start`, `$farkle roll`, `$farkle keep <dice>`, `$farkle bank`."
 	}
@@ -272,10 +274,10 @@ func handleFarkleRoll(game *FarkleGame, player users.User) (string, string, erro
 	if !hasScoringDice(roll) {
 		// Farkle
 		next := advanceTurn(game)
-		msg := fmt.Sprintf("/echo %s rolled %v and farkled. Turn points lost. %s to play. %s", player.Name, roll, game.Players[next].Name, formatScores(*game))
+		msg := fmt.Sprintf("/echo %s rolled %v and farkled. Turn points lost. %s to play.\n%s", player.Name, roll, game.Players[next].Name, formatScores(*game))
 		if game.State == stateFinalRound && next == game.FinalStart {
 			winner := determineWinner(game)
-			endMsg := fmt.Sprintf("Game over! Winner: %s with %d points. Final scores: %s", winner.Name, game.Scores[playerKey(winner)], formatScores(*game))
+			endMsg := fmt.Sprintf("Game over! Winner: %s with %d points.\n%s", winner.Name, game.Scores[playerKey(winner)], formatScores(*game))
 			return msg, endMsg, nil
 		}
 		return msg, "", nil
@@ -332,7 +334,7 @@ func handleFarkleBank(game *FarkleGame, player users.User) (string, string, erro
 	game.LastRoll = nil
 	game.DiceRemaining = 6
 
-	msg := fmt.Sprintf("/echo %s banked. Total: %d. %s", player.Name, total, formatScores(*game))
+	msg := fmt.Sprintf("/echo %s banked. Total: %d.\n%s", player.Name, total, formatScores(*game))
 
 	endMsg := ""
 	if game.State != stateFinalRound && total >= game.TargetScore {
@@ -347,7 +349,7 @@ func handleFarkleBank(game *FarkleGame, player users.User) (string, string, erro
 	if game.State == stateFinalRound && next == game.FinalStart {
 		// Final round complete, determine winner.
 		winner := determineWinner(game)
-		endMsg = fmt.Sprintf("Game over! Winner: %s with %d points. Final scores: %s", winner.Name, game.Scores[playerKey(winner)], formatScores(*game))
+		endMsg = fmt.Sprintf("Game over! Winner: %s with %d points.\n%s", winner.Name, game.Scores[playerKey(winner)], formatScores(*game))
 	}
 
 	return msg, endMsg, nil
@@ -396,10 +398,11 @@ func formatScores(game FarkleGame) string {
 	type entry struct {
 		name  string
 		score int
+		turn  bool
 	}
 	var scores []entry
-	for _, p := range game.Players {
-		scores = append(scores, entry{name: p.Name, score: game.Scores[playerKey(p)]})
+	for idx, p := range game.Players {
+		scores = append(scores, entry{name: p.Name, score: game.Scores[playerKey(p)], turn: idx == game.CurrentTurn})
 	}
 	sort.Slice(scores, func(i, j int) bool {
 		if scores[i].score == scores[j].score {
@@ -408,11 +411,18 @@ func formatScores(game FarkleGame) string {
 		return scores[i].score > scores[j].score
 	})
 
-	parts := make([]string, 0, len(scores))
+	var b strings.Builder
+	b.WriteString("Scores:\n")
+	b.WriteString("| Player | Score |\n")
+	b.WriteString("|:--|--:|\n")
 	for _, s := range scores {
-		parts = append(parts, fmt.Sprintf("%s: %d", s.name, s.score))
+		name := s.name
+		if s.turn {
+			name = fmt.Sprintf("**%s (turn)**", s.name)
+		}
+		fmt.Fprintf(&b, "| %s | %d |\n", name, s.score)
 	}
-	return "Scores - " + strings.Join(parts, " | ")
+	return strings.TrimSpace(b.String())
 }
 
 func rollDice(n int) []int {
@@ -450,62 +460,79 @@ func isBotPlayer(u users.User) bool {
 func runBotTurns(game *FarkleGame, event BotGame) {
 	// Avoid runaway loops.
 	maxTurns := len(game.Players) * 6
-	for i := 0; i < maxTurns; i++ {
+	for turn := 0; turn < maxTurns; turn++ {
 		if game.State == stateLobby || !isBotPlayer(game.Players[game.CurrentTurn]) {
 			return
 		}
 
 		bot := game.Players[game.CurrentTurn]
-		send := func(msg string) {
-			if msg == "" {
+		lines := []string{fmt.Sprintf("**%s** is taking a turn...", bot.Name)}
+		appendLine := func(msg string) {
+			msg = strings.TrimSpace(strings.TrimPrefix(msg, "/echo "))
+			if msg != "" {
+				lines = append(lines, msg)
+			}
+		}
+		send := func() {
+			if len(lines) == 0 {
 				return
 			}
 			event.ResponseChannel <- comms.Response{
 				ReplyChannelId: event.ReplyChannel.Id,
 				Type:           "command",
-				Message:        msg,
+				Message:        "/echo " + strings.Join(lines, "\n"),
 			}
+			lines = lines[:0]
 		}
 
-		send(fmt.Sprintf("/echo %s is taking a turn...", bot.Name))
-
-		msg, endMsg, err := handleFarkleRoll(game, bot)
-		if err != nil {
-			send(fmt.Sprintf("/echo %v", err))
-			return
-		}
-		saveFarkle(*game, event.Cache)
-		send(msg)
-		if endMsg != "" {
-			send(endMsg)
-			clearFarkle(event.ReplyChannel.Id, event.Cache)
-			return
-		}
-
-		// Farkle advanceTurn already happened, continue loop.
-		if len(game.LastRoll) == 0 {
-			continue
-		}
-
-		keepArgs := []string{strconv.Itoa(game.DiceRemaining), "dice"}
-		msg, err = handleFarkleKeep(game, bot, keepArgs)
-		if err == nil {
-			send(msg)
-		}
-		saveFarkle(*game, event.Cache)
-
-		// Heuristic: bank if enough points or low dice.
-		if game.TurnPoints >= 750 || (game.DiceRemaining <= 2 && game.TurnPoints > 0) {
-			msg, endMsg, err = handleFarkleBank(game, bot)
-			if err == nil {
-				send(msg)
+		// Play the full bot turn before sending to minimize message count.
+		for step := 0; step < 12; step++ { // safety cap per bot turn
+			msg, endMsg, err := handleFarkleRoll(game, bot)
+			if err != nil {
+				appendLine(fmt.Sprintf("%v", err))
+				send()
+				return
 			}
 			saveFarkle(*game, event.Cache)
+			appendLine(msg)
 			if endMsg != "" {
-				send(endMsg)
+				appendLine(endMsg)
+				send()
 				clearFarkle(event.ReplyChannel.Id, event.Cache)
 				return
 			}
+
+			// Farkle advanced the turn; bot turn ends.
+			if len(game.LastRoll) == 0 {
+				send()
+				break
+			}
+
+			keepArgs := []string{strconv.Itoa(game.DiceRemaining), "dice"}
+			msg, err = handleFarkleKeep(game, bot, keepArgs)
+			if err == nil {
+				appendLine(msg)
+			}
+			saveFarkle(*game, event.Cache)
+
+			// Heuristic: bank if enough points or low dice.
+			if game.TurnPoints >= 750 || (game.DiceRemaining <= 2 && game.TurnPoints > 0) {
+				msg, endMsg, err = handleFarkleBank(game, bot)
+				if err == nil {
+					appendLine(msg)
+				}
+				saveFarkle(*game, event.Cache)
+				if endMsg != "" {
+					appendLine(endMsg)
+					send()
+					clearFarkle(event.ReplyChannel.Id, event.Cache)
+					return
+				}
+				send()
+				break
+			}
+
+			// Continue rolling same bot.
 		}
 	}
 }

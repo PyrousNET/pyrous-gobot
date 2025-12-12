@@ -47,6 +47,7 @@ Usage:
   $farkle roll             - Roll your remaining dice
   $farkle keep <dice>      - Keep scoring dice from your last roll (e.g. $farkle keep 1 5 5)
   $farkle bank             - Bank turn points and pass the turn
+  $farkle score            - Show current scores and whose turn it is
   $farkle quit             - End/clear the current game
 
 Scoring highlights:
