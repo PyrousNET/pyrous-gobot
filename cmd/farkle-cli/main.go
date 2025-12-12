@@ -41,7 +41,7 @@ func main() {
 		current := game.Players[game.CurrentTurn]
 		if strings.HasPrefix(current.Name, botName) {
 			fmt.Println("\n--- Bot turn:", current.Name, "---")
-			if done := botTurn(&game); done {
+			if done := botTurn(&game, reader); done {
 				return
 			}
 			time.Sleep(300 * time.Millisecond)
@@ -92,7 +92,7 @@ func main() {
 	}
 }
 
-func botTurn(game *games.FarkleGame) bool {
+func botTurn(game *games.FarkleGame, reader *bufio.Reader) bool {
 	player := game.Players[game.CurrentTurn]
 	fmt.Printf("[%s] rolling...\n", player.Name)
 	msg, endMsg, err := games.FarkleRollTurn(game, player)
@@ -121,6 +121,7 @@ func botTurn(game *games.FarkleGame) bool {
 	} else {
 		fmt.Printf("[%s] rolling again...\n", player.Name)
 	}
+	promptContinue(reader)
 	return false
 }
 
@@ -192,6 +193,11 @@ func playerNames(players []users.User) string {
 		names = append(names, p.Name)
 	}
 	return strings.Join(names, ", ")
+}
+
+func promptContinue(reader *bufio.Reader) {
+	fmt.Print("\n--- Press Enter to continue ---")
+	reader.ReadString('\n')
 }
 
 func unwrapFarklePrefix(parts []string) []string {
