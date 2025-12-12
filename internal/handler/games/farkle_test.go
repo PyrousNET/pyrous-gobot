@@ -184,6 +184,51 @@ func TestFinalRoundSummaryUsesPlayerKey(t *testing.T) {
 	}
 }
 
+func TestBotAutoTurnPlaysAndReturnsToHuman(t *testing.T) {
+	c := cache.GetLocalCache()
+	addTestUser(t, c, "alice")
+
+	channel := &model.Channel{Id: "chan4", Name: "chan4"}
+	responses := make(chan comms.Response, 20)
+
+	originalRoll := rollDiceFn
+	defer func() { rollDiceFn = originalRoll }()
+	rollDiceFn = (&testRoller{rolls: [][]int{
+		{1, 1, 1, 5, 2, 3}, // bot scoring roll
+	}}).roll
+
+	play := func(body string) {
+		err := BotGame{}.Farkle(BotGame{
+			body:            body,
+			sender:          "alice",
+			ReplyChannel:    channel,
+			ResponseChannel: responses,
+			Cache:           c,
+		})
+		if err != nil {
+			t.Fatalf("call failed: %v", err)
+		}
+	}
+
+	play("")         // create lobby
+	play("addbot 1") // add bot
+	play("start")    // start game
+	play("bank")     // human banks zero, bot should auto-play
+
+	game, ok, err := loadFarkle(channel.Id, c)
+	if err != nil || !ok {
+		t.Fatalf("expected farkle game loaded: %v", err)
+	}
+
+	// After bot turn, it should have points and turn should return to human.
+	if game.Scores["Computer 1"] <= 0 {
+		t.Fatalf("expected bot to have scored, got %d", game.Scores["Computer 1"])
+	}
+	if game.CurrentTurn != 0 {
+		t.Fatalf("expected turn to return to human (index 0), got %d", game.CurrentTurn)
+	}
+}
+
 type testRoller struct {
 	rolls [][]int
 	idx   int
