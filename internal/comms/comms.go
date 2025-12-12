@@ -35,6 +35,9 @@ type MessageHandler struct {
 	expected  map[string]uint64
 	pending   map[string]map[uint64]*Response
 	globalSeq uint64
+
+	// sendOverride is used in tests to bypass Mattermost calls.
+	sendOverride func(*Response)
 }
 
 func (h *MessageHandler) StartMessageHandler() {
@@ -85,6 +88,11 @@ func (h *MessageHandler) enqueueAndSend(r *Response) {
 }
 
 func (h *MessageHandler) SendMessage(r *Response) {
+	if h.sendOverride != nil {
+		h.sendOverride(r)
+		return
+	}
+
 	start := time.Now()
 	post := &model.Post{
 		ChannelId: r.ReplyChannelId,
