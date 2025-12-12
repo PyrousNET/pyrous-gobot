@@ -56,7 +56,7 @@ func NewHandler(mm *mmclient.MMClient, botCache cache.Cache, botPubSub pubsub.Pu
 	}
 	mRH := comms.MessageHandler{
 		Mm:         mm,
-		ResponseCh: make(chan comms.Response),
+		ResponseCh: make(chan comms.Response, 50),
 		Cache:      botCache,
 	}
 

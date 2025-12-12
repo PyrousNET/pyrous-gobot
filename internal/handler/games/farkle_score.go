@@ -80,6 +80,11 @@ func hasScoringDice(dice []int) bool {
 	return false
 }
 
+// HasScoringDiceExported exposes scoring detection for external callers (CLI/tests).
+func HasScoringDiceExported(dice []int) bool {
+	return hasScoringDice(dice)
+}
+
 func scoreSelection(dice []int) (int, error) {
 	if len(dice) == 0 {
 		return 0, fmt.Errorf("no dice selected")

@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	stdlog "log"
 	"strings"
+	"time"
 
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/opentracing/opentracing-go/log"
@@ -39,6 +41,7 @@ func (h *MessageHandler) StartMessageHandler() {
 }
 
 func (h *MessageHandler) SendMessage(r *Response) {
+	start := time.Now()
 	post := &model.Post{
 		ChannelId: r.ReplyChannelId,
 		Message:   r.Message,
@@ -124,4 +127,6 @@ func (h *MessageHandler) SendMessage(r *Response) {
 			log.Error(err)
 		}
 	}
+
+	stdlog.Printf("[msg] type=%s channel=%s user=%s len=%d dur=%s err=%v", r.Type, r.ReplyChannelId, r.UserId, len(r.Message), time.Since(start), err)
 }
