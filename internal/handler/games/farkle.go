@@ -414,7 +414,7 @@ func formatScores(game FarkleGame) string {
 	var b strings.Builder
 	b.WriteString("Scores:\n")
 	b.WriteString("| Player | Score |\n")
-	b.WriteString("| :-- | --: |\n")
+	b.WriteString("|:--|--:|\n")
 	for _, s := range scores {
 		name := s.name
 		if s.turn {
