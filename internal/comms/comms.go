@@ -6,6 +6,8 @@ import (
 	"fmt"
 	stdlog "log"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/mattermost/mattermost/server/public/model"
@@ -20,6 +22,7 @@ type Response struct {
 	Type           string
 	UserId         string
 	Quit           chan bool
+	Seq            uint64
 }
 
 type MessageHandler struct {
@@ -27,17 +30,58 @@ type MessageHandler struct {
 	Mm         *mmclient.MMClient
 	Cache      cache.Cache
 	ctx        context.Context
+
+	seqMu     sync.Mutex
+	expected  map[string]uint64
+	pending   map[string]map[uint64]*Response
+	globalSeq uint64
 }
 
 func (h *MessageHandler) StartMessageHandler() {
 	h.ctx = context.Background()
+	h.expected = make(map[string]uint64)
+	h.pending = make(map[string]map[uint64]*Response)
 	go func() {
-		for {
-			r := <-h.ResponseCh
-			go h.SendMessage(&r)
+		for r := range h.ResponseCh {
+			// Preserve order per channel by sequencing and dispatching in order.
+			go h.enqueueAndSend(&r)
 		}
 	}()
+}
 
+// enqueueAndSend sequences messages per channel and sends them in-order.
+func (h *MessageHandler) enqueueAndSend(r *Response) {
+	// Assign sequence if missing.
+	if r.Seq == 0 {
+		r.Seq = atomic.AddUint64(&h.globalSeq, 1)
+	}
+
+	ch := r.ReplyChannelId
+
+	h.seqMu.Lock()
+	if _, ok := h.pending[ch]; !ok {
+		h.pending[ch] = make(map[uint64]*Response)
+	}
+	h.pending[ch][r.Seq] = r
+	if _, ok := h.expected[ch]; !ok {
+		h.expected[ch] = 1
+	}
+
+	// Send any ready messages in order.
+	next := h.expected[ch]
+	for {
+		resp, ok := h.pending[ch][next]
+		if !ok {
+			break
+		}
+		delete(h.pending[ch], next)
+		h.expected[ch] = next + 1
+		h.seqMu.Unlock()
+		h.SendMessage(resp)
+		h.seqMu.Lock()
+		next = h.expected[ch]
+	}
+	h.seqMu.Unlock()
 }
 
 func (h *MessageHandler) SendMessage(r *Response) {
