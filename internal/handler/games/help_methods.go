@@ -42,6 +42,7 @@ Play Farkle (dice) with standard scoring and a final round at 5,000.
 
 Usage:
   $farkle [in <channel>]   - Join or create a lobby
+  $farkle addbot [count]   - Add one or more computer players (before start)
   $farkle start            - Start when 2+ players joined
   $farkle roll             - Roll your remaining dice
   $farkle keep <dice>      - Keep scoring dice from your last roll (e.g. $farkle keep 1 5 5)

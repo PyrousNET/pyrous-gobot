@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -131,11 +132,30 @@ func (bg BotGame) Farkle(event BotGame) error {
 	case "quit", "leave", "end":
 		clearFarkle(event.ReplyChannel.Id, event.Cache)
 		response.Message = "/echo Farkle game cleared."
+	case "addbot":
+		count := 1
+		if len(args) > 0 {
+			if n, err := strconv.Atoi(args[0]); err == nil && n > 0 {
+				count = n
+			}
+		}
+		added, err := addBotPlayers(&game, count)
+		if err != nil {
+			response.Message = fmt.Sprintf("/echo %v", err)
+		} else {
+			saveFarkle(game, event.Cache)
+			response.Message = fmt.Sprintf("/echo Added %d bot(s). Players: %s", added, formatPlayerNames(game.Players))
+		}
 	default:
 		response.Message = "/echo Unknown farkle command. Try `$farkle start`, `$farkle roll`, `$farkle keep <dice>`, `$farkle bank`."
 	}
 
 	event.ResponseChannel <- response
+
+	// Let bots play automatically if it's their turn.
+	if game.State != stateLobby {
+		runBotTurns(&game, event)
+	}
 	return nil
 }
 
@@ -164,6 +184,32 @@ func addPlayerToFarkle(game *FarkleGame, player users.User) bool {
 	game.Players = append(game.Players, player)
 	game.Scores[key] = 0
 	return true
+}
+
+func addBotPlayers(game *FarkleGame, count int) (int, error) {
+	if game.State != stateLobby {
+		return 0, fmt.Errorf("can only add bots in the lobby before starting")
+	}
+	added := 0
+	existing := make(map[string]struct{})
+	for _, p := range game.Players {
+		existing[p.Name] = struct{}{}
+	}
+	for i := 1; i <= count; i++ {
+		name := fmt.Sprintf("Computer %d", i)
+		for {
+			if _, ok := existing[name]; !ok {
+				break
+			}
+			i++
+			name = fmt.Sprintf("Computer %d", i)
+		}
+		game.Players = append(game.Players, users.User{Name: name})
+		game.Scores[name] = 0
+		existing[name] = struct{}{}
+		added++
+	}
+	return added, nil
 }
 
 func loadFarkle(channelId string, c cache.Cache) (FarkleGame, bool, error) {
@@ -393,4 +439,72 @@ func playerKey(u users.User) string {
 		return u.Id
 	}
 	return u.Name
+}
+
+func isBotPlayer(u users.User) bool {
+	return strings.HasPrefix(u.Name, "Computer")
+}
+
+// runBotTurns lets bots play automatically until it's a human's turn or the game ends.
+func runBotTurns(game *FarkleGame, event BotGame) {
+	// Avoid runaway loops.
+	maxTurns := len(game.Players) * 6
+	for i := 0; i < maxTurns; i++ {
+		if game.State == stateLobby || !isBotPlayer(game.Players[game.CurrentTurn]) {
+			return
+		}
+
+		bot := game.Players[game.CurrentTurn]
+		send := func(msg string) {
+			if msg == "" {
+				return
+			}
+			event.ResponseChannel <- comms.Response{
+				ReplyChannelId: event.ReplyChannel.Id,
+				Type:           "command",
+				Message:        msg,
+			}
+		}
+
+		send(fmt.Sprintf("/echo %s is taking a turn...", bot.Name))
+
+		msg, endMsg, err := handleFarkleRoll(game, bot)
+		if err != nil {
+			send(fmt.Sprintf("/echo %v", err))
+			return
+		}
+		saveFarkle(*game, event.Cache)
+		send(msg)
+		if endMsg != "" {
+			send(endMsg)
+			clearFarkle(event.ReplyChannel.Id, event.Cache)
+			return
+		}
+
+		// Farkle advanceTurn already happened, continue loop.
+		if len(game.LastRoll) == 0 {
+			continue
+		}
+
+		keepArgs := []string{strconv.Itoa(game.DiceRemaining), "dice"}
+		msg, err = handleFarkleKeep(game, bot, keepArgs)
+		if err == nil {
+			send(msg)
+		}
+		saveFarkle(*game, event.Cache)
+
+		// Heuristic: bank if enough points or low dice.
+		if game.TurnPoints >= 750 || (game.DiceRemaining <= 2 && game.TurnPoints > 0) {
+			msg, endMsg, err = handleFarkleBank(game, bot)
+			if err == nil {
+				send(msg)
+			}
+			saveFarkle(*game, event.Cache)
+			if endMsg != "" {
+				send(endMsg)
+				clearFarkle(event.ReplyChannel.Id, event.Cache)
+				return
+			}
+		}
+	}
 }
