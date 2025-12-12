@@ -412,7 +412,7 @@ func formatScores(game FarkleGame) string {
 	})
 
 	var b strings.Builder
-	b.WriteString("Scores:\n")
+	b.WriteString("Scores:\n\n")
 	b.WriteString("| Player | Score |\n")
 	b.WriteString("|:--|--:|\n")
 	for _, s := range scores {
