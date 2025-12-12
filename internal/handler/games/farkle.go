@@ -154,7 +154,7 @@ func (bg BotGame) Farkle(event BotGame) error {
 	event.ResponseChannel <- response
 
 	// Let bots play automatically if it's their turn.
-	if game.State != stateLobby {
+	if game.State != stateLobby && isBotPlayer(game.Players[game.CurrentTurn]) {
 		runBotTurns(&game, event)
 	}
 	return nil
