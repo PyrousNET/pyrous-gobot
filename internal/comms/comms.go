@@ -46,8 +46,15 @@ func (h *MessageHandler) StartMessageHandler() {
 	h.pending = make(map[string]map[uint64]*Response)
 	go func() {
 		for r := range h.ResponseCh {
-			// Preserve order per channel by sequencing and dispatching in order.
-			h.enqueueAndSend(&r)
+			func(resp Response) {
+				defer func() {
+					if rec := recover(); rec != nil {
+						stdlog.Printf("message handler panic: %v", rec)
+					}
+				}()
+				// Preserve order per channel by sequencing and dispatching in order.
+				h.enqueueAndSend(&resp)
+			}(r)
 		}
 	}()
 }
@@ -153,7 +160,7 @@ func (h *MessageHandler) sendWithRetry(r *Response, post *model.Post, dmchannel 
 			}
 
 			post.ChannelId = dmchannel.Id
-			if post.Message[0] == '/' {
+			if len(post.Message) > 0 && post.Message[0] == '/' {
 				_, _, err = h.Mm.Client.ExecuteCommandWithTeam(h.ctx, post.ChannelId, h.Mm.BotTeam.Id, post.Message)
 			} else {
 				_, _, err = h.Mm.Client.CreatePost(h.ctx, post)
