@@ -29,7 +29,8 @@ func (bc BotCommand) React(event BotCommand) error {
 	}
 
 	reactions := event.settings.GetReactions()
-	if r, ok := reactions[event.body]; ok {
+	key := strings.ToLower(strings.Join(strings.Fields(event.body), " "))
+	if r, ok := reactions[key]; ok {
 		response.Type = "command"
 		response.Message = fmt.Sprintf(`/echo "![%s](%s)" 1`, r.Description, r.Url)
 	} else {
