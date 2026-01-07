@@ -138,5 +138,27 @@ func (c *Settings) GetReactions() map[string]Reaction {
 	c.mu.RLock()
 	reactions := c.settings.Reactions
 	c.mu.RUnlock()
+	if len(reactions) == 0 {
+		c.mu.Lock()
+		if len(c.settings.Reactions) == 0 {
+			c.loadLocalReactions()
+		}
+		reactions = c.settings.Reactions
+		c.mu.Unlock()
+	}
 	return reactions
+}
+
+func (c *Settings) loadLocalReactions() {
+	b, err := os.ReadFile("./reactions.json")
+	if err != nil {
+		return
+	}
+
+	var reactions map[string]Reaction
+	if err := json.Unmarshal(b, &reactions); err != nil {
+		return
+	}
+
+	c.settings.Reactions = reactions
 }
