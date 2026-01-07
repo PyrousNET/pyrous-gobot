@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -91,20 +92,25 @@ func (c *Settings) GetCommandTrigger() string {
 	c.mu.RLock()
 	commandTrigger := c.settings.CommandTrigger
 	c.mu.RUnlock()
-	if commandTrigger == "" {
-		return "!"
-	}
-	return commandTrigger
+	return normalizeTrigger(commandTrigger, "!")
 }
 
 func (c *Settings) GetGameTrigger() string {
 	c.mu.RLock()
 	gameTrigger := c.settings.GameTrigger
 	c.mu.RUnlock()
-	if gameTrigger == "" {
-		return "$"
+	return normalizeTrigger(gameTrigger, "$")
+}
+
+func normalizeTrigger(trigger string, defaultValue string) string {
+	value := strings.TrimSpace(trigger)
+	if strings.HasPrefix(value, "\\") && len(value) > 1 {
+		value = value[1:]
 	}
-	return gameTrigger
+	if value == "" {
+		return defaultValue
+	}
+	return value
 }
 
 func (c *Settings) GetInsults() []string {
