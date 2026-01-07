@@ -15,14 +15,17 @@ func (h *Handler) HandleCommand(quit chan bool, event *model.WebSocketEvent) err
 	sender := event.GetData()["sender_name"].(string)
 
 	bc, err := cmds.NewBotCommand(post.Message, sender)
-	bc.ResponseChannel = h.ResponseChannel
-	if bc.ReplyChannel == nil || bc.ReplyChannel.Id == "" {
-		bc.ReplyChannel, _, err = h.Mm.Client.GetChannel(context.Background(), channelId, "")
-	}
-	bc.Quit = quit
 	if err != nil {
 		return h.SendErrorResponse(post, err.Error())
 	}
+	bc.ResponseChannel = h.ResponseChannel
+	if bc.ReplyChannel == nil || bc.ReplyChannel.Id == "" {
+		bc.ReplyChannel, _, err = h.Mm.Client.GetChannel(context.Background(), channelId, "")
+		if err != nil {
+			return h.SendErrorResponse(post, err.Error())
+		}
+	}
+	bc.Quit = quit
 
 	err = cmds.CallCommand(bc)
 	if err != nil {

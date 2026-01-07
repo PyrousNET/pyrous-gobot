@@ -52,7 +52,7 @@ func NewGames(settings *settings.Settings, mm *mmclient.MMClient, cache cache.Ca
 		Settings:   settings,
 		Mm:         mm,
 		Cache:      cache,
-		GameTigger: "$", // TODO: This should come from settings
+		GameTigger: settings.GetGameTrigger(),
 	}
 
 	g := BotGame{}

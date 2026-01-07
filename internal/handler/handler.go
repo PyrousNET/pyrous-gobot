@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/pyrousnet/pyrous-gobot/internal/comms"
 	"github.com/pyrousnet/pyrous-gobot/internal/pubsub"
 	"log"
@@ -82,23 +81,13 @@ func (h *Handler) HandleWebSocketResponse(quit chan bool, event *model.WebSocket
 			if event.GetBroadcast().ChannelId == h.Mm.DebuggingChannel.Id {
 				h.HandleMsgFromDebuggingChannel(event)
 			} else {
-				commandPattern := fmt.Sprintf(`^%s(.*)`, h.Settings.GetCommandTrigger())
 				var triggerType string
+				commandTrigger := h.Settings.GetCommandTrigger()
+				gameTrigger := h.Settings.GetGameTrigger()
 
-				if ok, err := regexp.MatchString(commandPattern, post.Message); ok {
-					if err != nil {
-						log.Println(err)
-						return
-					}
+				if commandTrigger != "" && strings.HasPrefix(post.Message, commandTrigger) {
 					triggerType = "command"
-				}
-
-				gamePattern := `^\$(.*)`
-				if ok, err := regexp.MatchString(gamePattern, post.Message); ok {
-					if err != nil {
-						log.Println(err)
-						return
-					}
+				} else if gameTrigger != "" && strings.HasPrefix(post.Message, gameTrigger) {
 					triggerType = "game"
 				}
 
