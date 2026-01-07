@@ -17,14 +17,24 @@ import (
 )
 
 func TestHandleWebSocketResponse_IgnoresNonCommandMessages(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/api/v4/users/") {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(&model.User{Id: "user1", Username: "user1"})
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	client := model.NewAPIv4Client(server.URL)
 	h := &Handler{
-		Settings: settings.SetupMockSettings(sync.RWMutex{}, settings.CommandSettings{
-			CommandTrigger: "!",
-		}),
 		Mm: &mmclient.MMClient{
+			Client:           client,
 			BotUser:          &model.User{Id: "bot"},
 			DebuggingChannel: &model.Channel{Id: "debug"},
 		},
+		Cache: &cache.MockCache{},
 	}
 
 	event := model.NewWebSocketEvent(model.WebsocketEventPosted, "", "chan", "", nil, "")

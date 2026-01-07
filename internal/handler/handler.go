@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/pyrousnet/pyrous-gobot/internal/comms"
 	"github.com/pyrousnet/pyrous-gobot/internal/pubsub"
 	"log"
@@ -82,29 +81,14 @@ func (h *Handler) HandleWebSocketResponse(quit chan bool, event *model.WebSocket
 			if event.GetBroadcast().ChannelId == h.Mm.DebuggingChannel.Id {
 				h.HandleMsgFromDebuggingChannel(event)
 			} else {
-				commandPattern := fmt.Sprintf(`^%s(.*)`, h.Settings.GetCommandTrigger())
 				var triggerType string
-
-				if ok, err := regexp.MatchString(commandPattern, post.Message); ok {
-					if err != nil {
-						log.Println(err)
-						return
-					}
+				if strings.HasPrefix(post.Message, "!") {
 					triggerType = "command"
-				}
-
-				gamePattern := `^\$(.*)`
-				if ok, err := regexp.MatchString(gamePattern, post.Message); ok {
-					if err != nil {
-						log.Println(err)
-						return
-					}
+				} else if strings.HasPrefix(post.Message, "$") {
 					triggerType = "game"
 				}
 
-				if triggerType != "" {
-					h.HandleMsgFromChannel(triggerType, quit, event)
-				}
+				h.HandleMsgFromChannel(triggerType, quit, event)
 			}
 		}
 	}
@@ -123,7 +107,12 @@ func (h *Handler) HandleMsgFromChannel(triggerType string, quit chan bool, event
 			log.Println(err)
 		}
 	default:
-		return
+		post := h.Mm.PostFromJson(strings.NewReader(event.GetData()["post"].(string)))
+
+		err := users.HandlePost(post, h.Mm, h.Cache)
+		if err != nil {
+			log.Println(err)
+		}
 	}
 }
 
