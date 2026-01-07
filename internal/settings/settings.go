@@ -91,6 +91,9 @@ func (c *Settings) GetCommandTrigger() string {
 	c.mu.RLock()
 	commandTrigger := c.settings.CommandTrigger
 	c.mu.RUnlock()
+	if commandTrigger == "" {
+		return "!"
+	}
 	return commandTrigger
 }
 
@@ -98,6 +101,9 @@ func (c *Settings) GetGameTrigger() string {
 	c.mu.RLock()
 	gameTrigger := c.settings.GameTrigger
 	c.mu.RUnlock()
+	if gameTrigger == "" {
+		return "$"
+	}
 	return gameTrigger
 }
 
