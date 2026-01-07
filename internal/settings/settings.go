@@ -18,6 +18,7 @@ type (
 
 	CommandSettings struct {
 		CommandTrigger string              `json:"command_start"`
+		GameTrigger    string              `json:"game_start"`
 		Insults        []string            `json:"insults"`
 		Quotes         []string            `json:"quotes"`
 		Praises        []string            `json:"praises"`
@@ -91,6 +92,13 @@ func (c *Settings) GetCommandTrigger() string {
 	commandTrigger := c.settings.CommandTrigger
 	c.mu.RUnlock()
 	return commandTrigger
+}
+
+func (c *Settings) GetGameTrigger() string {
+	c.mu.RLock()
+	gameTrigger := c.settings.GameTrigger
+	c.mu.RUnlock()
+	return gameTrigger
 }
 
 func (c *Settings) GetInsults() []string {

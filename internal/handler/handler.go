@@ -82,9 +82,12 @@ func (h *Handler) HandleWebSocketResponse(quit chan bool, event *model.WebSocket
 				h.HandleMsgFromDebuggingChannel(event)
 			} else {
 				var triggerType string
-				if strings.HasPrefix(post.Message, "!") {
+				commandTrigger := h.Settings.GetCommandTrigger()
+				gameTrigger := h.Settings.GetGameTrigger()
+
+				if commandTrigger != "" && strings.HasPrefix(post.Message, commandTrigger) {
 					triggerType = "command"
-				} else if strings.HasPrefix(post.Message, "$") {
+				} else if gameTrigger != "" && strings.HasPrefix(post.Message, gameTrigger) {
 					triggerType = "game"
 				}
 

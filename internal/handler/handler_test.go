@@ -29,6 +29,10 @@ func TestHandleWebSocketResponse_IgnoresNonCommandMessages(t *testing.T) {
 
 	client := model.NewAPIv4Client(server.URL)
 	h := &Handler{
+		Settings: settings.SetupMockSettings(sync.RWMutex{}, settings.CommandSettings{
+			CommandTrigger: "!",
+			GameTrigger:    "$",
+		}),
 		Mm: &mmclient.MMClient{
 			Client:           client,
 			BotUser:          &model.User{Id: "bot"},
@@ -70,6 +74,7 @@ func TestHandleCommand_HelpCommandResponds(t *testing.T) {
 	h := &Handler{
 		Settings: settings.SetupMockSettings(sync.RWMutex{}, settings.CommandSettings{
 			CommandTrigger: "!",
+			GameTrigger:    "$",
 		}),
 		Mm: &mmclient.MMClient{
 			Client: client,
