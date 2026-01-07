@@ -74,6 +74,37 @@ func TestBotCommand_React(t *testing.T) {
 			wantErr: false,
 			wantMsg: "/echo \"![test](test)\" 1",
 		},
+		{
+			name: "test react is case-insensitive with normalized spacing",
+			fields: fields{
+				body:            "TeSt   ",
+				sender:          "@test",
+				target:          "",
+				mm:              nil,
+				settings:        nil,
+				ReplyChannel:    &model.Channel{Id: "test"},
+				ResponseChannel: make(chan comms.Response, 1),
+				method:          Method{},
+				cache:           &cache.MockCache{},
+				Quit:            make(chan bool),
+			},
+			args: args{
+				event: BotCommand{
+					body:            "TeSt   ",
+					sender:          "@test",
+					target:          "",
+					mm:              nil,
+					settings:        sttngs,
+					ReplyChannel:    &model.Channel{Id: "test"},
+					ResponseChannel: make(chan comms.Response, 1),
+					method:          Method{},
+					cache:           &cache.MockCache{},
+					Quit:            make(chan bool),
+				},
+			},
+			wantErr: false,
+			wantMsg: "/echo \"![test](test)\" 1",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
