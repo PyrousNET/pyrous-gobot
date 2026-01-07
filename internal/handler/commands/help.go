@@ -29,13 +29,14 @@ func (bc BotCommand) Help(event BotCommand) error {
 	helpMethods := getHelpMethods()
 	helpDocs := compileHelpDocs(helpMethods, event)
 
-	bs := strings.Split(event.body, " ")
-	if len(bs) > 0 && bs[0] != "" {
-		h, ok := helpDocs[strings.Title(bs[0])]
+	args := strings.Fields(event.body)
+	if len(args) > 0 {
+		query := args[0]
+		h, ok := findHelpDoc(helpDocs, query)
 		if ok {
-			response.Message = fmt.Sprintf("```\n%s:\n%s\n```", bs[0], h.Help)
+			response.Message = fmt.Sprintf("```\n%s:\n%s\n```", query, h.Help)
 		} else {
-			response.Message = fmt.Sprintf("Help for '%s' not found.", bs[0])
+			response.Message = fmt.Sprintf("Help for '%s' not found.", query)
 		}
 	} else {
 		mess := "```\nAvailable commands:\n"
@@ -83,4 +84,13 @@ func compileHelpDocs(helpMethods []Method, event BotCommand) map[string]HelpResp
 	}
 
 	return response
+}
+
+func findHelpDoc(helpDocs map[string]HelpResponse, query string) (HelpResponse, bool) {
+	for name, doc := range helpDocs {
+		if strings.EqualFold(name, query) {
+			return doc, true
+		}
+	}
+	return HelpResponse{}, false
 }
