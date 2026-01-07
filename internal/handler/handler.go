@@ -102,7 +102,9 @@ func (h *Handler) HandleWebSocketResponse(quit chan bool, event *model.WebSocket
 					triggerType = "game"
 				}
 
-				h.HandleMsgFromChannel(triggerType, quit, event)
+				if triggerType != "" {
+					h.HandleMsgFromChannel(triggerType, quit, event)
+				}
 			}
 		}
 	}
@@ -121,12 +123,7 @@ func (h *Handler) HandleMsgFromChannel(triggerType string, quit chan bool, event
 			log.Println(err)
 		}
 	default:
-		post := h.Mm.PostFromJson(strings.NewReader(event.GetData()["post"].(string)))
-
-		err := users.HandlePost(post, h.Mm, h.Cache)
-		if err != nil {
-			log.Println(err)
-		}
+		return
 	}
 }
 
