@@ -47,7 +47,7 @@ func (bc BotCommand) Praise(event BotCommand) error {
 		response.Message = strings.Replace(response.Message, "{0}", event.body, -1)
 	} else {
 		response.Type = "dm"
-		response.Message = fmt.Sprintf(`Who's ` + event.body + `?`)
+		response.Message = fmt.Sprintf("Who's %s?", event.body)
 	}
 
 	event.ResponseChannel <- response
