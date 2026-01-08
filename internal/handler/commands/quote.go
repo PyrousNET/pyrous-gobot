@@ -41,3 +41,10 @@ func (bc BotCommand) Quote(event BotCommand) error {
 	event.ResponseChannel <- response
 	return nil
 }
+
+func (h BotCommandHelp) Quote(request BotCommand) (response HelpResponse) {
+	response.Help = "Share a random quote or a specific quote by index. Usage: '!quote' or '!quote <number>'."
+	response.Description = "Get a Bender quote"
+
+	return response
+}
