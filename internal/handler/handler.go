@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/pyrousnet/pyrous-gobot/internal/comms"
 	"github.com/pyrousnet/pyrous-gobot/internal/pubsub"
 	"log"
@@ -89,6 +90,13 @@ func (h *Handler) HandleWebSocketResponse(quit chan bool, event *model.WebSocket
 					triggerType = "command"
 				} else if gameTrigger != "" && strings.HasPrefix(post.Message, gameTrigger) {
 					triggerType = "game"
+				}
+
+				if triggerType == "" {
+					if strings.HasPrefix(post.Message, "!") || strings.HasPrefix(post.Message, "$") {
+						_ = h.SendErrorResponse(post, fmt.Sprintf("Command ignored: configured triggers are command_start=%q game_start=%q.", commandTrigger, gameTrigger))
+						return
+					}
 				}
 
 				h.HandleMsgFromChannel(triggerType, quit, event)
