@@ -20,7 +20,7 @@ func (bc BotCommand) Apb(event BotCommand) error {
 		response.Message = fmt.Sprintf(`/me sends out the blood hounds to find %s`, event.body)
 	} else {
 		response.Type = "dm"
-		response.Message = fmt.Sprintf(`Who's ` + event.body + `?`)
+		response.Message = fmt.Sprintf("Who's %s?", event.body)
 	}
 
 	event.ResponseChannel <- response
