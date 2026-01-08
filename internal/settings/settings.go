@@ -55,34 +55,45 @@ func (c *Settings) LoadSettings() error {
 
 	r, err := hc.Get(c.settingsUrl)
 	if err != nil {
-		return err
+		c.mu.Lock()
+		c.settings = s
+		c.loadLocalDefaults()
+		c.mu.Unlock()
+		return nil
 	}
 	defer r.Body.Close()
 
+	if r.StatusCode < 200 || r.StatusCode >= 300 {
+		c.mu.Lock()
+		c.settings = s
+		c.loadLocalDefaults()
+		c.mu.Unlock()
+		return nil
+	}
+
 	b, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return err
+		c.mu.Lock()
+		c.settings = s
+		c.loadLocalDefaults()
+		c.mu.Unlock()
+		return nil
 	}
 
 	err = json.Unmarshal(b, &s)
 	if err != nil {
-		return err
+		c.mu.Lock()
+		c.settings = s
+		c.loadLocalDefaults()
+		c.mu.Unlock()
+		return nil
 	}
 
 	c.mu.Lock()
 	c.settings = s
 
 	// this is temporary until we get these pulling from the server
-	if len(c.settings.Reactions) == 0 {
-		jf, err := os.Open("./reactions.json")
-		if err != nil {
-			return err
-		}
-		defer jf.Close()
-		b, _ := ioutil.ReadAll(jf)
-
-		json.Unmarshal(b, &c.settings.Reactions)
-	}
+	c.loadLocalDefaults()
 	c.mu.Unlock()
 
 	return nil
@@ -117,6 +128,14 @@ func (c *Settings) GetInsults() []string {
 	c.mu.RLock()
 	insults := c.settings.Insults
 	c.mu.RUnlock()
+	if len(insults) == 0 {
+		c.mu.Lock()
+		if len(c.settings.Insults) == 0 {
+			c.settings.Insults = loadLocalStringList("insults.json")
+		}
+		insults = c.settings.Insults
+		c.mu.Unlock()
+	}
 	return insults
 }
 
@@ -124,6 +143,14 @@ func (c *Settings) GetQuotes() []string {
 	c.mu.RLock()
 	quotes := c.settings.Quotes
 	c.mu.RUnlock()
+	if len(quotes) == 0 {
+		c.mu.Lock()
+		if len(c.settings.Quotes) == 0 {
+			c.settings.Quotes = loadLocalStringList("quotes.json")
+		}
+		quotes = c.settings.Quotes
+		c.mu.Unlock()
+	}
 	return quotes
 }
 
@@ -131,6 +158,14 @@ func (c *Settings) GetPraises() []string {
 	c.mu.RLock()
 	praises := c.settings.Praises
 	c.mu.RUnlock()
+	if len(praises) == 0 {
+		c.mu.Lock()
+		if len(c.settings.Praises) == 0 {
+			c.settings.Praises = loadLocalStringList("praises.json")
+		}
+		praises = c.settings.Praises
+		c.mu.Unlock()
+	}
 	return praises
 }
 
@@ -161,4 +196,33 @@ func (c *Settings) loadLocalReactions() {
 	}
 
 	c.settings.Reactions = reactions
+}
+
+func loadLocalStringList(filename string) []string {
+	b, err := os.ReadFile("./" + filename)
+	if err != nil {
+		return nil
+	}
+
+	var values []string
+	if err := json.Unmarshal(b, &values); err != nil {
+		return nil
+	}
+
+	return values
+}
+
+func (c *Settings) loadLocalDefaults() {
+	if len(c.settings.Reactions) == 0 {
+		c.loadLocalReactions()
+	}
+	if len(c.settings.Insults) == 0 {
+		c.settings.Insults = loadLocalStringList("insults.json")
+	}
+	if len(c.settings.Quotes) == 0 {
+		c.settings.Quotes = loadLocalStringList("quotes.json")
+	}
+	if len(c.settings.Praises) == 0 {
+		c.settings.Praises = loadLocalStringList("praises.json")
+	}
 }
