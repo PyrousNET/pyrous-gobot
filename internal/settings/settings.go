@@ -115,9 +115,19 @@ func (c *Settings) GetGameTrigger() string {
 
 func normalizeTrigger(trigger string, defaultValue string) string {
 	value := strings.TrimSpace(trigger)
+	if strings.HasPrefix(value, "^") {
+		value = strings.TrimPrefix(value, "^")
+	}
 	if strings.HasPrefix(value, "\\") && len(value) > 1 {
 		value = value[1:]
 	}
+	if strings.HasSuffix(value, "$") && len(value) > 1 {
+		value = strings.TrimSuffix(value, "$")
+	}
+	if strings.HasPrefix(value, "\\") && len(value) > 1 {
+		value = value[1:]
+	}
+	value = strings.TrimSpace(value)
 	if value == "" {
 		return defaultValue
 	}
