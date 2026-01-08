@@ -13,6 +13,9 @@ func (h *Handler) HandleCommand(quit chan bool, event *model.WebSocketEvent) err
 	channelId := event.GetBroadcast().ChannelId
 	post := h.Mm.PostFromJson(strings.NewReader(event.GetData()["post"].(string)))
 	sender := event.GetData()["sender_name"].(string)
+	if channelId == "" {
+		channelId = post.ChannelId
+	}
 
 	bc, err := cmds.NewBotCommand(post.Message, sender)
 	if err != nil {
