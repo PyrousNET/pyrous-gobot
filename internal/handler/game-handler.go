@@ -15,6 +15,9 @@ func (h *Handler) HandleGame(quit chan bool, event *model.WebSocketEvent) error 
 	post := h.Mm.PostFromJson(strings.NewReader(event.GetData()["post"].(string)))
 	sender := event.GetData()["sender_name"].(string)
 	var e error
+	if channelId == "" {
+		channelId = post.ChannelId
+	}
 
 	bg, err := gms.NewBotGame(post.Message, sender)
 	bg.ResponseChannel = h.ResponseChannel // They are shared now!
