@@ -7,7 +7,6 @@ import (
 	stdlog "log"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/mattermost/mattermost/server/public/model"
@@ -31,10 +30,10 @@ type MessageHandler struct {
 	Cache      cache.Cache
 	ctx        context.Context
 
-	seqMu     sync.Mutex
-	expected  map[string]uint64
-	pending   map[string]map[uint64]*Response
-	globalSeq uint64
+	seqMu    sync.Mutex
+	expected map[string]uint64
+	pending  map[string]map[uint64]*Response
+	nextSeq  map[string]uint64
 
 	// sendOverride is used in tests to bypass Mattermost calls.
 	sendOverride func(*Response)
@@ -44,6 +43,7 @@ func (h *MessageHandler) StartMessageHandler() {
 	h.ctx = context.Background()
 	h.expected = make(map[string]uint64)
 	h.pending = make(map[string]map[uint64]*Response)
+	h.nextSeq = make(map[string]uint64)
 	go func() {
 		for r := range h.ResponseCh {
 			func(resp Response) {
@@ -61,14 +61,17 @@ func (h *MessageHandler) StartMessageHandler() {
 
 // enqueueAndSend sequences messages per channel and sends them in-order.
 func (h *MessageHandler) enqueueAndSend(r *Response) {
-	// Assign sequence if missing.
-	if r.Seq == 0 {
-		r.Seq = atomic.AddUint64(&h.globalSeq, 1)
-	}
-
 	ch := r.ReplyChannelId
 
 	h.seqMu.Lock()
+	// Assign sequence if missing, per channel to avoid cross-channel blocking.
+	if r.Seq == 0 {
+		if h.nextSeq == nil {
+			h.nextSeq = make(map[string]uint64)
+		}
+		h.nextSeq[ch]++
+		r.Seq = h.nextSeq[ch]
+	}
 	if _, ok := h.pending[ch]; !ok {
 		h.pending[ch] = make(map[uint64]*Response)
 	}
