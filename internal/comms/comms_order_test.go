@@ -38,6 +38,7 @@ func TestMessageOrderingTableDriven(t *testing.T) {
 				ResponseCh: make(chan Response, len(tt.msgs)),
 				expected:   make(map[string]uint64),
 				pending:    make(map[string]map[uint64]*Response),
+				nextSeq:    make(map[string]uint64),
 			}
 
 			got := make(map[string][]uint64)
