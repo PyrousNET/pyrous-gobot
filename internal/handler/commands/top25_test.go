@@ -37,13 +37,14 @@ func TestFetchAPTop25(t *testing.T) {
 }
 
 func TestFormatAPTop25(t *testing.T) {
-	message := formatAPTop25([]apTop25Rank{{Rank: 1, TeamName: "Alpha"}, {Rank: 25, TeamName: "Beta"}}, "Week 2")
+	message := formatAPTop25([]apTop25Rank{{Rank: 1, Trend: 2, TeamName: "Alpha"}, {Rank: 25, Trend: -3, TeamName: "Beta"}, {Rank: 12, TeamName: "Gamma"}}, "Week 2")
 	want := []string{
 		"### AP Top 25 (Week 2)",
-		"| Rank | Team |",
-		"| ---: | --- |",
-		"| 1 | Alpha |",
-		"| 25 | Beta |",
+		"| Rank | Team | Movement |",
+		"| ---: | --- | :---: |",
+		"| 1 | Alpha | ▲ 2 |",
+		"| 25 | Beta | ▼ 3 |",
+		"| 12 | Gamma | — |",
 		"Source: [AP News — AP Top 25 Poll](" + apTop25URL + ")",
 	}
 	for _, line := range want {

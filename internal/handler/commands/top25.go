@@ -24,6 +24,7 @@ var (
 
 type apTop25Rank struct {
 	Rank     int    `json:"rank"`
+	Trend    int    `json:"trend"`
 	TeamName string `json:"teamName"`
 }
 
@@ -65,14 +66,25 @@ func formatAPTop25(teams []apTop25Rank, week string) string {
 	lines := make([]string, 0, len(teams)+5)
 	lines = append(lines,
 		fmt.Sprintf("### AP Top 25 (%s)", week),
-		"| Rank | Team |",
-		"| ---: | --- |",
+		"| Rank | Team | Movement |",
+		"| ---: | --- | :---: |",
 	)
 	for _, team := range teams {
-		lines = append(lines, fmt.Sprintf("| %d | %s |", team.Rank, team.TeamName))
+		lines = append(lines, fmt.Sprintf("| %d | %s | %s |", team.Rank, team.TeamName, formatAPTrend(team.Trend)))
 	}
 	lines = append(lines, "", fmt.Sprintf("Source: [AP News — AP Top 25 Poll](%s)", apTop25URL))
 	return strings.Join(lines, "\n")
+}
+
+func formatAPTrend(trend int) string {
+	switch {
+	case trend > 0:
+		return fmt.Sprintf("▲ %d", trend)
+	case trend < 0:
+		return fmt.Sprintf("▼ %d", -trend)
+	default:
+		return "—"
+	}
 }
 
 func fetchAPTop25(client *http.Client) ([]apTop25Rank, string, error) {
