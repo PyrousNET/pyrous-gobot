@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -32,5 +33,22 @@ func TestFetchAPTop25(t *testing.T) {
 	}
 	if teams[0].Rank != 1 || teams[0].TeamName != "Alpha" {
 		t.Fatalf("teams were not sorted by rank: %#v", teams)
+	}
+}
+
+func TestFormatAPTop25(t *testing.T) {
+	message := formatAPTop25([]apTop25Rank{{Rank: 1, TeamName: "Alpha"}, {Rank: 25, TeamName: "Beta"}}, "Week 2")
+	want := []string{
+		"### AP Top 25 (Week 2)",
+		"| Rank | Team |",
+		"| ---: | --- |",
+		"| 1 | Alpha |",
+		"| 25 | Beta |",
+		"Source: [AP News — AP Top 25 Poll](" + apTop25URL + ")",
+	}
+	for _, line := range want {
+		if !strings.Contains(message, line) {
+			t.Errorf("formatted message missing %q:\n%s", line, message)
+		}
 	}
 }

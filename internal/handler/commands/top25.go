@@ -52,20 +52,27 @@ func (bc BotCommand) Top25(event BotCommand) error {
 		return fmt.Errorf("unable to fetch AP Top 25: %w", err)
 	}
 
-	lines := make([]string, 0, len(teams)+2)
-	lines = append(lines, fmt.Sprintf("AP Top 25 (%s)", week))
-	for _, team := range teams {
-		lines = append(lines, fmt.Sprintf("%2d. %s", team.Rank, team.TeamName))
-	}
-	lines = append(lines, apTop25URL)
-
 	event.ResponseChannel <- comms.Response{
 		ReplyChannelId: event.ReplyChannel.Id,
 		UserId:         u.Id,
 		Type:           "post",
-		Message:        strings.Join(lines, "\n"),
+		Message:        formatAPTop25(teams, week),
 	}
 	return nil
+}
+
+func formatAPTop25(teams []apTop25Rank, week string) string {
+	lines := make([]string, 0, len(teams)+5)
+	lines = append(lines,
+		fmt.Sprintf("### AP Top 25 (%s)", week),
+		"| Rank | Team |",
+		"| ---: | --- |",
+	)
+	for _, team := range teams {
+		lines = append(lines, fmt.Sprintf("| %d | %s |", team.Rank, team.TeamName))
+	}
+	lines = append(lines, "", fmt.Sprintf("Source: [AP News — AP Top 25 Poll](%s)", apTop25URL))
+	return strings.Join(lines, "\n")
 }
 
 func fetchAPTop25(client *http.Client) ([]apTop25Rank, string, error) {
