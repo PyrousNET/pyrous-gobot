@@ -66,8 +66,8 @@ func TestFormatAPTop25(t *testing.T) {
 		"### AP Top 25 (Week 2)",
 		"| Rank | Team | Record | Movement |",
 		"| ---: | --- | :---: | :---: |",
-		"| 1 | Alpha | 10-2-1 | ▲ 2 |",
-		"| 25 | Beta | 8-4-0 | ▼ 3 |",
+		"| 1 | Alpha | 10-2-1 | 🟢 ▲ 2 |",
+		"| 25 | Beta | 8-4-0 | 🔴 ▼ 3 |",
 		"| 12 | Gamma | 6-6-0 | — |",
 		"Source: [AP News — AP Top 25 Poll](" + apTop25URL + ")",
 	}

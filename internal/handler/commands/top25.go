@@ -87,9 +87,9 @@ func formatAPRecord(team apTop25Rank) string {
 func formatAPTrend(trend int) string {
 	switch {
 	case trend > 0:
-		return fmt.Sprintf("▲ %d", trend)
+		return fmt.Sprintf("🟢 ▲ %d", trend)
 	case trend < 0:
-		return fmt.Sprintf("▼ %d", -trend)
+		return fmt.Sprintf("🔴 ▼ %d", -trend)
 	default:
 		return "—"
 	}
