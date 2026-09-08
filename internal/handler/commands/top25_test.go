@@ -36,6 +36,30 @@ func TestFetchAPTop25(t *testing.T) {
 	}
 }
 
+func TestFetchAPTop25FallsBackWhenCurrentPollIsUnavailable(t *testing.T) {
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/hub/ap-top-25-college-football-poll" {
+			io.WriteString(w, `<bsp-top-poll-results-module data-top25-poll-id="poll-123" data-week="Week 2" data-api-base-url="`+server.URL+`"></bsp-top-poll-results-module><option value="Week 1" data-close-at="1">Week 1</option>`)
+			return
+		}
+		if r.URL.Query().Get("week") == "Week 2" {
+			http.Error(w, `{"message":"Result not available for this week"}`, http.StatusBadRequest)
+			return
+		}
+		io.WriteString(w, `{"week":"Week 1","ranks":[{"rank":1,"teamName":"Alpha"}]}`)
+	}))
+	defer server.Close()
+
+	teams, week, err := fetchAPTop25FromURL(server.Client(), server.URL+"/hub/ap-top-25-college-football-poll")
+	if err != nil {
+		t.Fatalf("fetchAPTop25FromURL() error = %v", err)
+	}
+	if week != "Week 1" || len(teams) != 1 || teams[0].TeamName != "Alpha" {
+		t.Fatalf("fallback result = week %q, teams %#v", week, teams)
+	}
+}
+
 func TestFormatAPTop25(t *testing.T) {
 	message := formatAPTop25([]apTop25Rank{{Rank: 1, Trend: 2, TeamName: "Alpha", Wins: 10, Losses: 2, Ties: 1}, {Rank: 25, Trend: -3, TeamName: "Beta", Wins: 8, Losses: 4}, {Rank: 12, TeamName: "Gamma", Wins: 6, Losses: 6}}, "Week 2")
 	want := []string{
