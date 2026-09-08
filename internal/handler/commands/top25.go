@@ -17,9 +17,10 @@ import (
 const apTop25URL = "https://apnews.com/hub/ap-top-25-college-football-poll"
 
 var (
-	apPollIDPattern  = regexp.MustCompile(`data-top25-poll-id\s*=\s*"([^"]+)"`)
-	apWeekPattern    = regexp.MustCompile(`data-week\s*=\s*"([^"]+)"`)
-	apAPIBasePattern = regexp.MustCompile(`data-api-base-url\s*=\s*"([^"]+)"`)
+	apPollIDPattern     = regexp.MustCompile(`data-top25-poll-id\s*=\s*"([^"]+)"`)
+	apWeekPattern       = regexp.MustCompile(`data-week\s*=\s*"([^"]+)"`)
+	apWeekOptionPattern = regexp.MustCompile(`(?s)<option\s+value="([^"]+)"\s+data-close-at=`)
+	apAPIBasePattern    = regexp.MustCompile(`data-api-base-url\s*=\s*"([^"]+)"`)
 )
 
 type apTop25Rank struct {
@@ -128,9 +129,29 @@ func fetchAPTop25FromURL(client *http.Client, pageURL string) ([]apTop25Rank, st
 		return nil, "", fmt.Errorf("AP page did not contain poll metadata")
 	}
 
+	weeks := []string{week}
+	for _, match := range apWeekOptionPattern.FindAllSubmatch(page, -1) {
+		candidate := string(match[1])
+		if candidate != "" && candidate != week {
+			weeks = append(weeks, candidate)
+		}
+	}
+	for _, candidate := range weeks {
+		ranks, resultWeek, available, err := fetchAPTop25Week(client, apiBase, pollID, candidate, pageURL)
+		if err != nil {
+			return nil, "", err
+		}
+		if available {
+			return ranks, resultWeek, nil
+		}
+	}
+	return nil, "", fmt.Errorf("AP Top 25 is not published for the available weeks")
+}
+
+func fetchAPTop25Week(client *http.Client, apiBase, pollID, week, pageURL string) ([]apTop25Rank, string, bool, error) {
 	endpoint, err := url.Parse(strings.TrimRight(apiBase, "/") + "/top25PollResult")
 	if err != nil {
-		return nil, "", err
+		return nil, "", false, err
 	}
 	query := endpoint.Query()
 	query.Set("top25PollId", pollID)
@@ -138,32 +159,35 @@ func fetchAPTop25FromURL(client *http.Client, pageURL string) ([]apTop25Rank, st
 	endpoint.RawQuery = query.Encode()
 	apiRequest, err := http.NewRequest(http.MethodGet, endpoint.String(), nil)
 	if err != nil {
-		return nil, "", err
+		return nil, "", false, err
 	}
 	apiRequest.Header.Set("Content-Type", "application/json")
 	apiRequest.Header.Set("Origin", "https://apnews.com")
 	apiRequest.Header.Set("Referer", pageURL)
 	apiResponse, err := client.Do(apiRequest)
 	if err != nil {
-		return nil, "", err
+		return nil, "", false, err
 	}
 	defer apiResponse.Body.Close()
+	if apiResponse.StatusCode == http.StatusNoContent || apiResponse.StatusCode == http.StatusBadRequest || apiResponse.StatusCode == http.StatusNotFound {
+		return nil, "", false, nil
+	}
 	if apiResponse.StatusCode != http.StatusOK {
-		return nil, "", fmt.Errorf("AP rankings API returned HTTP %d", apiResponse.StatusCode)
+		return nil, "", false, fmt.Errorf("AP rankings API returned HTTP %d", apiResponse.StatusCode)
 	}
 
 	var result apTop25Result
 	if err := json.NewDecoder(apiResponse.Body).Decode(&result); err != nil {
-		return nil, "", err
+		return nil, "", false, err
 	}
 	if len(result.Ranks) == 0 {
-		return nil, "", fmt.Errorf("AP rankings API returned no teams")
+		return nil, "", false, nil
 	}
 	sort.Slice(result.Ranks, func(i, j int) bool { return result.Ranks[i].Rank < result.Ranks[j].Rank })
-	if result.Week != "" {
-		week = result.Week
+	if result.Week == "" {
+		result.Week = week
 	}
-	return result.Ranks, week, nil
+	return result.Ranks, result.Week, true, nil
 }
 
 func firstMatch(pattern *regexp.Regexp, data []byte) string {
