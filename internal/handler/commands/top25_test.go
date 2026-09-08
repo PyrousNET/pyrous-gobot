@@ -17,7 +17,7 @@ func TestFetchAPTop25(t *testing.T) {
 			if r.URL.Query().Get("top25PollId") != "poll-123" || r.URL.Query().Get("week") != "Week 2" {
 				t.Errorf("unexpected query: %s", r.URL.RawQuery)
 			}
-			io.WriteString(w, `{"week":"Week 2","ranks":[{"rank":2,"teamName":"Beta"},{"rank":1,"teamName":"Alpha"}]}`)
+			io.WriteString(w, `{"week":"Week 2","ranks":[{"rank":2,"teamName":"Beta","win":8,"loss":4,"tie":0},{"rank":1,"teamName":"Alpha","win":10,"loss":2,"tie":1}]}`)
 		default:
 			http.NotFound(w, r)
 		}
@@ -31,20 +31,20 @@ func TestFetchAPTop25(t *testing.T) {
 	if week != "Week 2" || len(teams) != 2 {
 		t.Fatalf("week = %q, teams = %#v", week, teams)
 	}
-	if teams[0].Rank != 1 || teams[0].TeamName != "Alpha" {
+	if teams[0].Rank != 1 || teams[0].TeamName != "Alpha" || formatAPRecord(teams[0]) != "10-2-1" {
 		t.Fatalf("teams were not sorted by rank: %#v", teams)
 	}
 }
 
 func TestFormatAPTop25(t *testing.T) {
-	message := formatAPTop25([]apTop25Rank{{Rank: 1, Trend: 2, TeamName: "Alpha"}, {Rank: 25, Trend: -3, TeamName: "Beta"}, {Rank: 12, TeamName: "Gamma"}}, "Week 2")
+	message := formatAPTop25([]apTop25Rank{{Rank: 1, Trend: 2, TeamName: "Alpha", Wins: 10, Losses: 2, Ties: 1}, {Rank: 25, Trend: -3, TeamName: "Beta", Wins: 8, Losses: 4}, {Rank: 12, TeamName: "Gamma", Wins: 6, Losses: 6}}, "Week 2")
 	want := []string{
 		"### AP Top 25 (Week 2)",
-		"| Rank | Team | Movement |",
-		"| ---: | --- | :---: |",
-		"| 1 | Alpha | ▲ 2 |",
-		"| 25 | Beta | ▼ 3 |",
-		"| 12 | Gamma | — |",
+		"| Rank | Team | Record | Movement |",
+		"| ---: | --- | :---: | :---: |",
+		"| 1 | Alpha | 10-2-1 | ▲ 2 |",
+		"| 25 | Beta | 8-4-0 | ▼ 3 |",
+		"| 12 | Gamma | 6-6-0 | — |",
 		"Source: [AP News — AP Top 25 Poll](" + apTop25URL + ")",
 	}
 	for _, line := range want {
