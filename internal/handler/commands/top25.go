@@ -216,7 +216,6 @@ func fetchCurrentNCAAFWeekFromURL(client *http.Client, now time.Time, endpoint s
 	if err != nil {
 		return 0, err
 	}
-	request.Header.Set("User-Agent", "pyrous-gobot/1.0")
 	response, err := client.Do(request)
 	if err != nil {
 		return 0, err
