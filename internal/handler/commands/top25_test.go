@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/pyrousnet/pyrous-gobot/internal/cache"
 )
 
 func TestFetchAPTop25(t *testing.T) {
@@ -34,6 +36,35 @@ func TestFetchAPTop25(t *testing.T) {
 	}
 	if teams[0].Rank != 1 || teams[0].TeamName != "Alpha" || formatAPRecord(teams[0]) != "10-2-1" {
 		t.Fatalf("teams were not sorted by rank: %#v", teams)
+	}
+}
+
+func TestFetchCachedAPTop25AvoidsRepeatedLookup(t *testing.T) {
+	requests := 0
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		if r.URL.Path == "/hub/ap-top-25-college-football-poll" {
+			io.WriteString(w, `<bsp-top-poll-results-module data-top25-poll-id="poll-123" data-week="Week 2" data-api-base-url="`+server.URL+`"></bsp-top-poll-results-module>`)
+			return
+		}
+		io.WriteString(w, `{"week":"Week 2","ranks":[{"rank":1,"teamName":"Alpha"}]}`)
+	}))
+	defer server.Close()
+
+	c := cache.GetLocalCache()
+	fetcher := func(client *http.Client) ([]apTop25Rank, string, error) {
+		return fetchAPTop25FromURL(client, server.URL+"/hub/ap-top-25-college-football-poll")
+	}
+	if _, _, err := fetchCachedAPTop25WithFetcher(server.Client(), c, fetcher); err != nil {
+		t.Fatalf("first fetch error = %v", err)
+	}
+	firstRequestCount := requests
+	if _, _, err := fetchCachedAPTop25WithFetcher(server.Client(), c, fetcher); err != nil {
+		t.Fatalf("cached fetch error = %v", err)
+	}
+	if requests != firstRequestCount {
+		t.Fatalf("cached fetch made %d additional HTTP requests", requests-firstRequestCount)
 	}
 }
 
