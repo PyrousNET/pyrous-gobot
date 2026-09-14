@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/pyrousnet/pyrous-gobot/internal/comms"
 	"github.com/pyrousnet/pyrous-gobot/internal/users"
@@ -17,11 +18,11 @@ import (
 
 const apTop25URL = "https://apnews.com/hub/ap-top-25-college-football-poll"
 
-// AP_TOP_25_POLL_ID can be updated when AP starts a new season. This fallback
+const espnNCAAFScoreboardURL = "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard"
+
+// AP_TOP_25_POLL_ID can override the current season's poll ID. This fallback
 // lets the bot use AP's rankings API when Cloudflare blocks the HTML page.
 const apTop25FallbackPollID = "0000019e-d6c2-d6a8-a59e-feea16ca0000"
-
-var apTop25FallbackWeeks = []string{"Week 1", "Preseason"}
 
 var (
 	apPollIDPattern     = regexp.MustCompile(`data-top25-poll-id\s*=\s*"([^"]+)"`)
@@ -42,6 +43,14 @@ type apTop25Rank struct {
 type apTop25Result struct {
 	Week  string        `json:"week"`
 	Ranks []apTop25Rank `json:"ranks"`
+}
+
+type espnNCAAFScoreboard struct {
+	Events []struct {
+		Week struct {
+			Number int `json:"number"`
+		} `json:"week"`
+	} `json:"events"`
 }
 
 func (h BotCommandHelp) Top25(request BotCommand) (response HelpResponse) {
@@ -163,7 +172,11 @@ func fetchAPTop25Fallback(client *http.Client, pageURL string) ([]apTop25Rank, s
 	if pollID == "" {
 		pollID = apTop25FallbackPollID
 	}
-	for _, week := range apTop25FallbackWeeks {
+	ncaafWeek, err := fetchCurrentNCAAFWeek(client, time.Now())
+	if err != nil {
+		return nil, "", fmt.Errorf("unable to determine current NCAA week: %w", err)
+	}
+	for _, week := range apWeeksForNCAAFWeek(ncaafWeek) {
 		ranks, resultWeek, available, err := fetchAPTop25Week(client, "https://prod-api.apnews.com", pollID, week, pageURL)
 		if err != nil {
 			return nil, "", err
@@ -173,6 +186,55 @@ func fetchAPTop25Fallback(client *http.Client, pageURL string) ([]apTop25Rank, s
 		}
 	}
 	return nil, "", fmt.Errorf("AP page was blocked and no fallback poll was available")
+}
+
+func apWeeksForNCAAFWeek(ncaafWeek int) []string {
+	if ncaafWeek <= 1 {
+		return []string{"Preseason"}
+	}
+	weeks := make([]string, 0, ncaafWeek)
+	for current := ncaafWeek - 1; current >= 1; current-- {
+		weeks = append(weeks, fmt.Sprintf("Week %d", current))
+	}
+	weeks = append(weeks, "Preseason")
+	return weeks
+}
+
+func fetchCurrentNCAAFWeek(client *http.Client, now time.Time) (int, error) {
+	return fetchCurrentNCAAFWeekFromURL(client, now, espnNCAAFScoreboardURL)
+}
+
+func fetchCurrentNCAAFWeekFromURL(client *http.Client, now time.Time, endpoint string) (int, error) {
+	queryURL, err := url.Parse(endpoint)
+	if err != nil {
+		return 0, err
+	}
+	query := queryURL.Query()
+	query.Set("dates", now.UTC().Format("20060102")+"-"+now.UTC().AddDate(0, 0, 6).Format("20060102"))
+	queryURL.RawQuery = query.Encode()
+	request, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return 0, err
+	}
+	request.Header.Set("User-Agent", "pyrous-gobot/1.0")
+	response, err := client.Do(request)
+	if err != nil {
+		return 0, err
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return 0, fmt.Errorf("ESPN scoreboard returned HTTP %d", response.StatusCode)
+	}
+	var scoreboard espnNCAAFScoreboard
+	if err := json.NewDecoder(response.Body).Decode(&scoreboard); err != nil {
+		return 0, err
+	}
+	for _, event := range scoreboard.Events {
+		if event.Week.Number > 0 {
+			return event.Week.Number, nil
+		}
+	}
+	return 0, fmt.Errorf("ESPN scoreboard returned no week")
 }
 
 func fetchAPTop25Week(client *http.Client, apiBase, pollID, week, pageURL string) ([]apTop25Rank, string, bool, error) {
