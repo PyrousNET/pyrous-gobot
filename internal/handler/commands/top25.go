@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"sort"
 	"strings"
@@ -15,6 +16,12 @@ import (
 )
 
 const apTop25URL = "https://apnews.com/hub/ap-top-25-college-football-poll"
+
+// AP_TOP_25_POLL_ID can be updated when AP starts a new season. This fallback
+// lets the bot use AP's rankings API when Cloudflare blocks the HTML page.
+const apTop25FallbackPollID = "0000019e-d6c2-d6a8-a59e-feea16ca0000"
+
+var apTop25FallbackWeeks = []string{"Week 1", "Preseason"}
 
 var (
 	apPollIDPattern     = regexp.MustCompile(`data-top25-poll-id\s*=\s*"([^"]+)"`)
@@ -115,6 +122,9 @@ func fetchAPTop25FromURL(client *http.Client, pageURL string) ([]apTop25Rank, st
 	}
 	defer pageResponse.Body.Close()
 	if pageResponse.StatusCode != http.StatusOK {
+		if pageResponse.StatusCode == http.StatusForbidden {
+			return fetchAPTop25Fallback(client, pageURL)
+		}
 		return nil, "", fmt.Errorf("AP page returned HTTP %d", pageResponse.StatusCode)
 	}
 
@@ -146,6 +156,23 @@ func fetchAPTop25FromURL(client *http.Client, pageURL string) ([]apTop25Rank, st
 		}
 	}
 	return nil, "", fmt.Errorf("AP Top 25 is not published for the available weeks")
+}
+
+func fetchAPTop25Fallback(client *http.Client, pageURL string) ([]apTop25Rank, string, error) {
+	pollID := os.Getenv("AP_TOP_25_POLL_ID")
+	if pollID == "" {
+		pollID = apTop25FallbackPollID
+	}
+	for _, week := range apTop25FallbackWeeks {
+		ranks, resultWeek, available, err := fetchAPTop25Week(client, "https://prod-api.apnews.com", pollID, week, pageURL)
+		if err != nil {
+			return nil, "", err
+		}
+		if available {
+			return ranks, resultWeek, nil
+		}
+	}
+	return nil, "", fmt.Errorf("AP page was blocked and no fallback poll was available")
 }
 
 func fetchAPTop25Week(client *http.Client, apiBase, pollID, week, pageURL string) ([]apTop25Rank, string, bool, error) {
