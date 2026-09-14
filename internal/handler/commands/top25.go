@@ -12,11 +12,17 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pyrousnet/pyrous-gobot/internal/cache"
 	"github.com/pyrousnet/pyrous-gobot/internal/comms"
 	"github.com/pyrousnet/pyrous-gobot/internal/users"
 )
 
 const apTop25URL = "https://apnews.com/hub/ap-top-25-college-football-poll"
+
+const (
+	apTop25CacheKey = "ap-top25:current"
+	apTop25CacheTTL = time.Hour
+)
 
 const espnNCAAFScoreboardURL = "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard"
 
@@ -68,7 +74,7 @@ func (bc BotCommand) Top25(event BotCommand) error {
 		return fmt.Errorf("could not find user %s", event.sender)
 	}
 
-	teams, week, err := fetchAPTop25(http.DefaultClient)
+	teams, week, err := fetchCachedAPTop25(http.DefaultClient, event.cache)
 	if err != nil {
 		return fmt.Errorf("unable to fetch AP Top 25: %w", err)
 	}
@@ -80,6 +86,43 @@ func (bc BotCommand) Top25(event BotCommand) error {
 		Message:        formatAPTop25(teams, week),
 	}
 	return nil
+}
+
+// fetchCachedAPTop25 avoids repeatedly querying AP while still allowing the
+// current poll to be discovered after a new ranking is published.
+func fetchCachedAPTop25(client *http.Client, c cache.Cache) ([]apTop25Rank, string, error) {
+	return fetchCachedAPTop25WithFetcher(client, c, fetchAPTop25)
+}
+
+func fetchCachedAPTop25WithFetcher(client *http.Client, c cache.Cache, fetcher func(*http.Client) ([]apTop25Rank, string, error)) ([]apTop25Rank, string, error) {
+	if c != nil {
+		if value, ok, err := c.Get(apTop25CacheKey); err == nil && ok {
+			var result apTop25Result
+			if data, ok := value.(string); ok && json.Unmarshal([]byte(data), &result) == nil && len(result.Ranks) > 0 {
+				return result.Ranks, result.Week, nil
+			}
+		}
+	}
+
+	teams, week, err := fetcher(client)
+	if err != nil {
+		return nil, "", err
+	}
+	if c == nil {
+		return teams, week, nil
+	}
+
+	data, err := json.Marshal(apTop25Result{Week: week, Ranks: teams})
+	if err != nil {
+		return teams, week, err
+	}
+	c.Put(apTop25CacheKey, string(data))
+	if expiring, ok := c.(interface {
+		Expire(string, time.Duration)
+	}); ok {
+		expiring.Expire(apTop25CacheKey, apTop25CacheTTL)
+	}
+	return teams, week, nil
 }
 
 func formatAPTop25(teams []apTop25Rank, week string) string {
