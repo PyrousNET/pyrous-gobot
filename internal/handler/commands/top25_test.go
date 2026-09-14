@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestFetchAPTop25(t *testing.T) {
@@ -72,6 +73,29 @@ func TestFetchAPTop25Fallback(t *testing.T) {
 	teams, week, available, err := fetchAPTop25Week(server.Client(), server.URL, "poll-123", "Week 1", "https://apnews.com/hub/ap-top-25-college-football-poll")
 	if err != nil || !available || week != "Week 1" || len(teams) != 1 {
 		t.Fatalf("fallback API result = teams %#v, week %q, available %t, err %v", teams, week, available, err)
+	}
+}
+
+func TestAPTop25FallbackWeeks(t *testing.T) {
+	weeks := apWeeksForNCAAFWeek(3)
+	want := []string{"Week 2", "Week 1", "Preseason"}
+	if strings.Join(weeks, ",") != strings.Join(want, ",") {
+		t.Fatalf("fallback weeks = %v, want %v", weeks, want)
+	}
+}
+
+func TestFetchCurrentNCAAFWeek(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("dates") != "20260914-20260920" {
+			t.Fatalf("unexpected dates query: %s", r.URL.RawQuery)
+		}
+		io.WriteString(w, `{"events":[{"week":{"number":3}}]}`)
+	}))
+	defer server.Close()
+
+	week, err := fetchCurrentNCAAFWeekFromURL(server.Client(), time.Date(2026, time.September, 14, 12, 0, 0, 0, time.UTC), server.URL)
+	if err != nil || week != 3 {
+		t.Fatalf("current week = %d, error = %v", week, err)
 	}
 }
 
