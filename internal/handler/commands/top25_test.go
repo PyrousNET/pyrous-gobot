@@ -130,6 +130,64 @@ func TestFetchCurrentNCAAFWeek(t *testing.T) {
 	}
 }
 
+func TestFetchCurrentNCAAFWeekRetriesTransientBadRequest(t *testing.T) {
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		if requests == 1 {
+			http.Error(w, "temporary ESPN failure", http.StatusBadRequest)
+			return
+		}
+		io.WriteString(w, `{"events":[{"week":{"number":4}}]}`)
+	}))
+	defer server.Close()
+
+	week, err := fetchCurrentNCAAFWeekFromURL(server.Client(), time.Date(2026, time.September, 14, 12, 0, 0, 0, time.UTC), server.URL)
+	if err != nil || week != 4 {
+		t.Fatalf("current week = %d, error = %v", week, err)
+	}
+	if requests != 2 {
+		t.Fatalf("request count = %d, want 2", requests)
+	}
+}
+
+func TestFetchCurrentNCAAFWeekUsesNarrowerRangeAfterBadRequest(t *testing.T) {
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		switch r.URL.Query().Get("dates") {
+		case "20260914-20260920":
+			http.Error(w, "range rejected", http.StatusBadRequest)
+		case "20260914-20260916":
+			io.WriteString(w, `{"events":[{"week":{"number":4}}]}`)
+		default:
+			t.Errorf("unexpected dates query: %s", r.URL.Query().Get("dates"))
+			http.Error(w, "unexpected query", http.StatusBadRequest)
+		}
+	}))
+	defer server.Close()
+
+	week, err := fetchCurrentNCAAFWeekFromURL(server.Client(), time.Date(2026, time.September, 14, 12, 0, 0, 0, time.UTC), server.URL)
+	if err != nil || week != 4 {
+		t.Fatalf("current week = %d, error = %v", week, err)
+	}
+	if requests != 4 {
+		t.Fatalf("request count = %d, want 4", requests)
+	}
+}
+
+func TestFetchCurrentNCAAFWeekIncludesResponseDetails(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "upstream diagnostic", http.StatusBadRequest)
+	}))
+	defer server.Close()
+
+	_, err := fetchCurrentNCAAFWeekFromURL(server.Client(), time.Date(2026, time.September, 14, 12, 0, 0, 0, time.UTC), server.URL)
+	if err == nil || !strings.Contains(err.Error(), "upstream diagnostic") {
+		t.Fatalf("error = %v, want upstream response details", err)
+	}
+}
+
 func TestFormatAPTop25(t *testing.T) {
 	message := formatAPTop25([]apTop25Rank{{Rank: 1, Trend: 2, TeamName: "Alpha", Wins: 10, Losses: 2, Ties: 1}, {Rank: 25, Trend: -3, TeamName: "Beta", Wins: 8, Losses: 4}, {Rank: 12, TeamName: "Gamma", Wins: 6, Losses: 6}}, "Week 2")
 	want := []string{
