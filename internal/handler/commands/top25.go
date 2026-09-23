@@ -257,19 +257,17 @@ func fetchCurrentNCAAFWeekFromURL(client *http.Client, now time.Time, endpoint s
 		client = http.DefaultClient
 	}
 
-	start := now.UTC().Truncate(24 * time.Hour)
-	ranges := [][2]time.Time{
-		{start, start.AddDate(0, 0, 6)},
-		{start, start.AddDate(0, 0, 2)},
-		{start.AddDate(0, 0, 3), start.AddDate(0, 0, 5)},
-		{start.AddDate(0, 0, 6), start.AddDate(0, 0, 6)},
-	}
+	utcNow := now.UTC()
+	start := time.Date(utcNow.Year(), utcNow.Month(), utcNow.Day(), 0, 0, 0, 0, time.UTC)
 
 	var lastErr error
-	for _, dateRange := range ranges {
-		week, err := fetchNCAAFWeekRange(client, endpoint, dateRange[0], dateRange[1])
-		if err == nil {
+	for offset := 0; offset < 7; offset++ {
+		week, found, err := fetchNCAAFWeekDate(client, endpoint, start.AddDate(0, 0, offset))
+		if err == nil && found {
 			return week, nil
+		}
+		if err == nil {
+			continue
 		}
 		lastErr = err
 		if !isRetryableESPNError(err) {
@@ -277,23 +275,26 @@ func fetchCurrentNCAAFWeekFromURL(client *http.Client, now time.Time, endpoint s
 		}
 	}
 
+	if lastErr == nil {
+		return 0, fmt.Errorf("ESPN scoreboard returned no week for the seven-day window starting %s", start.Format("20060102"))
+	}
 	return 0, lastErr
 }
 
-func fetchNCAAFWeekRange(client *http.Client, endpoint string, start, end time.Time) (int, error) {
+func fetchNCAAFWeekDate(client *http.Client, endpoint string, date time.Time) (int, bool, error) {
 	queryURL, err := url.Parse(endpoint)
 	if err != nil {
-		return 0, err
+		return 0, false, err
 	}
 	query := queryURL.Query()
-	query.Set("dates", start.Format("20060102")+"-"+end.Format("20060102"))
+	query.Set("dates", date.Format("20060102"))
 	queryURL.RawQuery = query.Encode()
 
 	var lastErr error
 	for attempt := 0; attempt < espnScoreboardAttempts; attempt++ {
 		request, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
 		if err != nil {
-			return 0, err
+			return 0, false, err
 		}
 		response, err := client.Do(request)
 		if err != nil {
@@ -302,24 +303,24 @@ func fetchNCAAFWeekRange(client *http.Client, endpoint string, start, end time.T
 			body, readErr := io.ReadAll(io.LimitReader(response.Body, 1<<20))
 			response.Body.Close()
 			if readErr != nil {
-				return 0, readErr
+				return 0, false, readErr
 			}
 			if response.StatusCode != http.StatusOK {
 				lastErr = fmt.Errorf("ESPN scoreboard returned HTTP %d for %s: %s", response.StatusCode, queryURL.String(), summarizeResponseBody(body))
 				if !isRetryableESPNStatus(response.StatusCode) {
-					return 0, lastErr
+					return 0, false, lastErr
 				}
 			} else {
 				var scoreboard espnNCAAFScoreboard
 				if err := json.Unmarshal(body, &scoreboard); err != nil {
-					return 0, err
+					return 0, false, err
 				}
 				for _, event := range scoreboard.Events {
 					if event.Week.Number > 0 {
-						return event.Week.Number, nil
+						return event.Week.Number, true, nil
 					}
 				}
-				lastErr = fmt.Errorf("ESPN scoreboard returned no week for %s", queryURL.String())
+				return 0, false, nil
 			}
 		}
 
@@ -328,7 +329,7 @@ func fetchNCAAFWeekRange(client *http.Client, endpoint string, start, end time.T
 		}
 	}
 
-	return 0, lastErr
+	return 0, false, lastErr
 }
 
 func isRetryableESPNStatus(status int) bool {
