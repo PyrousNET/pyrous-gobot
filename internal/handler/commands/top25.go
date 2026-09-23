@@ -26,6 +26,11 @@ const (
 
 const espnNCAAFScoreboardURL = "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard"
 
+const (
+	espnScoreboardAttempts = 3
+	espnRetryDelay         = 250 * time.Millisecond
+)
+
 // AP_TOP_25_POLL_ID can override the current season's poll ID. This fallback
 // lets the bot use AP's rankings API when Cloudflare blocks the HTML page.
 const apTop25FallbackPollID = "0000019e-d6c2-d6a8-a59e-feea16ca0000"
@@ -248,35 +253,109 @@ func fetchCurrentNCAAFWeek(client *http.Client, now time.Time) (int, error) {
 }
 
 func fetchCurrentNCAAFWeekFromURL(client *http.Client, now time.Time, endpoint string) (int, error) {
+	if client == nil {
+		client = http.DefaultClient
+	}
+
+	start := now.UTC().Truncate(24 * time.Hour)
+	ranges := [][2]time.Time{
+		{start, start.AddDate(0, 0, 6)},
+		{start, start.AddDate(0, 0, 2)},
+		{start.AddDate(0, 0, 3), start.AddDate(0, 0, 5)},
+		{start.AddDate(0, 0, 6), start.AddDate(0, 0, 6)},
+	}
+
+	var lastErr error
+	for _, dateRange := range ranges {
+		week, err := fetchNCAAFWeekRange(client, endpoint, dateRange[0], dateRange[1])
+		if err == nil {
+			return week, nil
+		}
+		lastErr = err
+		if !isRetryableESPNError(err) {
+			return 0, err
+		}
+	}
+
+	return 0, lastErr
+}
+
+func fetchNCAAFWeekRange(client *http.Client, endpoint string, start, end time.Time) (int, error) {
 	queryURL, err := url.Parse(endpoint)
 	if err != nil {
 		return 0, err
 	}
 	query := queryURL.Query()
-	query.Set("dates", now.UTC().Format("20060102")+"-"+now.UTC().AddDate(0, 0, 6).Format("20060102"))
+	query.Set("dates", start.Format("20060102")+"-"+end.Format("20060102"))
 	queryURL.RawQuery = query.Encode()
-	request, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
-	if err != nil {
-		return 0, err
-	}
-	response, err := client.Do(request)
-	if err != nil {
-		return 0, err
-	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		return 0, fmt.Errorf("ESPN scoreboard returned HTTP %d", response.StatusCode)
-	}
-	var scoreboard espnNCAAFScoreboard
-	if err := json.NewDecoder(response.Body).Decode(&scoreboard); err != nil {
-		return 0, err
-	}
-	for _, event := range scoreboard.Events {
-		if event.Week.Number > 0 {
-			return event.Week.Number, nil
+
+	var lastErr error
+	for attempt := 0; attempt < espnScoreboardAttempts; attempt++ {
+		request, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+		if err != nil {
+			return 0, err
+		}
+		response, err := client.Do(request)
+		if err != nil {
+			lastErr = fmt.Errorf("ESPN scoreboard request failed for %s: %w", queryURL.String(), err)
+		} else {
+			body, readErr := io.ReadAll(io.LimitReader(response.Body, 1<<20))
+			response.Body.Close()
+			if readErr != nil {
+				return 0, readErr
+			}
+			if response.StatusCode != http.StatusOK {
+				lastErr = fmt.Errorf("ESPN scoreboard returned HTTP %d for %s: %s", response.StatusCode, queryURL.String(), summarizeResponseBody(body))
+				if !isRetryableESPNStatus(response.StatusCode) {
+					return 0, lastErr
+				}
+			} else {
+				var scoreboard espnNCAAFScoreboard
+				if err := json.Unmarshal(body, &scoreboard); err != nil {
+					return 0, err
+				}
+				for _, event := range scoreboard.Events {
+					if event.Week.Number > 0 {
+						return event.Week.Number, nil
+					}
+				}
+				lastErr = fmt.Errorf("ESPN scoreboard returned no week for %s", queryURL.String())
+			}
+		}
+
+		if attempt < espnScoreboardAttempts-1 {
+			time.Sleep(espnRetryDelay * time.Duration(attempt+1))
 		}
 	}
-	return 0, fmt.Errorf("ESPN scoreboard returned no week")
+
+	return 0, lastErr
+}
+
+func isRetryableESPNStatus(status int) bool {
+	return status == http.StatusBadRequest || status == http.StatusForbidden || status == http.StatusTooManyRequests || status >= 500
+}
+
+func isRetryableESPNError(err error) bool {
+	if err == nil {
+		return false
+	}
+	message := err.Error()
+	return strings.Contains(message, "ESPN scoreboard returned HTTP 400") ||
+		strings.Contains(message, "ESPN scoreboard returned HTTP 403") ||
+		strings.Contains(message, "ESPN scoreboard returned HTTP 429") ||
+		strings.Contains(message, "ESPN scoreboard returned HTTP 5") ||
+		strings.Contains(message, "ESPN scoreboard returned no week")
+}
+
+func summarizeResponseBody(body []byte) string {
+	message := strings.TrimSpace(string(body))
+	if message == "" {
+		return "empty response"
+	}
+	if len(message) > 240 {
+		return message[:240] + "..."
+	}
+	return message
 }
 
 func fetchAPTop25Week(client *http.Client, apiBase, pollID, week, pageURL string) ([]apTop25Rank, string, bool, error) {
