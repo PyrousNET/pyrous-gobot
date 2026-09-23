@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -8,8 +9,43 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/pyrousnet/pyrous-gobot/internal/cache"
+	"github.com/pyrousnet/pyrous-gobot/internal/comms"
+	"github.com/pyrousnet/pyrous-gobot/internal/users"
 )
+
+func TestTop25SendsProgressBeforeFetching(t *testing.T) {
+	responseCh := make(chan comms.Response, 2)
+	userData, err := json.Marshal(users.User{Id: "user-id", Name: "test"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := cache.GetLocalCache()
+	c.Put(users.KeyPrefix+"test", userData)
+	event := BotCommand{
+		sender:          "@test",
+		cache:           c,
+		ReplyChannel:    &model.Channel{Id: "channel-id"},
+		ResponseChannel: responseCh,
+	}
+
+	fetcher := func(*http.Client, cache.Cache) ([]apTop25Rank, string, error) {
+		progress := <-responseCh
+		if progress.Message != "I'm pulling the latest AP Top 25 now—please wait a moment." {
+			t.Fatalf("unexpected progress message: %q", progress.Message)
+		}
+		return []apTop25Rank{{Rank: 1, TeamName: "Alpha"}}, "Week 4", nil
+	}
+
+	if err := event.top25WithFetcher(event, fetcher); err != nil {
+		t.Fatalf("Top25 returned error: %v", err)
+	}
+	final := <-responseCh
+	if final.Message != "### AP Top 25 (Week 4)\n| Rank | Team | Record | Movement |\n| ---: | --- | :---: | :---: |\n| 1 | Alpha | 0-0-0 | — |\n\nSource: [AP News — AP Top 25 Poll]("+apTop25URL+")" {
+		t.Fatalf("unexpected final response: %q", final.Message)
+	}
+}
 
 func TestFetchAPTop25(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

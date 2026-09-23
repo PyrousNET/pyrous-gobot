@@ -71,6 +71,10 @@ func (h BotCommandHelp) Top25(request BotCommand) (response HelpResponse) {
 }
 
 func (bc BotCommand) Top25(event BotCommand) error {
+	return bc.top25WithFetcher(event, fetchCachedAPTop25)
+}
+
+func (bc BotCommand) top25WithFetcher(event BotCommand, fetcher func(*http.Client, cache.Cache) ([]apTop25Rank, string, error)) error {
 	u, ok, err := users.GetUser(strings.TrimLeft(event.sender, "@"), event.cache)
 	if err != nil {
 		return err
@@ -79,7 +83,14 @@ func (bc BotCommand) Top25(event BotCommand) error {
 		return fmt.Errorf("could not find user %s", event.sender)
 	}
 
-	teams, week, err := fetchCachedAPTop25(http.DefaultClient, event.cache)
+	event.ResponseChannel <- comms.Response{
+		ReplyChannelId: event.ReplyChannel.Id,
+		UserId:         u.Id,
+		Type:           "post",
+		Message:        "I'm pulling the latest AP Top 25 now—please wait a moment.",
+	}
+
+	teams, week, err := fetcher(http.DefaultClient, event.cache)
 	if err != nil {
 		return fmt.Errorf("unable to fetch AP Top 25: %w", err)
 	}
