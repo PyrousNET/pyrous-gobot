@@ -261,7 +261,8 @@ func fetchCurrentNCAAFWeekFromURL(client *http.Client, now time.Time, endpoint s
 	ranges := [][2]time.Time{
 		{start, start.AddDate(0, 0, 6)},
 		{start, start.AddDate(0, 0, 2)},
-		{start, start},
+		{start.AddDate(0, 0, 3), start.AddDate(0, 0, 5)},
+		{start.AddDate(0, 0, 6), start.AddDate(0, 0, 6)},
 	}
 
 	var lastErr error

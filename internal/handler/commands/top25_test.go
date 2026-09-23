@@ -176,6 +176,26 @@ func TestFetchCurrentNCAAFWeekUsesNarrowerRangeAfterBadRequest(t *testing.T) {
 	}
 }
 
+func TestFetchCurrentNCAAFWeekCoversLateDaysAfterBadRequest(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Query().Get("dates") {
+		case "20260914-20260920", "20260914-20260916":
+			http.Error(w, "range rejected", http.StatusBadRequest)
+		case "20260917-20260919":
+			io.WriteString(w, `{"events":[{"week":{"number":4}}]}`)
+		default:
+			t.Errorf("unexpected dates query: %s", r.URL.Query().Get("dates"))
+			http.Error(w, "unexpected query", http.StatusBadRequest)
+		}
+	}))
+	defer server.Close()
+
+	week, err := fetchCurrentNCAAFWeekFromURL(server.Client(), time.Date(2026, time.September, 14, 12, 0, 0, 0, time.UTC), server.URL)
+	if err != nil || week != 4 {
+		t.Fatalf("current week = %d, error = %v", week, err)
+	}
+}
+
 func TestFetchCurrentNCAAFWeekIncludesResponseDetails(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "upstream diagnostic", http.StatusBadRequest)
