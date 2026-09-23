@@ -117,7 +117,7 @@ func TestAPTop25FallbackWeeks(t *testing.T) {
 
 func TestFetchCurrentNCAAFWeek(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Query().Get("dates") != "20260914-20260920" {
+		if r.URL.Query().Get("dates") != "20260914" {
 			t.Fatalf("unexpected dates query: %s", r.URL.RawQuery)
 		}
 		io.WriteString(w, `{"events":[{"week":{"number":3}}]}`)
@@ -133,6 +133,9 @@ func TestFetchCurrentNCAAFWeek(t *testing.T) {
 func TestFetchCurrentNCAAFWeekRetriesTransientBadRequest(t *testing.T) {
 	requests := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("dates") != "20260914" {
+			t.Fatalf("unexpected dates query: %s", r.URL.RawQuery)
+		}
 		requests++
 		if requests == 1 {
 			http.Error(w, "temporary ESPN failure", http.StatusBadRequest)
@@ -151,18 +154,18 @@ func TestFetchCurrentNCAAFWeekRetriesTransientBadRequest(t *testing.T) {
 	}
 }
 
-func TestFetchCurrentNCAAFWeekUsesNarrowerRangeAfterBadRequest(t *testing.T) {
-	requests := 0
+func TestFetchCurrentNCAAFWeekChecksEachDay(t *testing.T) {
+	var dates []string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requests++
+		dates = append(dates, r.URL.Query().Get("dates"))
 		switch r.URL.Query().Get("dates") {
-		case "20260914-20260920":
-			http.Error(w, "range rejected", http.StatusBadRequest)
-		case "20260914-20260916":
+		case "20260914", "20260915":
+			io.WriteString(w, `{"events":[]}`)
+		case "20260916":
 			io.WriteString(w, `{"events":[{"week":{"number":4}}]}`)
 		default:
 			t.Errorf("unexpected dates query: %s", r.URL.Query().Get("dates"))
-			http.Error(w, "unexpected query", http.StatusBadRequest)
+			io.WriteString(w, `{"events":[]}`)
 		}
 	}))
 	defer server.Close()
@@ -171,28 +174,30 @@ func TestFetchCurrentNCAAFWeekUsesNarrowerRangeAfterBadRequest(t *testing.T) {
 	if err != nil || week != 4 {
 		t.Fatalf("current week = %d, error = %v", week, err)
 	}
-	if requests != 4 {
-		t.Fatalf("request count = %d, want 4", requests)
+	if strings.Join(dates, ",") != "20260914,20260915,20260916" {
+		t.Fatalf("dates queried = %v, want the first three individual dates", dates)
 	}
 }
 
-func TestFetchCurrentNCAAFWeekCoversLateDaysAfterBadRequest(t *testing.T) {
+func TestFetchCurrentNCAAFWeekChecksLateDays(t *testing.T) {
+	var dates []string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Query().Get("dates") {
-		case "20260914-20260920", "20260914-20260916":
-			http.Error(w, "range rejected", http.StatusBadRequest)
-		case "20260917-20260919":
+		date := r.URL.Query().Get("dates")
+		dates = append(dates, date)
+		if date == "20260920" {
 			io.WriteString(w, `{"events":[{"week":{"number":4}}]}`)
-		default:
-			t.Errorf("unexpected dates query: %s", r.URL.Query().Get("dates"))
-			http.Error(w, "unexpected query", http.StatusBadRequest)
+			return
 		}
+		io.WriteString(w, `{"events":[]}`)
 	}))
 	defer server.Close()
 
 	week, err := fetchCurrentNCAAFWeekFromURL(server.Client(), time.Date(2026, time.September, 14, 12, 0, 0, 0, time.UTC), server.URL)
 	if err != nil || week != 4 {
 		t.Fatalf("current week = %d, error = %v", week, err)
+	}
+	if strings.Join(dates, ",") != "20260914,20260915,20260916,20260917,20260918,20260919,20260920" {
+		t.Fatalf("dates queried = %v, want all seven individual dates", dates)
 	}
 }
 
@@ -202,7 +207,7 @@ func TestFetchCurrentNCAAFWeekIncludesResponseDetails(t *testing.T) {
 	}))
 	defer server.Close()
 
-	_, err := fetchCurrentNCAAFWeekFromURL(server.Client(), time.Date(2026, time.September, 14, 12, 0, 0, 0, time.UTC), server.URL)
+	_, _, err := fetchNCAAFWeekDate(server.Client(), server.URL, time.Date(2026, time.September, 14, 0, 0, 0, 0, time.UTC))
 	if err == nil || !strings.Contains(err.Error(), "upstream diagnostic") {
 		t.Fatalf("error = %v, want upstream response details", err)
 	}
