@@ -14,6 +14,8 @@ import (
 	"github.com/pyrousnet/pyrous-gobot/internal/users"
 )
 
+const redditUserAgent = "go:github.com/PyrousNET/pyrous-gobot:v1.0.0"
+
 type (
 	jokeFeed struct {
 		Data struct {
@@ -69,6 +71,7 @@ func fetchJoke(event BotCommand, response comms.Response, hc *http.Client, token
 	req, err := http.NewRequest("POST", token_uri, strings.NewReader("grant_type=client_credentials"))
 	req.SetBasicAuth("aIuZxRUiUiPIFD-fVb--jg", "UpGXB262RUsADk1RNU3vaMqLFCKxmQ")
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("User-Agent", redditUserAgent)
 	r, err := hc.Do(req)
 	if err != nil {
 		response.Type = "dm"
@@ -79,7 +82,7 @@ func fetchJoke(event BotCommand, response comms.Response, hc *http.Client, token
 	defer r.Body.Close()
 
 	if r.StatusCode < http.StatusOK || r.StatusCode >= http.StatusMultipleChoices {
-		return jokeRequestFailed(event, response, fmt.Errorf("reddit token request returned HTTP %s", r.Status))
+		return jokeRequestFailed(event, response, redditHTTPError("token request", r))
 	}
 	b, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -109,6 +112,7 @@ func fetchJoke(event BotCommand, response comms.Response, hc *http.Client, token
 		return err
 	}
 	req.Header.Add("Authorization", bearer)
+	req.Header.Set("User-Agent", redditUserAgent)
 
 	r, err = hc.Do(req)
 	if err != nil {
@@ -120,7 +124,7 @@ func fetchJoke(event BotCommand, response comms.Response, hc *http.Client, token
 	defer r.Body.Close()
 
 	if r.StatusCode < http.StatusOK || r.StatusCode >= http.StatusMultipleChoices {
-		return jokeRequestFailed(event, response, fmt.Errorf("reddit joke request returned HTTP %s", r.Status))
+		return jokeRequestFailed(event, response, redditHTTPError("joke request", r))
 	}
 	b, err = io.ReadAll(r.Body)
 	if err != nil {
@@ -191,4 +195,20 @@ func jokeRequestFailed(event BotCommand, response comms.Response, err error) err
 	response.Message = "My joke got stage fright and hid behind the punchline. I'll try again later!"
 	event.ResponseChannel <- response
 	return nil
+}
+
+func redditHTTPError(operation string, response *http.Response) error {
+	const maxErrorBodyLength = 512
+	body, err := io.ReadAll(io.LimitReader(response.Body, maxErrorBodyLength+1))
+	detail := strings.TrimSpace(string(body))
+	if len(detail) > maxErrorBodyLength {
+		detail = detail[:maxErrorBodyLength] + "..."
+	}
+	if err != nil {
+		return fmt.Errorf("reddit %s returned HTTP %s (could not read error body: %v)", operation, response.Status, err)
+	}
+	if detail == "" {
+		return fmt.Errorf("reddit %s returned HTTP %s", operation, response.Status)
+	}
+	return fmt.Errorf("reddit %s returned HTTP %s: %q", operation, response.Status, detail)
 }
