@@ -145,16 +145,34 @@ func fetchJoke(event BotCommand, response comms.Response, hc *http.Client, token
 		feed.Data.Children[i], feed.Data.Children[j] = feed.Data.Children[j], feed.Data.Children[i]
 	})
 
+	foundContent := false
 	for _, child := range feed.Data.Children {
 		jokeData := child.JokeData
+		title := strings.TrimSpace(jokeData.Title)
+		selftext := strings.TrimSpace(jokeData.Selftext)
+		if title == "" && selftext == "" {
+			continue
+		}
+		foundContent = true
+
 		if !jokeData.Over18 && !jokeData.Stickied && !jokeData.IsVideo {
 			response.Message = jokeData.Title
+			if title == "" {
+				response.Message = jokeData.Selftext
+			}
 			event.ResponseChannel <- response
+			if selftext == "" {
+				return nil
+			}
 			response.Type = "command"
 			response.Message = "/echo \"" + jokeData.Selftext + "\" 5"
 			event.ResponseChannel <- response
 			return nil
 		}
+	}
+
+	if !foundContent {
+		return jokeRequestFailed(event, response, fmt.Errorf("reddit returned no usable jokes"))
 	}
 
 	response.Message = "I couldn't find anything that wouldn't make you blush. :-("

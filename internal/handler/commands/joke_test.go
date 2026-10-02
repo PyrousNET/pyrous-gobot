@@ -54,6 +54,13 @@ func TestFetchJokeHandlesUnusableRedditResponses(t *testing.T) {
 			jokeStatus:  http.StatusOK,
 			jokeBody:    `{"data":{"children":[]}}`,
 		},
+		{
+			name:        "joke entry without content",
+			tokenStatus: http.StatusOK,
+			tokenBody:   `{"access_token":"test-token"}`,
+			jokeStatus:  http.StatusOK,
+			jokeBody:    `{"data":{"children":[{"data":{}}]}}`,
+		},
 	}
 
 	for _, tt := range tests {
