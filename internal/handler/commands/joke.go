@@ -2,7 +2,8 @@ package commands
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"fmt"
+	"io"
 	"log"
 	"math/rand"
 	"net/http"
@@ -60,7 +61,10 @@ func (bc BotCommand) Joke(event BotCommand) error {
 	token_uri := "https://www.reddit.com/api/v1/access_token"
 	uri := "https://oauth.reddit.com/r/dadjokes"
 	hc := &http.Client{Timeout: 10 * time.Second}
+	return fetchJoke(event, response, hc, token_uri, uri)
+}
 
+func fetchJoke(event BotCommand, response comms.Response, hc *http.Client, token_uri, uri string) error {
 	//Get Reddit Access Token
 	req, err := http.NewRequest("POST", token_uri, strings.NewReader("grant_type=client_credentials"))
 	req.SetBasicAuth("aIuZxRUiUiPIFD-fVb--jg", "UpGXB262RUsADk1RNU3vaMqLFCKxmQ")
@@ -73,7 +77,10 @@ func (bc BotCommand) Joke(event BotCommand) error {
 	}
 	defer r.Body.Close()
 
-	b, err := ioutil.ReadAll(r.Body)
+	if r.StatusCode < http.StatusOK || r.StatusCode >= http.StatusMultipleChoices {
+		return jokeRequestFailed(event, response, fmt.Errorf("reddit token request returned HTTP %s", r.Status))
+	}
+	b, err := io.ReadAll(r.Body)
 	if err != nil {
 		response.Type = "dm"
 		response.Message = err.Error()
@@ -83,8 +90,11 @@ func (bc BotCommand) Joke(event BotCommand) error {
 
 	var auth authToken
 	err = json.Unmarshal(b, &auth)
-	if err != nil {
-		log.Fatal(err)
+	if err != nil || auth.AccessToken == "" {
+		if err == nil {
+			err = fmt.Errorf("reddit token response did not contain an access token")
+		}
+		return jokeRequestFailed(event, response, fmt.Errorf("could not parse reddit token response: %w", err))
 	}
 
 	bearer := "Bearer " + auth.AccessToken
@@ -108,7 +118,10 @@ func (bc BotCommand) Joke(event BotCommand) error {
 	}
 	defer r.Body.Close()
 
-	b, err = ioutil.ReadAll(r.Body)
+	if r.StatusCode < http.StatusOK || r.StatusCode >= http.StatusMultipleChoices {
+		return jokeRequestFailed(event, response, fmt.Errorf("reddit joke request returned HTTP %s", r.Status))
+	}
+	b, err = io.ReadAll(r.Body)
 	if err != nil {
 		response.Type = "dm"
 		response.Message = err.Error()
@@ -119,7 +132,10 @@ func (bc BotCommand) Joke(event BotCommand) error {
 	var feed jokeFeed
 	err = json.Unmarshal(b, &feed)
 	if err != nil {
-		log.Fatal(err)
+		return jokeRequestFailed(event, response, fmt.Errorf("could not parse reddit joke response: %w", err))
+	}
+	if len(feed.Data.Children) == 0 {
+		return jokeRequestFailed(event, response, fmt.Errorf("reddit returned no jokes"))
 	}
 
 	response.Type = "post"
@@ -129,11 +145,25 @@ func (bc BotCommand) Joke(event BotCommand) error {
 		feed.Data.Children[i], feed.Data.Children[j] = feed.Data.Children[j], feed.Data.Children[i]
 	})
 
+	foundContent := false
 	for _, child := range feed.Data.Children {
 		jokeData := child.JokeData
+		title := strings.TrimSpace(jokeData.Title)
+		selftext := strings.TrimSpace(jokeData.Selftext)
+		if title == "" && selftext == "" {
+			continue
+		}
+		foundContent = true
+
 		if !jokeData.Over18 && !jokeData.Stickied && !jokeData.IsVideo {
 			response.Message = jokeData.Title
+			if title == "" {
+				response.Message = jokeData.Selftext
+			}
 			event.ResponseChannel <- response
+			if selftext == "" {
+				return nil
+			}
 			response.Type = "command"
 			response.Message = "/echo \"" + jokeData.Selftext + "\" 5"
 			event.ResponseChannel <- response
@@ -141,7 +171,23 @@ func (bc BotCommand) Joke(event BotCommand) error {
 		}
 	}
 
+	if !foundContent {
+		return jokeRequestFailed(event, response, fmt.Errorf("reddit returned no usable jokes"))
+	}
+
 	response.Message = "I couldn't find anything that wouldn't make you blush. :-("
+	event.ResponseChannel <- response
+	return nil
+}
+
+func jokeRequestFailed(event BotCommand, response comms.Response, err error) error {
+	log.Printf("Joke command: %v", err)
+	response.Type = "dm"
+	response.Message = "I couldn't fetch a joke right now. Please try again later."
+	event.ResponseChannel <- response
+
+	response.Type = "post"
+	response.Message = "My joke got stage fright and hid behind the punchline. I'll try again later!"
 	event.ResponseChannel <- response
 	return nil
 }
