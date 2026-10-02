@@ -61,7 +61,10 @@ func (bc BotCommand) Joke(event BotCommand) error {
 	token_uri := "https://www.reddit.com/api/v1/access_token"
 	uri := "https://oauth.reddit.com/r/dadjokes"
 	hc := &http.Client{Timeout: 10 * time.Second}
+	return fetchJoke(event, response, hc, token_uri, uri)
+}
 
+func fetchJoke(event BotCommand, response comms.Response, hc *http.Client, token_uri, uri string) error {
 	//Get Reddit Access Token
 	req, err := http.NewRequest("POST", token_uri, strings.NewReader("grant_type=client_credentials"))
 	req.SetBasicAuth("aIuZxRUiUiPIFD-fVb--jg", "UpGXB262RUsADk1RNU3vaMqLFCKxmQ")
