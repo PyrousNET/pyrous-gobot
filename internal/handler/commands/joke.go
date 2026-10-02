@@ -185,5 +185,9 @@ func jokeRequestFailed(event BotCommand, response comms.Response, err error) err
 	response.Type = "dm"
 	response.Message = "I couldn't fetch a joke right now. Please try again later."
 	event.ResponseChannel <- response
+
+	response.Type = "post"
+	response.Message = "My joke got stage fright and hid behind the punchline. I'll try again later!"
+	event.ResponseChannel <- response
 	return nil
 }

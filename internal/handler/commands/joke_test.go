@@ -92,13 +92,31 @@ func TestFetchJokeHandlesUnusableRedditResponses(t *testing.T) {
 			select {
 			case response := <-responses:
 				if response.Type != "dm" {
-					t.Fatalf("response type = %q, want dm", response.Type)
+					t.Fatalf("first response type = %q, want dm", response.Type)
 				}
 				if !strings.Contains(response.Message, "couldn't fetch a joke") {
-					t.Fatalf("response message = %q, want friendly fetch failure", response.Message)
+					t.Fatalf("DM response message = %q, want friendly fetch failure", response.Message)
+				}
+				if response.ReplyChannelId != "test-channel" {
+					t.Fatalf("DM response channel = %q, want test-channel", response.ReplyChannelId)
 				}
 			default:
-				t.Fatal("fetchJoke() did not send a failure response")
+				t.Fatal("fetchJoke() did not send the failure DM")
+			}
+
+			select {
+			case response := <-responses:
+				if response.Type != "post" {
+					t.Fatalf("second response type = %q, want post", response.Type)
+				}
+				if !strings.Contains(response.Message, "stage fright") {
+					t.Fatalf("channel response message = %q, want silly stage-fright line", response.Message)
+				}
+				if response.ReplyChannelId != "test-channel" {
+					t.Fatalf("channel response channel = %q, want test-channel", response.ReplyChannelId)
+				}
+			default:
+				t.Fatal("fetchJoke() did not send a silly channel post")
 			}
 			if len(responses) != 0 {
 				t.Fatalf("fetchJoke() sent %d unexpected extra responses", len(responses))
