@@ -128,6 +128,9 @@ func TestFetchJokeHandlesUnusableRedditResponses(t *testing.T) {
 func TestFetchJokePostsParsedJoke(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/token" {
+			if got := r.Header.Get("Content-Type"); got != "application/x-www-form-urlencoded" {
+				t.Errorf("token Content-Type = %q, want application/x-www-form-urlencoded", got)
+			}
 			_, _ = w.Write([]byte(`{"access_token":"test-token"}`))
 			return
 		}

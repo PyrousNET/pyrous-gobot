@@ -68,6 +68,7 @@ func fetchJoke(event BotCommand, response comms.Response, hc *http.Client, token
 	//Get Reddit Access Token
 	req, err := http.NewRequest("POST", token_uri, strings.NewReader("grant_type=client_credentials"))
 	req.SetBasicAuth("aIuZxRUiUiPIFD-fVb--jg", "UpGXB262RUsADk1RNU3vaMqLFCKxmQ")
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	r, err := hc.Do(req)
 	if err != nil {
 		response.Type = "dm"
