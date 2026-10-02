@@ -131,12 +131,18 @@ func TestFetchJokePostsParsedJoke(t *testing.T) {
 			if got := r.Header.Get("Content-Type"); got != "application/x-www-form-urlencoded" {
 				t.Errorf("token Content-Type = %q, want application/x-www-form-urlencoded", got)
 			}
+			if got := r.Header.Get("User-Agent"); got != redditUserAgent {
+				t.Errorf("token User-Agent = %q, want %q", got, redditUserAgent)
+			}
 			_, _ = w.Write([]byte(`{"access_token":"test-token"}`))
 			return
 		}
 		if r.URL.Path == "/jokes" {
 			if got := r.Header.Get("Authorization"); got != "Bearer test-token" {
 				t.Errorf("Authorization = %q, want Bearer test-token", got)
+			}
+			if got := r.Header.Get("User-Agent"); got != redditUserAgent {
+				t.Errorf("joke User-Agent = %q, want %q", got, redditUserAgent)
 			}
 			_, _ = w.Write([]byte(`{"data":{"children":[{"data":{"title":"A dad joke","selftext":"A punchline"}}]}}`))
 			return
