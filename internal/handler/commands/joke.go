@@ -192,7 +192,7 @@ func jokeRequestFailed(event BotCommand, response comms.Response, err error) err
 	event.ResponseChannel <- response
 
 	response.Type = "post"
-	response.Message = "My joke got stage fright and hid behind the punchline. I'll try again later!"
+	response.Message = "Reddit's joke drawer is locked, so here's one from mine: Why did the scarecrow win an award? Because he was outstanding in his field!"
 	event.ResponseChannel <- response
 	return nil
 }
