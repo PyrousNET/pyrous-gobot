@@ -109,8 +109,8 @@ func TestFetchJokeHandlesUnusableRedditResponses(t *testing.T) {
 				if response.Type != "post" {
 					t.Fatalf("second response type = %q, want post", response.Type)
 				}
-				if !strings.Contains(response.Message, "stage fright") {
-					t.Fatalf("channel response message = %q, want silly stage-fright line", response.Message)
+				if response.Message != "Reddit's joke drawer is locked, so here's one from mine: Why did the scarecrow win an award? Because he was outstanding in his field!" {
+					t.Fatalf("channel response message = %q, want the local backup joke", response.Message)
 				}
 				if response.ReplyChannelId != "test-channel" {
 					t.Fatalf("channel response channel = %q, want test-channel", response.ReplyChannelId)
