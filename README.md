@@ -95,6 +95,8 @@ The joke command tries Reddit first. If Reddit is unavailable and `OPENAI_API_KE
 
 Set `OPENAI_API_KEY` in the bot process environment to enable generated jokes. The default model is `gpt-4.1-mini`; set `OPENAI_MODEL` to use a different compatible model. Generated jokes are only requested when Reddit fails, and each request uses the configured OpenAI account.
 
+Use `!advice <question>` to ask the same model for advice in a sarcastic, boastful robot voice. Advice is posted in the channel; it uses the same `OPENAI_API_KEY` and optional `OPENAI_MODEL` environment variables.
+
 ## Waving Hands Game
 
 The bot includes a complete implementation of the **Waving Hands** turn-based wizard dueling game. This is a strategic game where wizards cast spells using hand gestures.
