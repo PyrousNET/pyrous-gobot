@@ -244,6 +244,72 @@ func TestOpenAIProviderRejectsMalformedOrIncompleteResponse(t *testing.T) {
 	}
 }
 
+func TestOpenAIAdviceUsesBenderVoiceAndReturnsText(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer advice-key" {
+			t.Errorf("Authorization = %q, want bearer key", got)
+		}
+		var request struct {
+			Model        string  `json:"model"`
+			Instructions string  `json:"instructions"`
+			Input        string  `json:"input"`
+			Temperature  float64 `json:"temperature"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Errorf("decode request: %v", err)
+		}
+		if request.Model != "test-model" || request.Input != "Could you explain binary numbering?" {
+			t.Errorf("request = %#v, want model and original question", request)
+		}
+		if !strings.Contains(strings.ToLower(request.Instructions), "bender") || !strings.Contains(strings.ToLower(request.Instructions), "accurate") {
+			t.Errorf("instructions %q should request Bender-inspired accurate advice", request.Instructions)
+		}
+		if request.Temperature <= 0 {
+			t.Errorf("temperature = %v, want non-deterministic sampling", request.Temperature)
+		}
+		_, _ = w.Write([]byte(`{"output":[{"type":"reasoning"},{"type":"message","content":[{"type":"output_text","text":"Binary is just base 2, meatbag: each digit is a power of two."}]}]}`))
+	}))
+	defer server.Close()
+
+	provider := OpenAI{Client: server.Client(), Endpoint: server.URL, APIKey: "advice-key", Model: "test-model"}
+	got, err := provider.Advice(context.Background(), "Could you explain binary numbering?")
+	if err != nil {
+		t.Fatalf("Advice() error = %v", err)
+	}
+	if got != "Binary is just base 2, meatbag: each digit is a power of two." {
+		t.Fatalf("Advice() = %q", got)
+	}
+}
+
+func TestOpenAIAdviceRejectsMissingQuestionOrOutput(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		key    string
+		input  string
+		status int
+		output string
+	}{
+		{name: "missing key", input: "Question", output: `{"output":[]}`},
+		{name: "blank question", key: "test-key", input: " ", output: `{"output":[]}`},
+		{name: "missing output text", key: "test-key", input: "Question", output: `{"output":[]}`},
+		{name: "API error", key: "test-key", input: "Question", status: http.StatusTooManyRequests, output: `{"error":"rate limited"}`},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				if tt.status != 0 {
+					w.WriteHeader(tt.status)
+				}
+				_, _ = w.Write([]byte(tt.output))
+			}))
+			defer server.Close()
+			provider := OpenAI{Client: server.Client(), Endpoint: server.URL, APIKey: tt.key}
+			if got, err := provider.Advice(context.Background(), tt.input); err == nil {
+				t.Fatalf("Advice() = %q, error = nil; want failure", got)
+			}
+		})
+	}
+}
+
 func containsAll(value string, parts ...string) bool {
 	for _, part := range parts {
 		if !strings.Contains(value, part) {
