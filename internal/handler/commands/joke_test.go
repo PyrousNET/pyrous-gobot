@@ -1,169 +1,101 @@
 package commands
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/pyrousnet/pyrous-gobot/internal/comms"
+	"github.com/pyrousnet/pyrous-gobot/internal/jokes"
 )
 
-func TestFetchJokeHandlesUnusableRedditResponses(t *testing.T) {
-	tests := []struct {
-		name        string
-		tokenStatus int
-		tokenBody   string
-		jokeStatus  int
-		jokeBody    string
-	}{
-		{
-			name:        "HTML token response",
-			tokenStatus: http.StatusOK,
-			tokenBody:   "<html>temporarily unavailable</html>",
-		},
-		{
-			name:        "token response without access token",
-			tokenStatus: http.StatusOK,
-			tokenBody:   `{"error":"temporarily unavailable"}`,
-		},
-		{
-			name:        "token endpoint failure",
-			tokenStatus: http.StatusServiceUnavailable,
-			tokenBody:   "upstream unavailable",
-		},
-		{
-			name:        "HTML joke response",
-			tokenStatus: http.StatusOK,
-			tokenBody:   `{"access_token":"test-token"}`,
-			jokeStatus:  http.StatusOK,
-			jokeBody:    "<html>rate limited</html>",
-		},
-		{
-			name:        "joke endpoint failure",
-			tokenStatus: http.StatusOK,
-			tokenBody:   `{"access_token":"test-token"}`,
-			jokeStatus:  http.StatusServiceUnavailable,
-			jokeBody:    "upstream unavailable",
-		},
-		{
-			name:        "empty joke feed",
-			tokenStatus: http.StatusOK,
-			tokenBody:   `{"access_token":"test-token"}`,
-			jokeStatus:  http.StatusOK,
-			jokeBody:    `{"data":{"children":[]}}`,
-		},
-		{
-			name:        "joke entry without content",
-			tokenStatus: http.StatusOK,
-			tokenBody:   `{"access_token":"test-token"}`,
-			jokeStatus:  http.StatusOK,
-			jokeBody:    `{"data":{"children":[{"data":{}}]}}`,
-		},
+type testJokeProvider struct {
+	joke  jokes.Joke
+	err   error
+	calls int
+}
+
+func (provider *testJokeProvider) Name() string { return "test" }
+
+func (provider *testJokeProvider) Random(context.Context) (jokes.Joke, error) {
+	provider.calls++
+	return provider.joke, provider.err
+}
+
+func TestFetchJokePostsSetupThenDelayedPunchline(t *testing.T) {
+	responses := make(chan comms.Response, 2)
+	event := BotCommand{ResponseChannel: responses}
+	provider := &testJokeProvider{joke: jokes.Joke{Setup: "A setup", Punchline: "A punchline"}}
+
+	if err := fetchJoke(event, comms.Response{}, provider); err != nil {
+		t.Fatalf("fetchJoke() error = %v", err)
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				switch r.URL.Path {
-				case "/token":
-					w.WriteHeader(tt.tokenStatus)
-					_, _ = w.Write([]byte(tt.tokenBody))
-				case "/jokes":
-					w.WriteHeader(tt.jokeStatus)
-					_, _ = w.Write([]byte(tt.jokeBody))
-				default:
-					http.NotFound(w, r)
-				}
-			}))
-			defer server.Close()
-
-			responses := make(chan comms.Response, 2)
-			event := BotCommand{
-				ReplyChannel:    &model.Channel{Id: "test-channel"},
-				ResponseChannel: responses,
-			}
-			err := fetchJoke(event, comms.Response{ReplyChannelId: "test-channel"}, server.Client(), server.URL+"/token", server.URL+"/jokes")
-			if err != nil {
-				t.Fatalf("fetchJoke() error = %v, want nil after sending a failure response", err)
-			}
-
-			select {
-			case response := <-responses:
-				if response.Type != "dm" {
-					t.Fatalf("first response type = %q, want dm", response.Type)
-				}
-				if !strings.Contains(response.Message, "couldn't fetch a joke") {
-					t.Fatalf("DM response message = %q, want friendly fetch failure", response.Message)
-				}
-				if response.ReplyChannelId != "test-channel" {
-					t.Fatalf("DM response channel = %q, want test-channel", response.ReplyChannelId)
-				}
-			default:
-				t.Fatal("fetchJoke() did not send the failure DM")
-			}
-
-			select {
-			case response := <-responses:
-				if response.Type != "post" {
-					t.Fatalf("second response type = %q, want post", response.Type)
-				}
-				if response.Message != "Reddit's joke drawer is locked, so here's one from mine: Why did the scarecrow win an award? Because he was outstanding in his field!" {
-					t.Fatalf("channel response message = %q, want the local backup joke", response.Message)
-				}
-				if response.ReplyChannelId != "test-channel" {
-					t.Fatalf("channel response channel = %q, want test-channel", response.ReplyChannelId)
-				}
-			default:
-				t.Fatal("fetchJoke() did not send a silly channel post")
-			}
-			if len(responses) != 0 {
-				t.Fatalf("fetchJoke() sent %d unexpected extra responses", len(responses))
-			}
-		})
+	setup, delivery := <-responses, <-responses
+	if setup.Type != "post" || setup.Message != "A setup" {
+		t.Fatalf("setup response = %#v, want setup post", setup)
+	}
+	if delivery.Type != "command" || delivery.Message != `/echo "A punchline" 5` {
+		t.Fatalf("delivery response = %#v, want delayed punchline", delivery)
 	}
 }
 
-func TestFetchJokePostsParsedJoke(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/token" {
-			if got := r.Header.Get("Content-Type"); got != "application/x-www-form-urlencoded" {
-				t.Errorf("token Content-Type = %q, want application/x-www-form-urlencoded", got)
-			}
-			if got := r.Header.Get("User-Agent"); got != redditUserAgent {
-				t.Errorf("token User-Agent = %q, want %q", got, redditUserAgent)
-			}
-			_, _ = w.Write([]byte(`{"access_token":"test-token"}`))
-			return
+func TestRedditFailureUsesDadJokeDailyBackup(t *testing.T) {
+	dadJokeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/jokes/random" || r.URL.Query().Get("type") != "dad" {
+			t.Errorf("backup request URL = %s, want dad joke random endpoint", r.URL.String())
 		}
-		if r.URL.Path == "/jokes" {
-			if got := r.Header.Get("Authorization"); got != "Bearer test-token" {
-				t.Errorf("Authorization = %q, want Bearer test-token", got)
-			}
-			if got := r.Header.Get("User-Agent"); got != redditUserAgent {
-				t.Errorf("joke User-Agent = %q, want %q", got, redditUserAgent)
-			}
-			_, _ = w.Write([]byte(`{"data":{"children":[{"data":{"title":"A dad joke","selftext":"A punchline"}}]}}`))
-			return
-		}
-		http.NotFound(w, r)
+		_, _ = w.Write([]byte(`{"joke":{"setup":"Why did the scarecrow win an award?","punchline":"Because he was outstanding in his field!","type":"dad"}}`))
 	}))
-	defer server.Close()
+	defer dadJokeServer.Close()
 
-	responses := make(chan comms.Response, 2)
+	redditServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/token" {
+			t.Errorf("Reddit request path = %q, want /token", r.URL.Path)
+		}
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte("blocked by network policy"))
+	}))
+	defer redditServer.Close()
+
+	responses := make(chan comms.Response, 3)
 	event := BotCommand{ResponseChannel: responses}
-	err := fetchJoke(event, comms.Response{}, server.Client(), server.URL+"/token", server.URL+"/jokes")
-	if err != nil {
+	providers := jokes.Composite{Providers: []jokes.Provider{
+		jokes.Reddit{Client: redditServer.Client(), TokenURL: redditServer.URL + "/token", FeedURL: redditServer.URL + "/feed", ClientID: "client", ClientSecret: "secret"},
+		jokes.DadJokeDaily{Client: dadJokeServer.Client(), Endpoint: dadJokeServer.URL + "/api/v1/jokes/random"},
+	}}
+	if err := fetchJoke(event, comms.Response{}, providers); err != nil {
 		t.Fatalf("fetchJoke() error = %v", err)
 	}
-
-	title := <-responses
-	if title.Type != "post" || title.Message != "A dad joke" {
-		t.Fatalf("title response = %#v, want joke title post", title)
+	setup, delivery := <-responses, <-responses
+	if setup.Type != "post" || setup.Message != "Why did the scarecrow win an award?" {
+		t.Fatalf("setup response = %#v, want backup setup post", setup)
 	}
-	punchline := <-responses
-	if punchline.Type != "command" || punchline.Message != `/echo "A punchline" 5` {
-		t.Fatalf("punchline response = %#v, want echo command", punchline)
+	if delivery.Type != "command" || delivery.Message != `/echo "Because he was outstanding in his field!" 5` {
+		t.Fatalf("delivery response = %#v, want delayed backup punchline", delivery)
+	}
+	if len(responses) != 0 {
+		t.Fatalf("got %d unexpected responses; successful backup should not send failure DM", len(responses))
+	}
+}
+
+func TestFetchJokeSendsDMAndSillyPostWhenAllProvidersFail(t *testing.T) {
+	responses := make(chan comms.Response, 2)
+	event := BotCommand{
+		ReplyChannel:    &model.Channel{Id: "test-channel"},
+		ResponseChannel: responses,
+	}
+	provider := &testJokeProvider{err: errors.New("upstream unavailable")}
+	if err := fetchJoke(event, comms.Response{ReplyChannelId: "test-channel"}, provider); err != nil {
+		t.Fatalf("fetchJoke() error = %v", err)
+	}
+	dm, post := <-responses, <-responses
+	if dm.Type != "dm" || dm.ReplyChannelId != "test-channel" {
+		t.Fatalf("failure DM = %#v", dm)
+	}
+	if post.Type != "post" || post.Message != dadJokeFallback {
+		t.Fatalf("fallback post = %#v, want local silly joke", post)
 	}
 }

@@ -89,6 +89,12 @@ You can verify the Bot is running when
 
 3 - Post a message in the channel such as `are you running?` to see if the Bot responds. You should see a response similar to `Yes I'm running` if the Bot is running.
 
+### Joke command
+
+The joke command tries Reddit first. If Reddit is unavailable and `OPENAI_API_KEY` is set, it asks the OpenAI Responses API for an original setup and punchline with a sarcastic, boastful robot voice inspired by broad Bender character traits. It does not request show dialogue or catchphrases. The command then falls back to Dad Joke Daily if generation is unavailable or fails.
+
+Set `OPENAI_API_KEY` in the bot process environment to enable generated jokes. The default model is `gpt-4.1-mini`; set `OPENAI_MODEL` to use a different compatible model. Generated jokes are only requested when Reddit fails, and each request uses the configured OpenAI account.
+
 ## Waving Hands Game
 
 The bot includes a complete implementation of the **Waving Hands** turn-based wizard dueling game. This is a strategic game where wizards cast spells using hand gestures.
