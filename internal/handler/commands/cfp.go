@@ -40,13 +40,13 @@ type cfpRankingCache struct {
 	Ranks []cfpRank `json:"ranks"`
 }
 
-func (BotCommandHelp) CFP(BotCommand) (response HelpResponse) {
+func (BotCommandHelp) Cfp(BotCommand) (response HelpResponse) {
 	response.Help = "Fetch the latest College Football Playoff committee rankings. Usage: '!cfp'. Requires CFBD_API_KEY."
 	response.Description = "Get the latest CFP rankings"
 	return response
 }
 
-func (bc BotCommand) CFP(event BotCommand) error {
+func (bc BotCommand) Cfp(event BotCommand) error {
 	return bc.cfpWithFetcher(event, fetchCachedCFPRankings)
 }
 
