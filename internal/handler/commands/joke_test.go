@@ -59,11 +59,16 @@ func TestFetchJokeOffersFeedbackForAnyProvider(t *testing.T) {
 	if err := fetchJoke(event, response, provider); err != nil {
 		t.Fatalf("fetchJoke() error = %v", err)
 	}
-	setup := <-responses
-	if !strings.Contains(setup.Message, "!jokefeedback <rating>") {
-		t.Fatalf("joke did not include feedback instructions: %q", setup.Message)
+	setup, delivery := <-responses, <-responses
+	if strings.Contains(setup.Message, "!jokefeedback") {
+		t.Fatalf("setup should not ask for feedback before the punchline: %q", setup.Message)
 	}
-	value, ok, err := c.Get(pendingJokeFeedbackKey("channel-id", "user-id"))
+	punchlineIndex := strings.Index(delivery.Message, "A punchline")
+	feedbackIndex := strings.Index(delivery.Message, "!jokefeedback <rating>")
+	if punchlineIndex < 0 || feedbackIndex <= punchlineIndex {
+		t.Fatalf("feedback instructions should follow the punchline: %q", delivery.Message)
+	}
+	value, ok, err := c.Get(pendingJokeFeedbackKey("channel-id"))
 	if err != nil || !ok {
 		t.Fatalf("pending joke lookup = (%v, %v), want a saved joke; error = %v", value, ok, err)
 	}
@@ -71,7 +76,7 @@ func TestFetchJokeOffersFeedbackForAnyProvider(t *testing.T) {
 	if err := json.Unmarshal([]byte(value.(string)), &pending); err != nil {
 		t.Fatal(err)
 	}
-	if pending.Joke.Setup != "A setup" || pending.Joke.Punchline != "A punchline" || pending.Joke.Provider != "reddit" {
+	if pending.ID == "" || pending.Joke.Setup != "A setup" || pending.Joke.Punchline != "A punchline" || pending.Joke.Provider != "reddit" {
 		t.Fatalf("pending joke = %#v", pending.Joke)
 	}
 }
@@ -85,11 +90,11 @@ func TestJokefeedbackAppendsRatingAndCommentToCSV(t *testing.T) {
 		t.Fatal(err)
 	}
 	c.Put(users.KeyPrefix+"alice", string(userData))
-	pending, err := json.Marshal(pendingJokeFeedback{Joke: jokes.Joke{Setup: "A setup", Punchline: "A punchline", Provider: jokes.OpenAIProviderName}})
+	pending, err := json.Marshal(pendingJokeFeedback{ID: "joke-123", Joke: jokes.Joke{Setup: "A setup", Punchline: "A punchline", Provider: jokes.OpenAIProviderName}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	c.Put(pendingJokeFeedbackKey("channel-id", "user-id"), string(pending))
+	c.Put(pendingJokeFeedbackKey("channel-id"), string(pending))
 	responses := make(chan comms.Response, 1)
 	event := BotCommand{
 		body:            "2 The punchline did not follow",
@@ -113,11 +118,51 @@ func TestJokefeedbackAppendsRatingAndCommentToCSV(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rows) != 2 || rows[1][1] != "2" || rows[1][2] != "The punchline did not follow" || rows[1][3] != "A setup" || rows[1][4] != "A punchline" {
+	if len(rows) != 2 || rows[1][1] != "user-id" || rows[1][2] != "2" || rows[1][3] != "The punchline did not follow" || rows[1][4] != "A setup" || rows[1][5] != "A punchline" {
 		t.Fatalf("feedback CSV rows = %#v", rows)
 	}
-	if _, ok, _ := c.Get(pendingJokeFeedbackKey("channel-id", "user-id")); ok {
-		t.Fatal("pending joke should be cleared after a rating is saved")
+	if _, ok, _ := c.Get(pendingJokeFeedbackKey("channel-id")); !ok {
+		t.Fatal("pending joke should remain available for other channel members to rate")
+	}
+}
+
+func TestDifferentUsersCanRateTheSameJokeOnceEach(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "feedback.csv")
+	t.Setenv("JOKE_FEEDBACK_CSV", path)
+	c := cache.GetLocalCache()
+	for _, user := range []users.User{{Id: "user-1", Name: "alice"}, {Id: "user-2", Name: "bob"}} {
+		data, err := json.Marshal(user)
+		if err != nil {
+			t.Fatal(err)
+		}
+		c.Put(users.KeyPrefix+user.Name, string(data))
+	}
+	pending, err := json.Marshal(pendingJokeFeedback{ID: "shared-joke", Joke: jokes.Joke{Setup: "Setup", Punchline: "Punchline", Provider: "reddit"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.Put(pendingJokeFeedbackKey("channel-id"), string(pending))
+
+	for _, vote := range []struct{ sender, body string }{{"@alice", "4 funny"}, {"@alice", "1 duplicate"}, {"@bob", "5 great"}} {
+		responses := make(chan comms.Response, 1)
+		event := BotCommand{body: vote.body, sender: vote.sender, ReplyChannel: &model.Channel{Id: "channel-id"}, ResponseChannel: responses, cache: c}
+		if err := (BotCommand{}).Jokefeedback(event); err != nil {
+			t.Fatalf("Jokefeedback(%q) error = %v", vote.body, err)
+		}
+		<-responses
+	}
+
+	file, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	rows, err := csv.NewReader(file).ReadAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 3 || rows[1][1] != "user-1" || rows[1][2] != "4" || rows[2][1] != "user-2" || rows[2][2] != "5" || rows[1][8] != "shared-joke" || rows[2][8] != "shared-joke" {
+		t.Fatalf("feedback rows = %#v, want two ratings for shared-joke and no duplicate", rows)
 	}
 }
 
