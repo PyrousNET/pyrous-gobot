@@ -74,7 +74,7 @@ func fetchJoke(event BotCommand, response comms.Response, provider jokes.Provide
 
 	offerFeedback := false
 	if event.cache != nil {
-		if err := rememberJokeForFeedback(event.cache, response.ReplyChannelId, response.UserId, joke); err != nil {
+		if err := rememberJokeForFeedback(event.cache, response.ReplyChannelId, joke); err != nil {
 			log.Printf("Unable to prepare joke feedback: %v", err)
 		} else {
 			offerFeedback = true

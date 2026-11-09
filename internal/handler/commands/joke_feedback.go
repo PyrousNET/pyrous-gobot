@@ -7,8 +7,10 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/pyrousnet/pyrous-gobot/internal/cache"
 	"github.com/pyrousnet/pyrous-gobot/internal/comms"
 	"github.com/pyrousnet/pyrous-gobot/internal/jokes"
@@ -17,14 +19,18 @@ import (
 
 const (
 	jokeFeedbackPendingPrefix = "joke-feedback:pending:"
+	jokeFeedbackRatedPrefix   = "joke-feedback:rated:"
 	jokeFeedbackPendingTTL    = 24 * time.Hour
 	defaultJokeFeedbackCSV    = "joke-feedback.csv"
 	jokeFeedbackPrompt        = "\n\nRate this joke from 1 (nonsense) to 5 (great) with `!jokefeedback <rating> [comment]`."
 )
 
 type pendingJokeFeedback struct {
+	ID   string     `json:"id"`
 	Joke jokes.Joke `json:"joke"`
 }
+
+var jokeFeedbackVoteMu sync.Mutex
 
 func (BotCommandHelp) Jokefeedback(BotCommand) (response HelpResponse) {
 	response.Help = "Rate your latest joke from 1 (nonsense) to 5 (great), with an optional comment. Usage: '!jokefeedback <1-5> [comment]'"
@@ -44,7 +50,7 @@ func (bc BotCommand) Jokefeedback(event BotCommand) error {
 		return nil
 	}
 	if event.cache == nil {
-		postJokeFeedbackResponse(event, "I couldn't find a recent joke from you here to rate.")
+		postJokeFeedbackResponse(event, "I couldn't find a recent joke in this channel to rate.")
 		return nil
 	}
 
@@ -53,20 +59,31 @@ func (bc BotCommand) Jokefeedback(event BotCommand) error {
 		postJokeFeedbackResponse(event, "I couldn't find your account to save that rating.")
 		return nil
 	}
-	key := pendingJokeFeedbackKey(event.ReplyChannel.Id, user.Id)
+	key := pendingJokeFeedbackKey(event.ReplyChannel.Id)
 	value, ok, err := event.cache.Get(key)
 	if err != nil || !ok {
-		postJokeFeedbackResponse(event, "I couldn't find a recent joke from you here to rate.")
+		postJokeFeedbackResponse(event, "I couldn't find a recent joke in this channel to rate.")
 		return nil
 	}
 	serialized, ok := value.(string)
 	if !ok {
-		postJokeFeedbackResponse(event, "I couldn't find a recent joke from you here to rate.")
+		postJokeFeedbackResponse(event, "I couldn't find a recent joke in this channel to rate.")
 		return nil
 	}
 	var pending pendingJokeFeedback
 	if err := json.Unmarshal([]byte(serialized), &pending); err != nil {
-		postJokeFeedbackResponse(event, "I couldn't find a recent joke from you here to rate.")
+		postJokeFeedbackResponse(event, "I couldn't find a recent joke in this channel to rate.")
+		return nil
+	}
+
+	jokeFeedbackVoteMu.Lock()
+	defer jokeFeedbackVoteMu.Unlock()
+	ratedKey := jokeFeedbackRatedKey(event.ReplyChannel.Id, pending.ID, user.Id)
+	if _, alreadyRated, err := event.cache.Get(ratedKey); err != nil {
+		postJokeFeedbackResponse(event, "I couldn't check whether you've already rated this joke. Please try again.")
+		return nil
+	} else if alreadyRated {
+		postJokeFeedbackResponse(event, "You've already rated this joke.")
 		return nil
 	}
 
@@ -77,6 +94,8 @@ func (bc BotCommand) Jokefeedback(event BotCommand) error {
 	}
 	if err := jokes.AppendFeedback(path, jokes.JokeFeedback{
 		Timestamp: time.Now().UTC(),
+		UserID:    user.Id,
+		JokeID:    pending.ID,
 		Rating:    rating,
 		Comment:   comment,
 		Joke:      pending.Joke,
@@ -85,20 +104,23 @@ func (bc BotCommand) Jokefeedback(event BotCommand) error {
 		postJokeFeedbackResponse(event, "I couldn't save that rating right now. Please try again later.")
 		return nil
 	}
-	event.cache.Clean(key)
+	event.cache.Put(ratedKey, "true")
+	if expirer, ok := event.cache.(interface{ Expire(string, time.Duration) }); ok {
+		expirer.Expire(ratedKey, jokeFeedbackPendingTTL)
+	}
 	postJokeFeedbackResponse(event, fmt.Sprintf("Thanks! I saved your %d/5 rating.", rating))
 	return nil
 }
 
-func rememberJokeForFeedback(c cache.Cache, channelID, userID string, joke jokes.Joke) error {
+func rememberJokeForFeedback(c cache.Cache, channelID string, joke jokes.Joke) error {
 	if c == nil {
 		return nil
 	}
-	data, err := json.Marshal(pendingJokeFeedback{Joke: joke})
+	data, err := json.Marshal(pendingJokeFeedback{ID: uuid.NewString(), Joke: joke})
 	if err != nil {
 		return err
 	}
-	key := pendingJokeFeedbackKey(channelID, userID)
+	key := pendingJokeFeedbackKey(channelID)
 	c.Put(key, string(data))
 	if expirer, ok := c.(interface{ Expire(string, time.Duration) }); ok {
 		expirer.Expire(key, jokeFeedbackPendingTTL)
@@ -106,8 +128,12 @@ func rememberJokeForFeedback(c cache.Cache, channelID, userID string, joke jokes
 	return nil
 }
 
-func pendingJokeFeedbackKey(channelID, userID string) string {
-	return jokeFeedbackPendingPrefix + channelID + ":" + userID
+func pendingJokeFeedbackKey(channelID string) string {
+	return jokeFeedbackPendingPrefix + channelID
+}
+
+func jokeFeedbackRatedKey(channelID, jokeID, userID string) string {
+	return jokeFeedbackRatedPrefix + channelID + ":" + jokeID + ":" + userID
 }
 
 func postJokeFeedbackResponse(event BotCommand, message string) {
