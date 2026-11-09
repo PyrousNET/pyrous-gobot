@@ -95,10 +95,11 @@ type DadJokeDaily struct {
 
 // OpenAI generates an original two-part joke using the Responses API.
 type OpenAI struct {
-	Client   *http.Client
-	Endpoint string
-	APIKey   string
-	Model    string
+	Client           *http.Client
+	Endpoint         string
+	APIKey           string
+	Model            string
+	FeedbackGuidance func() string
 }
 
 func (Reddit) Name() string               { return "reddit" }
@@ -123,6 +124,12 @@ type openAIResponse struct {
 }
 
 func (provider OpenAI) Random(ctx context.Context) (Joke, error) {
+	input := jokeGenerationPrompt
+	if provider.FeedbackGuidance != nil {
+		if guidance := strings.TrimSpace(provider.FeedbackGuidance()); guidance != "" {
+			input += "\n\nApply these cached lessons from community ratings: " + guidance
+		}
+	}
 	requestBody := struct {
 		Model           string  `json:"model"`
 		Input           string  `json:"input"`
@@ -141,7 +148,7 @@ func (provider OpenAI) Random(ctx context.Context) (Joke, error) {
 				} `json:"schema"`
 			} `json:"format"`
 		} `json:"text"`
-	}{Model: provider.model(), Input: jokeGenerationPrompt, Temperature: 0.7, MaxOutputTokens: 180}
+	}{Model: provider.model(), Input: input, Temperature: 0.7, MaxOutputTokens: 180}
 	requestBody.Text.Format.Type = "json_schema"
 	requestBody.Text.Format.Name = "joke"
 	requestBody.Text.Format.Strict = true

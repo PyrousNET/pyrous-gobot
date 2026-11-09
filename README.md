@@ -97,7 +97,7 @@ Set `OPENAI_API_KEY` in the bot process environment to enable generated jokes. T
 
 Use `!advice <question>` to ask the same model for advice in a sarcastic, boastful robot voice. Advice is posted in the channel; it uses the same `OPENAI_API_KEY` and optional `OPENAI_MODEL` environment variables.
 
-Jokes can be rated with `!jokefeedback <1-5> [comment]` after the punchline. Each channel member can rate the latest joke once within 24 hours; a new joke replaces it. Ratings, rater user IDs, comments, the joke text, source, model name when applicable, and a shared joke ID are appended to `joke-feedback.csv` in the bot's working directory. Older seven-column CSV files are upgraded automatically on the next rating, preserving existing rows and leaving the new ID fields blank. Set `JOKE_FEEDBACK_CSV` to choose another writable path. These records are intended to help improve joke quality over time; they do not automatically train the model.
+Jokes can be rated with `!jokefeedback <1-5> [comment]` after the punchline. Each channel member can rate the latest joke once within 24 hours; a new joke replaces it. Ratings, rater user IDs, comments, the joke text, source, model name when applicable, and a shared joke ID are appended to `joke-feedback.csv` in the bot's working directory. Cached rating patterns guide future AI-generated jokes without an extra model call. Older seven-column CSV files are upgraded automatically on the next rating, preserving existing rows and leaving the new ID fields blank. Set `JOKE_FEEDBACK_CSV` to choose another writable path. These records do not automatically train the model.
 
 ### CFP rankings command
 

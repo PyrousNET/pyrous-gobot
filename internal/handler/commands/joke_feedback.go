@@ -29,7 +29,7 @@ type pendingJokeFeedback struct {
 	Joke jokes.Joke `json:"joke"`
 }
 
-var jokeFeedbackVoteMu sync.Mutex
+var jokeFeedbackMu sync.Mutex
 
 func (BotCommandHelp) Jokefeedback(BotCommand) (response HelpResponse) {
 	response.Help = "Rate your latest joke from 1 (nonsense) to 5 (great), with an optional comment. Usage: '!jokefeedback <1-5> [comment]'"
@@ -75,8 +75,8 @@ func (bc BotCommand) Jokefeedback(event BotCommand) error {
 		return nil
 	}
 
-	jokeFeedbackVoteMu.Lock()
-	defer jokeFeedbackVoteMu.Unlock()
+	jokeFeedbackMu.Lock()
+	defer jokeFeedbackMu.Unlock()
 	ratedKey := jokeFeedbackRatedKey(event.ReplyChannel.Id, pending.ID, user.Id)
 	if _, alreadyRated, err := event.cache.Get(ratedKey); err != nil {
 		postJokeFeedbackResponse(event, "I couldn't check whether you've already rated this joke. Please try again.")
@@ -87,10 +87,7 @@ func (bc BotCommand) Jokefeedback(event BotCommand) error {
 	}
 
 	comment := strings.Join(fields[1:], " ")
-	path := os.Getenv("JOKE_FEEDBACK_CSV")
-	if path == "" {
-		path = defaultJokeFeedbackCSV
-	}
+	path := jokeFeedbackCSVPath()
 	if err := jokes.AppendFeedback(path, jokes.JokeFeedback{
 		Timestamp: time.Now().UTC(),
 		UserID:    user.Id,
@@ -103,6 +100,7 @@ func (bc BotCommand) Jokefeedback(event BotCommand) error {
 		postJokeFeedbackResponse(event, "I couldn't save that rating right now. Please try again later.")
 		return nil
 	}
+	updateCachedJokeFeedbackProfile(event.cache, path, rating, comment)
 	event.cache.Put(ratedKey, "true")
 	if expirer, ok := event.cache.(interface{ Expire(string, time.Duration) }); ok {
 		expirer.Expire(ratedKey, jokeFeedbackPendingTTL)
@@ -129,6 +127,70 @@ func rememberJokeForFeedback(c cache.Cache, channelID string, joke jokes.Joke) e
 
 func pendingJokeFeedbackKey(channelID string) string {
 	return jokeFeedbackPendingPrefix + channelID
+}
+
+func jokeFeedbackCSVPath() string {
+	if path := os.Getenv("JOKE_FEEDBACK_CSV"); path != "" {
+		return path
+	}
+	return defaultJokeFeedbackCSV
+}
+
+func cachedJokeFeedbackGuidance(c cache.Cache, path string) string {
+	if c == nil {
+		return ""
+	}
+	if value, ok, err := c.Get(jokes.JokeFeedbackProfileCacheKey); err == nil && ok {
+		if serialized, ok := value.(string); ok {
+			var profile jokes.JokeFeedbackProfile
+			if json.Unmarshal([]byte(serialized), &profile) == nil {
+				return profile.GenerationGuidance()
+			}
+		}
+	}
+	profile, err := jokes.LoadJokeFeedbackProfile(path)
+	if err != nil {
+		log.Printf("Unable to load joke feedback profile: %v", err)
+		return ""
+	}
+	serialized, err := json.Marshal(profile)
+	if err != nil {
+		log.Printf("Unable to cache joke feedback profile: %v", err)
+		return ""
+	}
+	c.Put(jokes.JokeFeedbackProfileCacheKey, string(serialized))
+	return profile.GenerationGuidance()
+}
+
+func updateCachedJokeFeedbackProfile(c cache.Cache, path string, rating int, comment string) {
+	if c == nil {
+		return
+	}
+	var profile jokes.JokeFeedbackProfile
+	value, found, cacheErr := c.Get(jokes.JokeFeedbackProfileCacheKey)
+	if cacheErr == nil && found {
+		if serialized, ok := value.(string); ok && json.Unmarshal([]byte(serialized), &profile) == nil {
+			profile.Add(rating, comment)
+			storeJokeFeedbackProfile(c, profile)
+			return
+		}
+	}
+	var err error
+	profile, err = jokes.LoadJokeFeedbackProfile(path)
+	if err != nil {
+		log.Printf("Unable to load joke feedback profile: %v", err)
+		return
+	}
+	storeJokeFeedbackProfile(c, profile)
+}
+
+func storeJokeFeedbackProfile(c cache.Cache, profile jokes.JokeFeedbackProfile) {
+	serialized, err := json.Marshal(profile)
+	if err != nil {
+		log.Printf("Unable to cache joke feedback profile: %v", err)
+		return
+	}
+	c.Put(jokes.JokeFeedbackProfileCacheKey, string(serialized))
 }
 
 func jokeFeedbackRatedKey(channelID, jokeID, userID string) string {
