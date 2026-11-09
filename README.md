@@ -97,6 +97,10 @@ Set `OPENAI_API_KEY` in the bot process environment to enable generated jokes. T
 
 Use `!advice <question>` to ask the same model for advice in a sarcastic, boastful robot voice. Advice is posted in the channel; it uses the same `OPENAI_API_KEY` and optional `OPENAI_MODEL` environment variables.
 
+### CFP rankings command
+
+Use `!cfp` to post the latest College Football Playoff selection committee rankings. The command reads the rankings from the [CollegeFootballData API](https://api.collegefootballdata.com/), which requires a free API key. Set `CFBD_API_KEY` in the bot process environment. Results are cached until the next Tuesday at 7 PM Mountain Time (9 PM Eastern).
+
 ## Waving Hands Game
 
 The bot includes a complete implementation of the **Waving Hands** turn-based wizard dueling game. This is a strategic game where wizards cast spells using hand gestures.
