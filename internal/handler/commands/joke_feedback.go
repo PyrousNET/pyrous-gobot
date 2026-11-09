@@ -22,7 +22,6 @@ const (
 	jokeFeedbackRatedPrefix   = "joke-feedback:rated:"
 	jokeFeedbackPendingTTL    = 24 * time.Hour
 	defaultJokeFeedbackCSV    = "joke-feedback.csv"
-	jokeFeedbackPrompt        = "\n\nRate this joke from 1 (nonsense) to 5 (great) with `!jokefeedback <rating> [comment]`."
 )
 
 type pendingJokeFeedback struct {
