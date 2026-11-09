@@ -72,18 +72,23 @@ func fetchJoke(event BotCommand, response comms.Response, provider jokes.Provide
 		return jokeRequestFailed(event, response, err)
 	}
 
+	offerFeedback := false
+	if event.cache != nil {
+		if err := rememberJokeForFeedback(event.cache, response.ReplyChannelId, response.UserId, joke); err != nil {
+			log.Printf("Unable to prepare joke feedback: %v", err)
+		} else {
+			offerFeedback = true
+		}
+	}
+	hasDelayedPunchline := joke.Setup != "" && joke.Punchline != ""
 	response.Type = "post"
 	response.Message = joke.Setup
 	if response.Message == "" {
 		response.Message = joke.Punchline
 		joke.Punchline = ""
 	}
-	if event.cache != nil {
-		if err := rememberJokeForFeedback(event.cache, response.ReplyChannelId, response.UserId, joke); err != nil {
-			log.Printf("Unable to prepare joke feedback: %v", err)
-		} else {
-			response.Message += "\n\nRate this joke from 1 (nonsense) to 5 (great) with `!jokefeedback <rating> [comment]`."
-		}
+	if offerFeedback && !hasDelayedPunchline {
+		response.Message += jokeFeedbackPrompt
 	}
 	event.ResponseChannel <- response
 	if joke.Punchline == "" {
@@ -91,7 +96,11 @@ func fetchJoke(event BotCommand, response comms.Response, provider jokes.Provide
 	}
 
 	response.Type = "command"
-	response.Message = fmt.Sprintf(`/echo "%s" 5`, joke.Punchline)
+	punchline := joke.Punchline
+	if offerFeedback {
+		punchline += jokeFeedbackPrompt
+	}
+	response.Message = fmt.Sprintf(`/echo "%s" 5`, punchline)
 	event.ResponseChannel <- response
 	return nil
 }

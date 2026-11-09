@@ -59,9 +59,14 @@ func TestFetchJokeOffersFeedbackForAnyProvider(t *testing.T) {
 	if err := fetchJoke(event, response, provider); err != nil {
 		t.Fatalf("fetchJoke() error = %v", err)
 	}
-	setup := <-responses
-	if !strings.Contains(setup.Message, "!jokefeedback <rating>") {
-		t.Fatalf("joke did not include feedback instructions: %q", setup.Message)
+	setup, delivery := <-responses, <-responses
+	if strings.Contains(setup.Message, "!jokefeedback") {
+		t.Fatalf("setup should not ask for feedback before the punchline: %q", setup.Message)
+	}
+	punchlineIndex := strings.Index(delivery.Message, "A punchline")
+	feedbackIndex := strings.Index(delivery.Message, "!jokefeedback <rating>")
+	if punchlineIndex < 0 || feedbackIndex <= punchlineIndex {
+		t.Fatalf("feedback instructions should follow the punchline: %q", delivery.Message)
 	}
 	value, ok, err := c.Get(pendingJokeFeedbackKey("channel-id", "user-id"))
 	if err != nil || !ok {
