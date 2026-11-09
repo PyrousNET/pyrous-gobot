@@ -18,26 +18,42 @@ import (
 
 const (
 	cfpRankingsURL    = "https://collegefootballplayoff.com/rankings"
-	cfbdRankingsURL   = "https://api.collegefootballdata.com/rankings"
-	cfpCacheKeyPrefix = "cfp-rankings:"
+	cfbdAPIBaseURL    = "https://api.collegefootballdata.com"
+	cfpCacheKeyPrefix = "cfp-rankings:v2:"
 )
 
 type cfpRank struct {
 	Rank     int    `json:"rank"`
+	TeamID   int    `json:"teamId"`
 	TeamName string `json:"school"`
+	Wins     int    `json:"wins"`
+	Losses   int    `json:"losses"`
+	Ties     int    `json:"ties"`
+	Movement int    `json:"movement"`
+}
+
+type cfbdPoll struct {
+	Poll  string    `json:"poll"`
+	Ranks []cfpRank `json:"ranks"`
 }
 
 type cfbdRankingSnapshot struct {
-	Week  int `json:"week"`
-	Polls []struct {
-		Poll  string    `json:"poll"`
-		Ranks []cfpRank `json:"ranks"`
-	} `json:"polls"`
+	Week  int        `json:"week"`
+	Polls []cfbdPoll `json:"polls"`
 }
 
 type cfpRankingCache struct {
 	Week  string    `json:"week"`
 	Ranks []cfpRank `json:"ranks"`
+}
+
+type cfbdTeamRecord struct {
+	TeamID int `json:"teamId"`
+	Total  struct {
+		Wins   int `json:"wins"`
+		Losses int `json:"losses"`
+		Ties   int `json:"ties"`
+	} `json:"total"`
 }
 
 func (BotCommandHelp) Cfp(BotCommand) (response HelpResponse) {
@@ -118,69 +134,134 @@ func durationUntilNextCFPRankings(now time.Time) time.Duration {
 }
 
 func fetchCFPRankings(client *http.Client, key string, year int) ([]cfpRank, string, error) {
-	return fetchCFPRankingsFromURL(client, cfbdRankingsURL, key, year)
+	return fetchCFPRankingsFromURL(client, cfbdAPIBaseURL, key, year)
 }
 
-func fetchCFPRankingsFromURL(client *http.Client, endpoint, key string, year int) ([]cfpRank, string, error) {
-	parsed, err := url.Parse(endpoint)
+func fetchCFPRankingsFromURL(client *http.Client, apiBaseURL, key string, year int) ([]cfpRank, string, error) {
+	rankingsURL, err := cfbdEndpointURL(apiBaseURL, "/rankings", url.Values{"year": {fmt.Sprint(year)}, "poll": {"cfp"}})
 	if err != nil {
 		return nil, "", err
 	}
-	query := parsed.Query()
-	query.Set("year", fmt.Sprint(year))
-	query.Set("poll", "cfp")
-	parsed.RawQuery = query.Encode()
-	request, err := http.NewRequest(http.MethodGet, parsed.String(), nil)
+	rankingsBody, err := fetchCFBDResponse(client, rankingsURL, key)
 	if err != nil {
 		return nil, "", err
-	}
-	request.Header.Set("Authorization", "Bearer "+key)
-	response, err := client.Do(request)
-	if err != nil {
-		return nil, "", err
-	}
-	defer response.Body.Close()
-	body, err := io.ReadAll(response.Body)
-	if err != nil {
-		return nil, "", err
-	}
-	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return nil, "", fmt.Errorf("CFBD returned %s: %s", response.Status, strings.TrimSpace(string(body)))
 	}
 	var snapshots []cfbdRankingSnapshot
-	if err := json.Unmarshal(body, &snapshots); err != nil {
+	if err := json.Unmarshal(rankingsBody, &snapshots); err != nil {
 		return nil, "", fmt.Errorf("decode CFBD rankings: %w", err)
 	}
 	if len(snapshots) == 0 {
 		return nil, "", fmt.Errorf("CFBD has not published CFP rankings for %d", year)
 	}
-	latest := snapshots[0]
-	for _, snapshot := range snapshots[1:] {
-		if snapshot.Week > latest.Week {
-			latest = snapshot
+
+	latestIndex := 0
+	previousIndex := -1
+	for i := range snapshots {
+		if snapshots[i].Week > snapshots[latestIndex].Week {
+			latestIndex = i
 		}
 	}
-	var ranks []cfpRank
-	for _, poll := range latest.Polls {
-		if strings.Contains(strings.ToLower(poll.Poll), "playoff") || strings.EqualFold(poll.Poll, "cfp") {
-			ranks = poll.Ranks
-			break
+	for i := range snapshots {
+		if i != latestIndex && snapshots[i].Week < snapshots[latestIndex].Week &&
+			(previousIndex == -1 || snapshots[i].Week > snapshots[previousIndex].Week) {
+			previousIndex = i
 		}
 	}
-	if len(ranks) == 0 && len(latest.Polls) == 1 {
-		ranks = latest.Polls[0].Ranks
-	}
+	latest := snapshots[latestIndex]
+	ranks := cfpRanksForPoll(latest.Polls)
 	if len(ranks) == 0 {
 		return nil, "", fmt.Errorf("CFBD returned no CFP rankings for week %d", latest.Week)
+	}
+	previousRanks := make(map[int]int)
+	if previousIndex >= 0 {
+		for _, rank := range cfpRanksForPoll(snapshots[previousIndex].Polls) {
+			previousRanks[rank.TeamID] = rank.Rank
+		}
+	}
+
+	recordsURL, err := cfbdEndpointURL(apiBaseURL, "/records", url.Values{"year": {fmt.Sprint(year)}})
+	if err != nil {
+		return nil, "", err
+	}
+	recordsBody, err := fetchCFBDResponse(client, recordsURL, key)
+	if err != nil {
+		return nil, "", err
+	}
+	var records []cfbdTeamRecord
+	if err := json.Unmarshal(recordsBody, &records); err != nil {
+		return nil, "", fmt.Errorf("decode CFBD team records: %w", err)
+	}
+	recordsByTeamID := make(map[int]cfbdTeamRecord, len(records))
+	for _, record := range records {
+		recordsByTeamID[record.TeamID] = record
+	}
+	for i := range ranks {
+		if record, ok := recordsByTeamID[ranks[i].TeamID]; ok {
+			ranks[i].Wins = record.Total.Wins
+			ranks[i].Losses = record.Total.Losses
+			ranks[i].Ties = record.Total.Ties
+		}
+		if previousRank, ok := previousRanks[ranks[i].TeamID]; ok {
+			ranks[i].Movement = previousRank - ranks[i].Rank
+		}
 	}
 	sort.Slice(ranks, func(i, j int) bool { return ranks[i].Rank < ranks[j].Rank })
 	return ranks, fmt.Sprintf("Week %d", latest.Week), nil
 }
 
+func cfpRanksForPoll(polls []cfbdPoll) []cfpRank {
+	for _, poll := range polls {
+		if strings.Contains(strings.ToLower(poll.Poll), "playoff") || strings.EqualFold(poll.Poll, "cfp") {
+			return poll.Ranks
+		}
+	}
+	if len(polls) == 1 {
+		return polls[0].Ranks
+	}
+	return nil
+}
+
+func cfbdEndpointURL(apiBaseURL, path string, query url.Values) (string, error) {
+	parsed, err := url.Parse(strings.TrimRight(apiBaseURL, "/") + path)
+	if err != nil {
+		return "", err
+	}
+	parsed.RawQuery = query.Encode()
+	return parsed.String(), nil
+}
+
+func fetchCFBDResponse(client *http.Client, endpoint, key string) ([]byte, error) {
+	if client == nil {
+		client = http.DefaultClient
+	}
+	request, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+	request.Header.Set("Authorization", "Bearer "+key)
+	response, err := client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		return nil, err
+	}
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return nil, fmt.Errorf("CFBD returned %s: %s", response.Status, strings.TrimSpace(string(body)))
+	}
+	return body, nil
+}
+
 func formatCFPRankings(ranks []cfpRank, week string) string {
-	lines := []string{fmt.Sprintf("### CFP Rankings (%s)", week), "| Rank | Team |", "| ---: | --- |"}
+	lines := []string{fmt.Sprintf("### CFP Rankings (%s)", week), "| Rank | Team | Record | Movement |", "| ---: | --- | :---: | :---: |"}
 	for _, rank := range ranks {
-		lines = append(lines, fmt.Sprintf("| %d | %s |", rank.Rank, rank.TeamName))
+		lines = append(lines, fmt.Sprintf("| %d | %s | %s | %s |", rank.Rank, rank.TeamName, formatCFPRecord(rank), formatAPTrend(rank.Movement)))
 	}
 	return strings.Join(append(lines, "", fmt.Sprintf("Source: [College Football Playoff](%s)", cfpRankingsURL)), "\n")
+}
+
+func formatCFPRecord(rank cfpRank) string {
+	return fmt.Sprintf("%d-%d-%d", rank.Wins, rank.Losses, rank.Ties)
 }

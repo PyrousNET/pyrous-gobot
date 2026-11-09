@@ -99,7 +99,7 @@ Use `!advice <question>` to ask the same model for advice in a sarcastic, boastf
 
 ### CFP rankings command
 
-Use `!cfp` to post the latest College Football Playoff selection committee rankings. The command reads the rankings from the [CollegeFootballData API](https://api.collegefootballdata.com/), which requires a free API key. Set `CFBD_API_KEY` in the bot process environment. Results are cached until the next Tuesday at 7 PM Mountain Time (9 PM Eastern).
+Use `!cfp` to post the latest College Football Playoff selection committee rankings, including each team's record and movement since the prior CFP ranking. The command reads rankings and records from the [CollegeFootballData API](https://api.collegefootballdata.com/), which requires a free API key. Set `CFBD_API_KEY` in the bot process environment. Results are cached until the next Tuesday at 7 PM Mountain Time (9 PM Eastern).
 
 ## Waving Hands Game
 
