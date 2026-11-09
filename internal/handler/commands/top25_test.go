@@ -266,3 +266,62 @@ func TestFormatAPTop25(t *testing.T) {
 		}
 	}
 }
+
+func TestFetchCFPRankingsFromURL(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/rankings" || r.URL.Query().Get("poll") != "cfp" || r.URL.Query().Get("year") != "2026" {
+			t.Errorf("unexpected request: %s", r.URL.String())
+		}
+		if r.Header.Get("Authorization") != "Bearer test-key" {
+			t.Errorf("Authorization = %q", r.Header.Get("Authorization"))
+		}
+		io.WriteString(w, `[{"season":2026,"seasonType":"regular","week":10,"polls":[{"poll":"Playoff Committee Rankings","ranks":[{"rank":2,"school":"Beta","conference":"Big Ten","record":"8-1"},{"rank":1,"school":"Alpha","conference":"SEC","record":"9-0"}]}]}]`)
+	}))
+	defer server.Close()
+
+	teams, week, err := fetchCFPRankingsFromURL(server.Client(), server.URL+"/rankings", "test-key", 2026)
+	if err != nil {
+		t.Fatalf("fetchCFPRankingsFromURL() error = %v", err)
+	}
+	if week != "Week 10" || len(teams) != 2 || teams[0].Rank != 1 || teams[0].TeamName != "Alpha" {
+		t.Fatalf("rankings = %#v, week = %q", teams, week)
+	}
+}
+
+func TestFetchCachedCFPRankingsUsesCacheUntilWeeklyRelease(t *testing.T) {
+	c := cache.GetLocalCache()
+	fetches := 0
+	fetcher := func(*http.Client, string, int) ([]cfpRank, string, error) {
+		fetches++
+		return []cfpRank{{Rank: 1, TeamName: "Alpha"}}, "Week 10", nil
+	}
+	for range 2 {
+		if _, _, err := fetchCachedCFPRankingsWithFetcher(http.DefaultClient, c, "key", 2026, fetcher); err != nil {
+			t.Fatalf("fetch error = %v", err)
+		}
+	}
+	if fetches != 1 {
+		t.Fatalf("upstream fetch count = %d, want 1", fetches)
+	}
+}
+
+func TestDurationUntilNextCFPRankings(t *testing.T) {
+	location, err := time.LoadLocation("America/Denver")
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, time.November, 10, 18, 0, 0, 0, location) // Tuesday, 6 PM MST
+	if got, want := durationUntilNextCFPRankings(now), time.Hour; got != want {
+		t.Fatalf("duration = %s, want %s", got, want)
+	}
+}
+
+func TestFormatCFPRankings(t *testing.T) {
+	got := formatCFPRankings([]cfpRank{{Rank: 1, TeamName: "Alpha"}, {Rank: 12, TeamName: "Beta"}}, "Week 10")
+	want := []string{"### CFP Rankings (Week 10)", "| Rank | Team |", "| 1 | Alpha |", "| 12 | Beta |", "Source: [College Football Playoff](" + cfpRankingsURL + ")"}
+	for _, line := range want {
+		if !strings.Contains(got, line) {
+			t.Errorf("formatted rankings missing %q:\n%s", line, got)
+		}
+	}
+}
