@@ -122,6 +122,17 @@ func TestJokefeedbackAppendsRatingAndCommentToCSV(t *testing.T) {
 	if _, ok, _ := c.Get(pendingJokeFeedbackKey("channel-id")); !ok {
 		t.Fatal("pending joke should remain available for other channel members to rate")
 	}
+	profileData, ok, err := c.Get(jokes.JokeFeedbackProfileCacheKey)
+	if err != nil || !ok {
+		t.Fatalf("feedback profile cache lookup = (%v, %v), error = %v", profileData, ok, err)
+	}
+	var profile jokes.JokeFeedbackProfile
+	if err := json.Unmarshal([]byte(profileData.(string)), &profile); err != nil {
+		t.Fatal(err)
+	}
+	if profile.Count != 1 || !strings.Contains(profile.GenerationGuidance(), "clear logical connection") {
+		t.Fatalf("feedback profile = %#v, guidance = %q", profile, profile.GenerationGuidance())
+	}
 }
 
 func TestDifferentUsersCanRateTheSameJokeOnceEach(t *testing.T) {
@@ -161,6 +172,17 @@ func TestDifferentUsersCanRateTheSameJokeOnceEach(t *testing.T) {
 	}
 	if len(rows) != 3 || rows[1][1] != "user-1" || rows[1][2] != "4" || rows[2][1] != "user-2" || rows[2][2] != "5" || rows[1][8] != "shared-joke" || rows[2][8] != "shared-joke" {
 		t.Fatalf("feedback rows = %#v, want two ratings for shared-joke and no duplicate", rows)
+	}
+	profileData, ok, err := c.Get(jokes.JokeFeedbackProfileCacheKey)
+	if err != nil || !ok {
+		t.Fatalf("feedback profile cache lookup = (%v, %v), error = %v", profileData, ok, err)
+	}
+	var profile jokes.JokeFeedbackProfile
+	if err := json.Unmarshal([]byte(profileData.(string)), &profile); err != nil {
+		t.Fatal(err)
+	}
+	if profile.Count != 2 || profile.RatingTotal != 9 {
+		t.Fatalf("feedback profile = %#v, want two votes totaling 9", profile)
 	}
 }
 

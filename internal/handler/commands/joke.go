@@ -56,10 +56,16 @@ func (bc BotCommand) Joke(event BotCommand) error {
 		}},
 	}
 	if apiKey := os.Getenv("OPENAI_API_KEY"); apiKey != "" {
+		feedbackGuidance := func() string {
+			jokeFeedbackMu.Lock()
+			defer jokeFeedbackMu.Unlock()
+			return cachedJokeFeedbackGuidance(event.cache, jokeFeedbackCSVPath())
+		}
 		providers.Providers = append(providers.Providers, jokes.OpenAI{
-			Client: &http.Client{Timeout: 30 * time.Second},
-			APIKey: apiKey,
-			Model:  os.Getenv("OPENAI_MODEL"),
+			Client:           &http.Client{Timeout: 30 * time.Second},
+			APIKey:           apiKey,
+			Model:            os.Getenv("OPENAI_MODEL"),
+			FeedbackGuidance: feedbackGuidance,
 		})
 	}
 	providers.Providers = append(providers.Providers, jokes.DadJokeDaily{Client: hc})

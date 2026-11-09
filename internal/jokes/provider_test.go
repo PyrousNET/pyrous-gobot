@@ -223,12 +223,15 @@ func TestOpenAIProviderRequestsOriginalRobotStyleJoke(t *testing.T) {
 				t.Errorf("prompt %q should include quality guidance %q", request.Input, requirement)
 			}
 		}
+		if !strings.Contains(request.Input, "ratings favor clear logical punchlines") {
+			t.Errorf("prompt %q should include cached feedback guidance", request.Input)
+		}
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"output":[{"type":"message","content":[{"type":"output_text","text":"{\"setup\":\"Why did the robot open a comedy club?\",\"punchline\":\"The drinks were free, and it plans to steal the cash register.\"}"}]}]}`))
 	}))
 	defer server.Close()
 
-	provider := OpenAI{Client: server.Client(), Endpoint: server.URL + "/v1/responses", APIKey: "test-key", Model: "test-model"}
+	provider := OpenAI{Client: server.Client(), Endpoint: server.URL + "/v1/responses", APIKey: "test-key", Model: "test-model", FeedbackGuidance: func() string { return "ratings favor clear logical punchlines" }}
 	got, err := provider.Random(context.Background())
 	if err != nil {
 		t.Fatalf("Random() error = %v", err)

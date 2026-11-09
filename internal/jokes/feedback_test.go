@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -98,5 +99,51 @@ func TestAppendFeedbackUpgradesLegacyCSVBeforeAppending(t *testing.T) {
 	}
 	if !reflect.DeepEqual(records, want) {
 		t.Fatalf("upgraded CSV records = %#v, want %#v", records, want)
+	}
+}
+
+func TestJokeFeedbackProfileTurnsRatingsIntoCachedGenerationGuidance(t *testing.T) {
+	var profile JokeFeedbackProfile
+	profile.Add(1, "The pun felt forced and the punchline made no sense")
+	profile.Add(3, "It was funny but not laugh out loud funny")
+	profile.Add(5, "The clever twist made this one work")
+
+	guidance := profile.GenerationGuidance()
+	for _, want := range []string{"3 rating(s)", "clear logical connection", "sharper twist", "use puns only when they feel natural", "surprising twists"} {
+		if !strings.Contains(guidance, want) {
+			t.Errorf("generation guidance %q does not include %q", guidance, want)
+		}
+	}
+}
+
+func TestLoadJokeFeedbackProfileReadsLegacyCSV(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "legacy-feedback.csv")
+	file, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writer := csv.NewWriter(file)
+	for _, row := range [][]string{
+		{"timestamp_utc", "rating", "comment", "setup", "punchline", "provider", "model"},
+		{"2026-11-08T17:00:00Z", "2", "The punchline was confusing", "Setup", "Punchline", "reddit", ""},
+	} {
+		if err := writer.Write(row); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writer.Flush()
+	if err := writer.Error(); err != nil {
+		t.Fatal(err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	profile, err := LoadJokeFeedbackProfile(path)
+	if err != nil {
+		t.Fatalf("LoadJokeFeedbackProfile() error = %v", err)
+	}
+	if profile.Count != 1 || profile.RatingTotal != 2 || profile.ConfusingLow != 1 {
+		t.Fatalf("profile = %#v, want one low confusing rating", profile)
 	}
 }
