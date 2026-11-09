@@ -49,7 +49,7 @@ func TestFetchJokePostsSetupThenDelayedPunchline(t *testing.T) {
 	}
 }
 
-func TestFetchJokeOffersFeedbackForAnyProvider(t *testing.T) {
+func TestFetchJokeStoresPendingFeedbackWithoutPrompt(t *testing.T) {
 	c := cache.GetLocalCache()
 	responses := make(chan comms.Response, 2)
 	event := BotCommand{cache: c, ResponseChannel: responses}
@@ -60,13 +60,11 @@ func TestFetchJokeOffersFeedbackForAnyProvider(t *testing.T) {
 		t.Fatalf("fetchJoke() error = %v", err)
 	}
 	setup, delivery := <-responses, <-responses
-	if strings.Contains(setup.Message, "!jokefeedback") {
-		t.Fatalf("setup should not ask for feedback before the punchline: %q", setup.Message)
+	if strings.Contains(setup.Message, "!jokefeedback") || strings.Contains(delivery.Message, "!jokefeedback") {
+		t.Fatalf("joke output should not contain feedback instructions: setup=%q delivery=%q", setup.Message, delivery.Message)
 	}
-	punchlineIndex := strings.Index(delivery.Message, "A punchline")
-	feedbackIndex := strings.Index(delivery.Message, "!jokefeedback <rating>")
-	if punchlineIndex < 0 || feedbackIndex <= punchlineIndex {
-		t.Fatalf("feedback instructions should follow the punchline: %q", delivery.Message)
+	if delivery.Message != `/echo "A punchline" 5` {
+		t.Fatalf("punchline delivery = %q, want no feedback prompt appended", delivery.Message)
 	}
 	value, ok, err := c.Get(pendingJokeFeedbackKey("channel-id"))
 	if err != nil || !ok {
