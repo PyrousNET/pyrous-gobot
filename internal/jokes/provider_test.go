@@ -36,8 +36,8 @@ func TestCompositeUsesNextProviderAfterFailure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Random() error = %v", err)
 	}
-	if got != backup.joke {
-		t.Fatalf("Random() = %#v, want %#v", got, backup.joke)
+	if got.Setup != backup.joke.Setup || got.Punchline != backup.joke.Punchline || got.Provider != "dad joke daily" {
+		t.Fatalf("Random() = %#v, want the backup joke and provider name", got)
 	}
 	if primary.calls != 1 || backup.calls != 1 {
 		t.Fatalf("provider calls = (%d, %d), want (1, 1)", primary.calls, backup.calls)
@@ -57,6 +57,17 @@ func TestCompositeStopsAtFirstSuccessfulProvider(t *testing.T) {
 	}
 	if got.Setup != "Primary" || backup.calls != 0 {
 		t.Fatalf("Random() = %#v, backup calls = %d; want primary joke and no backup call", got, backup.calls)
+	}
+}
+
+func TestCompositeReturnsSelectedProviderName(t *testing.T) {
+	provider := &stubProvider{name: "openai joke generator", joke: Joke{Setup: "A setup", Punchline: "A punchline"}}
+	got, err := (Composite{Providers: []Provider{provider}}).Random(context.Background())
+	if err != nil {
+		t.Fatalf("Random() error = %v", err)
+	}
+	if got.Provider != "openai joke generator" {
+		t.Fatalf("joke provider = %q, want openai joke generator", got.Provider)
 	}
 }
 
@@ -201,11 +212,16 @@ func TestOpenAIProviderRequestsOriginalRobotStyleJoke(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 			t.Errorf("decode request: %v", err)
 		}
-		if request.Model != "test-model" || request.Temperature != 0.9 || request.Text.Format.Type != "json_schema" || !request.Text.Format.Strict {
-			t.Errorf("request configuration = %#v, want test model, non-deterministic sampling, and strict JSON schema", request)
+		if request.Model != "test-model" || request.Temperature != 0.7 || request.Text.Format.Type != "json_schema" || !request.Text.Format.Strict {
+			t.Errorf("request configuration = %#v, want test model, controlled sampling, and strict JSON schema", request)
 		}
 		if !strings.Contains(strings.ToLower(request.Input), "bender") || !strings.Contains(strings.ToLower(request.Input), "original") {
 			t.Errorf("prompt %q should request original Bender-inspired material", request.Input)
+		}
+		for _, requirement := range []string{"one strong comedic idea", "unexpected payoff", "familiar stock jokes", "punchline follows from the setup", "obvious connection", "random details", "read naturally"} {
+			if !strings.Contains(strings.ToLower(request.Input), requirement) {
+				t.Errorf("prompt %q should include quality guidance %q", request.Input, requirement)
+			}
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"output":[{"type":"message","content":[{"type":"output_text","text":"{\"setup\":\"Why did the robot open a comedy club?\",\"punchline\":\"The drinks were free, and it plans to steal the cash register.\"}"}]}]}`))

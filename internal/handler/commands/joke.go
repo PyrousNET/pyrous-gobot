@@ -78,6 +78,13 @@ func fetchJoke(event BotCommand, response comms.Response, provider jokes.Provide
 		response.Message = joke.Punchline
 		joke.Punchline = ""
 	}
+	if joke.Provider == jokes.OpenAIProviderName {
+		if err := rememberJokeForFeedback(event.cache, response.ReplyChannelId, response.UserId, joke); err != nil {
+			log.Printf("Unable to prepare joke feedback: %v", err)
+		} else if event.cache != nil {
+			response.Message += "\n\nRate this AI joke from 1 (nonsense) to 5 (great) with `!jokefeedback <rating> [comment]`."
+		}
+	}
 	event.ResponseChannel <- response
 	if joke.Punchline == "" {
 		return nil
