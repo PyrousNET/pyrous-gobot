@@ -2,14 +2,21 @@ package commands
 
 import (
 	"context"
+	"encoding/csv"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/pyrousnet/pyrous-gobot/internal/cache"
 	"github.com/pyrousnet/pyrous-gobot/internal/comms"
 	"github.com/pyrousnet/pyrous-gobot/internal/jokes"
+	"github.com/pyrousnet/pyrous-gobot/internal/users"
 )
 
 type testJokeProvider struct {
@@ -39,6 +46,89 @@ func TestFetchJokePostsSetupThenDelayedPunchline(t *testing.T) {
 	}
 	if delivery.Type != "command" || delivery.Message != `/echo "A punchline" 5` {
 		t.Fatalf("delivery response = %#v, want delayed punchline", delivery)
+	}
+}
+
+func TestFetchJokeOffersFeedbackForAIGeneratedJoke(t *testing.T) {
+	c := cache.GetLocalCache()
+	responses := make(chan comms.Response, 2)
+	event := BotCommand{cache: c, ResponseChannel: responses}
+	provider := &testJokeProvider{joke: jokes.Joke{Setup: "A setup", Punchline: "A punchline", Provider: jokes.OpenAIProviderName}}
+	response := comms.Response{ReplyChannelId: "channel-id", UserId: "user-id"}
+
+	if err := fetchJoke(event, response, provider); err != nil {
+		t.Fatalf("fetchJoke() error = %v", err)
+	}
+	setup := <-responses
+	if !strings.Contains(setup.Message, "!jokefeedback <rating>") {
+		t.Fatalf("AI joke did not include feedback instructions: %q", setup.Message)
+	}
+	value, ok, err := c.Get(pendingJokeFeedbackKey("channel-id", "user-id"))
+	if err != nil || !ok {
+		t.Fatalf("pending joke lookup = (%v, %v), want a saved joke; error = %v", value, ok, err)
+	}
+	var pending pendingJokeFeedback
+	if err := json.Unmarshal([]byte(value.(string)), &pending); err != nil {
+		t.Fatal(err)
+	}
+	if pending.Joke.Setup != "A setup" || pending.Joke.Punchline != "A punchline" || pending.Joke.Provider != jokes.OpenAIProviderName {
+		t.Fatalf("pending joke = %#v", pending.Joke)
+	}
+}
+
+func TestJokefeedbackAppendsRatingAndCommentToCSV(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "feedback.csv")
+	t.Setenv("JOKE_FEEDBACK_CSV", path)
+	c := cache.GetLocalCache()
+	userData, err := json.Marshal(users.User{Id: "user-id", Name: "alice"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.Put(users.KeyPrefix+"alice", string(userData))
+	pending, err := json.Marshal(pendingJokeFeedback{Joke: jokes.Joke{Setup: "A setup", Punchline: "A punchline", Provider: jokes.OpenAIProviderName}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.Put(pendingJokeFeedbackKey("channel-id", "user-id"), string(pending))
+	responses := make(chan comms.Response, 1)
+	event := BotCommand{
+		body:            "2 The punchline did not follow",
+		sender:          "@alice",
+		ReplyChannel:    &model.Channel{Id: "channel-id"},
+		ResponseChannel: responses,
+		cache:           c,
+	}
+	if err := (BotCommand{}).Jokefeedback(event); err != nil {
+		t.Fatalf("Jokefeedback() error = %v", err)
+	}
+	if response := <-responses; !strings.Contains(response.Message, "2/5") {
+		t.Fatalf("feedback response = %#v", response)
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	rows, err := csv.NewReader(file).ReadAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 2 || rows[1][1] != "2" || rows[1][2] != "The punchline did not follow" || rows[1][3] != "A setup" || rows[1][4] != "A punchline" {
+		t.Fatalf("feedback CSV rows = %#v", rows)
+	}
+	if _, ok, _ := c.Get(pendingJokeFeedbackKey("channel-id", "user-id")); ok {
+		t.Fatal("pending joke should be cleared after a rating is saved")
+	}
+}
+
+func TestJokefeedbackRejectsRatingsOutsideOneToFive(t *testing.T) {
+	responses := make(chan comms.Response, 1)
+	event := BotCommand{body: "6", ReplyChannel: &model.Channel{Id: "channel-id"}, ResponseChannel: responses}
+	if err := (BotCommand{}).Jokefeedback(event); err != nil {
+		t.Fatalf("Jokefeedback() error = %v", err)
+	}
+	if response := <-responses; !strings.Contains(response.Message, "from 1 to 5") {
+		t.Fatalf("invalid-rating response = %#v", response)
 	}
 }
 
