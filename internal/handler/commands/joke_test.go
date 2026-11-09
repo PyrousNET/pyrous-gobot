@@ -49,11 +49,11 @@ func TestFetchJokePostsSetupThenDelayedPunchline(t *testing.T) {
 	}
 }
 
-func TestFetchJokeOffersFeedbackForAIGeneratedJoke(t *testing.T) {
+func TestFetchJokeOffersFeedbackForAnyProvider(t *testing.T) {
 	c := cache.GetLocalCache()
 	responses := make(chan comms.Response, 2)
 	event := BotCommand{cache: c, ResponseChannel: responses}
-	provider := &testJokeProvider{joke: jokes.Joke{Setup: "A setup", Punchline: "A punchline", Provider: jokes.OpenAIProviderName}}
+	provider := &testJokeProvider{joke: jokes.Joke{Setup: "A setup", Punchline: "A punchline", Provider: "reddit"}}
 	response := comms.Response{ReplyChannelId: "channel-id", UserId: "user-id"}
 
 	if err := fetchJoke(event, response, provider); err != nil {
@@ -61,7 +61,7 @@ func TestFetchJokeOffersFeedbackForAIGeneratedJoke(t *testing.T) {
 	}
 	setup := <-responses
 	if !strings.Contains(setup.Message, "!jokefeedback <rating>") {
-		t.Fatalf("AI joke did not include feedback instructions: %q", setup.Message)
+		t.Fatalf("joke did not include feedback instructions: %q", setup.Message)
 	}
 	value, ok, err := c.Get(pendingJokeFeedbackKey("channel-id", "user-id"))
 	if err != nil || !ok {
@@ -71,7 +71,7 @@ func TestFetchJokeOffersFeedbackForAIGeneratedJoke(t *testing.T) {
 	if err := json.Unmarshal([]byte(value.(string)), &pending); err != nil {
 		t.Fatal(err)
 	}
-	if pending.Joke.Setup != "A setup" || pending.Joke.Punchline != "A punchline" || pending.Joke.Provider != jokes.OpenAIProviderName {
+	if pending.Joke.Setup != "A setup" || pending.Joke.Punchline != "A punchline" || pending.Joke.Provider != "reddit" {
 		t.Fatalf("pending joke = %#v", pending.Joke)
 	}
 }

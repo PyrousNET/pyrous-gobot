@@ -26,15 +26,15 @@ type pendingJokeFeedback struct {
 }
 
 func (BotCommandHelp) Jokefeedback(BotCommand) (response HelpResponse) {
-	response.Help = "Rate your latest AI-generated joke from 1 (nonsense) to 5 (great), with an optional comment. Usage: '!jokefeedback <1-5> [comment]'"
-	response.Description = "Rate the latest AI-generated joke"
+	response.Help = "Rate your latest joke from 1 (nonsense) to 5 (great), with an optional comment. Usage: '!jokefeedback <1-5> [comment]'"
+	response.Description = "Rate the latest joke"
 	return response
 }
 
 func (bc BotCommand) Jokefeedback(event BotCommand) error {
 	fields := strings.Fields(event.body)
 	if len(fields) == 0 {
-		postJokeFeedbackResponse(event, "Rate your latest AI-generated joke from 1 (nonsense) to 5 (great) with `!jokefeedback <1-5> [comment]`.")
+		postJokeFeedbackResponse(event, "Rate your latest joke from 1 (nonsense) to 5 (great) with `!jokefeedback <1-5> [comment]`.")
 		return nil
 	}
 	rating, err := strconv.Atoi(fields[0])
@@ -43,7 +43,7 @@ func (bc BotCommand) Jokefeedback(event BotCommand) error {
 		return nil
 	}
 	if event.cache == nil {
-		postJokeFeedbackResponse(event, "I couldn't find a recent AI-generated joke from you here to rate.")
+		postJokeFeedbackResponse(event, "I couldn't find a recent joke from you here to rate.")
 		return nil
 	}
 
@@ -55,17 +55,17 @@ func (bc BotCommand) Jokefeedback(event BotCommand) error {
 	key := pendingJokeFeedbackKey(event.ReplyChannel.Id, user.Id)
 	value, ok, err := event.cache.Get(key)
 	if err != nil || !ok {
-		postJokeFeedbackResponse(event, "I couldn't find a recent AI-generated joke from you here to rate.")
+		postJokeFeedbackResponse(event, "I couldn't find a recent joke from you here to rate.")
 		return nil
 	}
 	serialized, ok := value.(string)
 	if !ok {
-		postJokeFeedbackResponse(event, "I couldn't find a recent AI-generated joke from you here to rate.")
+		postJokeFeedbackResponse(event, "I couldn't find a recent joke from you here to rate.")
 		return nil
 	}
 	var pending pendingJokeFeedback
 	if err := json.Unmarshal([]byte(serialized), &pending); err != nil {
-		postJokeFeedbackResponse(event, "I couldn't find a recent AI-generated joke from you here to rate.")
+		postJokeFeedbackResponse(event, "I couldn't find a recent joke from you here to rate.")
 		return nil
 	}
 
@@ -90,7 +90,7 @@ func (bc BotCommand) Jokefeedback(event BotCommand) error {
 }
 
 func rememberJokeForFeedback(c cache.Cache, channelID, userID string, joke jokes.Joke) error {
-	if c == nil || joke.Provider != jokes.OpenAIProviderName {
+	if c == nil {
 		return nil
 	}
 	data, err := json.Marshal(pendingJokeFeedback{Joke: joke})
