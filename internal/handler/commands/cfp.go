@@ -17,9 +17,11 @@ import (
 )
 
 const (
-	cfpRankingsURL    = "https://collegefootballplayoff.com/rankings"
-	cfbdAPIBaseURL    = "https://api.collegefootballdata.com"
-	cfpCacheKeyPrefix = "cfp-rankings:v2:"
+	cfpRankingsURL              = "https://collegefootballplayoff.com/rankings"
+	cfbdAPIBaseURL              = "https://api.collegefootballdata.com"
+	cfpCacheKeyPrefix           = "cfp-rankings:v3:"
+	cfpPostReleaseRefreshWindow = 12 * time.Hour
+	cfpPostReleaseCacheTTL      = 5 * time.Minute
 )
 
 type cfpRank struct {
@@ -112,11 +114,35 @@ func fetchCachedCFPRankingsWithFetcher(client *http.Client, c cache.Cache, key s
 		if marshalErr == nil {
 			c.Put(cacheKey, string(serialized))
 			if expirer, ok := c.(interface{ Expire(string, time.Duration) }); ok {
-				expirer.Expire(cacheKey, durationUntilNextCFPRankings(time.Now()))
+				expirer.Expire(cacheKey, cfpCacheTTL(time.Now()))
 			}
 		}
 	}
 	return ranks, week, nil
+}
+
+// cfpCacheTTL briefly retries the feed after the Tuesday release. The upstream
+// rankings API can lag the committee's release, so caching its previous poll
+// for a full week would otherwise keep serving stale rankings.
+func cfpCacheTTL(now time.Time) time.Duration {
+	location, err := time.LoadLocation("America/Denver")
+	if err != nil {
+		location = time.FixedZone("MST", -7*60*60)
+	}
+	localNow := now.In(location)
+	if localNow.Weekday() == time.Tuesday {
+		release := time.Date(localNow.Year(), localNow.Month(), localNow.Day(), 19, 0, 0, 0, location)
+		if !localNow.Before(release) && localNow.Before(release.Add(cfpPostReleaseRefreshWindow)) {
+			return cfpPostReleaseCacheTTL
+		}
+	}
+	if localNow.Weekday() == time.Wednesday {
+		release := time.Date(localNow.Year(), localNow.Month(), localNow.Day()-1, 19, 0, 0, 0, location)
+		if localNow.Before(release.Add(cfpPostReleaseRefreshWindow)) {
+			return cfpPostReleaseCacheTTL
+		}
+	}
+	return durationUntilNextCFPRankings(now)
 }
 
 func durationUntilNextCFPRankings(now time.Time) time.Duration {
